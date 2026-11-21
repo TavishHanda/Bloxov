@@ -1,6 +1,6 @@
-20
+21
 rpc 9a215769c764
-scripts/item_db.gd 8e5861b7cd6e
+scripts/item_db.gd ea581b2a81cd
 scripts/online_profile.gd ac59400d7ddb
 scripts/net_guard.gd 016b33a1d638
 scripts/net_accounts.gd 258aaabe6e07

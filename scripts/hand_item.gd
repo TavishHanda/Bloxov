@@ -107,10 +107,26 @@ func _build(id: String) -> Node3D:
 			var stripe := _box(Vector3(0.072, 0.03, 0.072), Color(0.95, 0.85, 0.2))
 			root.add_child(stripe)
 		_:
-			if id == "medkit":
-				root.add_child(_box(Vector3(0.16, 0.1, 0.06), Color(0.75, 0.15, 0.15)))
-				var cross_a := _box(Vector3(0.06, 0.018, 0.065), Color(0.95, 0.95, 0.95))
-				var cross_b := _box(Vector3(0.018, 0.06, 0.065), Color(0.95, 0.95, 0.95))
+			if id == "painkillers":   # (0.38.7) a pill bottle, cap up
+				var bottle := MeshInstance3D.new()
+				var body := CylinderMesh.new()
+				body.top_radius = 0.025
+				body.bottom_radius = 0.025
+				body.height = 0.075
+				body.radial_segments = 8
+				body.material = Effects.unshaded(Color(0.82, 0.48, 0.16))
+				bottle.mesh = body
+				root.add_child(bottle)
+				var cap := _box(Vector3(0.054, 0.022, 0.054), Color(0.92, 0.92, 0.9))
+				cap.position.y = 0.045
+				root.add_child(cap)
+			elif id in ["medkit", "trauma_kit"]:
+				var big := id == "trauma_kit"   # (0.38.7: the trauma kit, a bigger olive pouch)
+				root.add_child(_box(Vector3(0.2, 0.15, 0.08) if big else Vector3(0.16, 0.1, 0.06),
+						Color(0.36, 0.38, 0.21) if big else Color(0.75, 0.15, 0.15)))
+				var depth := 0.085 if big else 0.065
+				var cross_a := _box(Vector3(0.06, 0.018, depth), Color(0.95, 0.95, 0.95))
+				var cross_b := _box(Vector3(0.018, 0.06, depth), Color(0.95, 0.95, 0.95))
 				root.add_child(cross_a)
 				root.add_child(cross_b)
 			else:

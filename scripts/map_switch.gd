@@ -12,10 +12,15 @@ extends StaticBody3D
 @export var alarm_radius := 70.0
 ## Klaxon blasts, ALARM_GAP s apart.
 @export var alarm_blasts := 6
+## (0.38.7, owner: "maybe takes some time to open") seconds from throwing it until its extracts open: the lifeboat
+## lowering (30 s), the pilot boat's engine warming up (20 s). 0 opens them at once. The alarm sounds the whole time.
+@export var open_delay := 0.0
 
 const ALARM_GAP := 2.4
 
 var used := false
+## Seconds left until its extracts open (while open_delay runs).
+var _wait_left := 0.0
 
 
 func _ready() -> void:
@@ -37,6 +42,10 @@ func _ready() -> void:
 
 
 func prompt() -> String:
+	if _wait_left > 0.0:
+		return "Wait... %d s" % ceili(_wait_left)
+	if used and open_delay > 0.0:
+		return "Ready"
 	return "Power on" if used else prompt_text
 
 
@@ -57,17 +66,32 @@ func power_on() -> void:
 		return
 	used = true
 	WorldSounds.at(self, WorldSounds.POWER_ON, global_position, 0.0, 40.0)
+	var zones: Array[ExtractZone] = []
 	var powered: Array[Vector3] = [global_position]
 	for node in RaidScope.nodes(self, &"extracts"):
 		var zone := node as ExtractZone
 		if zone != null and zone.needs_power == switch_id:
-			zone.set_open(true)
+			zones.append(zone)
 			powered.append(zone.global_position)
-	_alarm(powered)
+	var blasts := alarm_blasts
+	if open_delay > 0.0:
+		blasts = maxi(blasts, ceili(open_delay / ALARM_GAP) + 1)   # it keeps blaring until the boat's ready
+	_alarm(powered, blasts)
+	if open_delay > 0.0:
+		_wait_left = open_delay
+		while _wait_left > 0.0:
+			if not is_inside_tree():
+				return
+			await get_tree().process_frame
+			_wait_left -= get_process_delta_time()
+		_wait_left = 0.0
+	for zone in zones:
+		if is_instance_valid(zone):
+			zone.set_open(true)
 
 
-func _alarm(at: Array[Vector3]) -> void:
-	for blast in alarm_blasts:
+func _alarm(at: Array[Vector3], blasts: int) -> void:
+	for blast in blasts:
 		if not is_inside_tree():
 			return
 		for pos in at:

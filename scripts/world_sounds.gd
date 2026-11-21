@@ -30,6 +30,8 @@ const OTHERS_IMPACT_DB := -8.0
 const ITEMS := {
 	"bandage": preload("res://audio/items/bandage.wav"),
 	"medkit": preload("res://audio/items/medkit.wav"),
+	"trauma_kit": preload("res://audio/items/medkit.wav"),
+	"painkillers": preload("res://audio/items/pills.wav"),     # (0.38.7)
 	"energy_drink": preload("res://audio/items/drink.wav"),
 }
 const PIN := preload("res://audio/items/pin.wav")

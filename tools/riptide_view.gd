@@ -68,6 +68,18 @@ const VIEWS := {
 	"overview-ship": [Vector3(130, 90, -150), Vector3(10, 0, 20)],
 	"road": [Vector3(-160, 4.2, -2), Vector3(-60, 4, 0)],
 	"terminal": [Vector3(-136, 4.2, -99.4), Vector3(-60, 4, -99.4)],
+	"boat-deck": [Vector3(76, 11, 106), Vector3(66, 7, 91)],
+	"boat-in": [Vector3(62.6, 9.2, 85.2), Vector3(67, 7.5, 96)],
+	"bow-cab": [Vector3(62.3, 4.3, -122.3), Vector3(66.9, 3.4, -119)],
+	"impound": [Vector3(-99.5, 7.8, -21.3), Vector3(-94.5, 7.0, -25)],
+	"impound-open": [Vector3(-98.5, 8.2, -20.8), Vector3(-95.0, 6.6, -25.5)],
+	"stair-gap": [Vector3(58.1, 9.3, 77.8), Vector3(60.1, 4.0, 88.0)],
+	"stair-door": [Vector3(51.0, 5.6, 79.5), Vector3(55.0, 4.0, 77.5)],
+	"impound-in": [Vector3(-96.6, 7.9, -25.6), Vector3(-93, 6.3, -29.5)],
+	"clinic-out": [Vector3(-101, 4.4, -127.0), Vector3(-108, 4.4, -122)],
+	"clinic-south": [Vector3(-118, 4.4, -106.0), Vector3(-112, 4.4, -112)],
+	"clinic-wait": [Vector3(-115.3, 4.4, -112.8), Vector3(-104, 3.0, -120)],
+	"clinic-bay": [Vector3(-104.4, 4.2, -118.2), Vector3(-100.4, 3.0, -121)],
 	"yard-open": [Vector3(-128.5, 4.2, -97.0), Vector3(-122, 3.5, -100.3)],
 	"yard-in": [Vector3(-126.5, 4.0, -100.3), Vector3(-116, 3.8, -100.3)],
 	"yard-high": [Vector3(-130, 14, -112), Vector3(-110, 2, -90)],
@@ -293,6 +305,9 @@ func _run() -> void:
 	cam.current = true
 	if "norain" in OS.get_cmdline_user_args() and main.get_node_or_null("Rain") != null:
 		main.get_node("Rain").free()   # (clearer pictures of the art)
+	if "opendoors" in OS.get_cmdline_user_args():   # (the key doors swung open)
+		for d in get_nodes_in_group(&"key_doors"):
+			d.call("open")
 	await create_timer(2.0).timeout   # (the raid's opening fade)
 	for view: String in VIEWS:
 		if only != "" and not view in only.split(","):

@@ -27,6 +27,9 @@ var _hinge: Node3D
 var _shape: CollisionShape3D
 var _face: CollisionShape3D
 var _swing := -100.0
+## (0.38.14, owner: "when the vault door is open, you should not be able to walk through it ... but make sure
+## players cant just get stuck behind it either") the open door's own hitbox, where the round door stands swung open.
+var _open_leaf: CollisionShape3D
 
 
 func _ready() -> void:
@@ -149,3 +152,33 @@ func open() -> void:
 	collision_layer = 0
 	if is_inside_tree() and _hinge != null:
 		create_tween().tween_property(_hinge, "rotation:y", deg_to_rad(_swing), 1.4).set_trans(Tween.TRANS_SINE)
+	if is_inside_tree() and not Engine.is_editor_hint():
+		_settle_leaf()
+
+
+## The open door goes solid where it stands (the same on every game and the server, whatever it draws), once it has
+## swung and nobody is standing in its way: anyone in the swing when it opens walks clear first, so nobody ends up
+## inside it or shut behind it.
+func _settle_leaf() -> void:
+	await get_tree().create_timer(1.5).timeout
+	if not is_inside_tree():
+		return
+	var sx := size.x / 2.4
+	var leaf := BoxShape3D.new()
+	leaf.size = Vector3(2.5 * sx, size.y, 0.3)
+	var hinge := Transform3D(Basis(Vector3.UP, deg_to_rad(SWING)), Vector3(PIN.x * sx, 0, PIN.y))
+	var at := hinge * Transform3D(Basis(), Vector3(1.35 * sx, size.y * 0.5, 0))
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = leaf
+	query.transform = global_transform * at
+	query.collision_mask = 2 | 4   # (players and the AI)
+	query.exclude = [get_rid()]
+	while is_inside_tree() and not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty():
+		await get_tree().create_timer(0.5).timeout
+	if not is_inside_tree():
+		return
+	_open_leaf = CollisionShape3D.new()
+	_open_leaf.shape = leaf
+	_open_leaf.transform = at
+	add_child(_open_leaf)
+	collision_layer = 1   # (the world: it stops people and bullets; no longer something to press F at)

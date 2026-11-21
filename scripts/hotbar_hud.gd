@@ -153,7 +153,7 @@ func slot_info(i: int) -> Dictionary:
 			info["state"] = "out"
 		else:
 			var id: String = found[1].id
-			info["icon"] = HudStyle.MED if id == "medkit" else HudStyle.BANDAGE
+			info["icon"] = HudStyle.MED if id in ["medkit", "trauma_kit"] else HudStyle.BANDAGE
 			info["count"] = "x%d" % inventory.count_of(id)
 			info["stripe"] = ItemDB.color(id)
 			info["state"] = "filled"
