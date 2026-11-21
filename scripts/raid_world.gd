@@ -274,20 +274,26 @@ func throw_grenade(from: Vector3, vel: Vector3, on_kill := Callable()) -> void:
 
 
 ## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.
-func drop_bag(pos: Vector3, title: String, data: Array, body := false) -> void:
+## `pack`: a body's backpack contents (stack data, 0.38.9).
+func drop_bag(pos: Vector3, title: String, data: Array, body := false, pack := []) -> void:
 	var contents := []
 	for entry in data:
 		var stack := GridInventory.data_stack(entry)
 		if stack != null:
 			contents.append(stack)
-	if contents.is_empty():
+	var pack_contents := []
+	for entry in pack:
+		var stack := GridInventory.data_stack(entry)
+		if stack != null:
+			pack_contents.append(stack)
+	if contents.is_empty() and pack_contents.is_empty():
 		return
 	# (onto the pile already there, unless someone has it open: 0.15.16)
 	var pile := LootContainer.pile_near(raid, pos) if not body else null
 	if pile != null and not locks.has(String(pile.name)):
 		pile.add_to_pile(contents)
 	else:
-		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body)
+		LootContainer.spawn_bag(raid, pos, title, contents, 0.0, body, pack_contents)
 
 
 ## A bot's start point counts the AI spawn spots this close to it (0.36.5), and only points at most BOT_CALM_SLACK
