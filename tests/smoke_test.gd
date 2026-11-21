@@ -5087,6 +5087,12 @@ func _section_crafting() -> void:
 	for entry in [["med_supplies", 1], ["duct_tape", 1], ["bolts", 10], ["wires", 3], ["scrap", 3]]:
 		Profile.stash.add(entry[0], entry[1])
 	var bandages := Profile.stash.count_of("bandage")
+	var craft_menu := hideout.find_child("CraftMenuButton", true, false) as Button
+	_check(craft_menu != null and craft_menu.visible == not GameSettings.is_phone(), "the menu's top bar has a CRAFT button (0.38.8)")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "craft", "the CRAFT button opens crafting")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "gear", "pressing CRAFT again goes back to the stash")
 	hideout.open_craft()
 	_check(hideout.current_screen() == "craft", "the workbench opens the crafting screen")
 	var row: Control = hideout.craft_screen._rows.get_node("bandage")
