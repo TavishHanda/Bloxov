@@ -297,7 +297,7 @@ const BOT_CALM_SLACK := 2
 
 
 ## Where the raid's real squads will start (their Matchmaker spawn slots), told to the AI spawner before its AI comes
-## in (0.38.8): the AI used to be placed before any player was in this world, so it never kept away from them.
+## in (0.38.9): the AI used to be placed before any player was in this world, so it never kept away from them.
 func set_player_starts(slots: Array, seed_value: int) -> void:
 	var spawns := raid.get_node_or_null("PlayerSpawns")
 	var spawner := raid.get_node_or_null("EnemySpawner")

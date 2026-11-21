@@ -1197,7 +1197,7 @@ func _send_raid_start(id: int) -> void:
 		_health.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
-	# (0.38.8) the AI keeps away from where the squads start: it comes in before any of them is in the raid world
+	# (0.38.9) the AI keeps away from where the squads start: it comes in before any of them is in the raid world
 	world.set_player_starts(raid["spawns"].values().map(func(spawn: Array) -> int: return int(spawn[0])), int(raid["seed"]))
 	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless the map has bots on): at the spawn points the real squads didn't take.
 	if int(raid.get("bots", 0)) > 0:

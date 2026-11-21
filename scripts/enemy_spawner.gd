@@ -54,7 +54,7 @@ extends Node3D
 ## {"scav": scene path, "raider": scene path}. Same AI, other clothes and names.
 @export var looks := {}
 
-## Where the raid's players start (0.38.8, owner: online a sniper scav and a zone's scavs shot players before they could
+## Where the raid's players start (0.38.9, owner: online a sniper scav and a zone's scavs shot players before they could
 ## move). The server makes its AI before any player is in the raid world, so it never knew where they'd stand:
 ## RaidWorld sets this before the AI comes in (offline the player is already there). These spots count as players
 ## for the first START_GUARD seconds: no AI starts near one or where it can be seen from one, and snipers take

@@ -5087,6 +5087,12 @@ func _section_crafting() -> void:
 	for entry in [["med_supplies", 1], ["duct_tape", 1], ["bolts", 10], ["wires", 3], ["scrap", 3]]:
 		Profile.stash.add(entry[0], entry[1])
 	var bandages := Profile.stash.count_of("bandage")
+	var craft_menu := hideout.find_child("CraftMenuButton", true, false) as Button
+	_check(craft_menu != null and craft_menu.visible == not GameSettings.is_phone(), "the menu's top bar has a CRAFT button (0.38.8)")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "craft", "the CRAFT button opens crafting")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "gear", "pressing CRAFT again goes back to the stash")
 	hideout.open_craft()
 	_check(hideout.current_screen() == "craft", "the workbench opens the crafting screen")
 	var row: Control = hideout.craft_screen._rows.get_node("bandage")
@@ -5590,7 +5596,7 @@ func _section_online_ai() -> void:
 	_check(w1_spawner.player_starts.size() == 1 and w1_spawner.player_starts[0].distance_to(Raid.spawn_position(
 		w1.raid.get_node("PlayerSpawns").get_children(), int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["spawns"][c1_id][0]), 0,
 		int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["seed"]))) < 0.1,
-		"the server's AI is told where the raid's players will start (0.38.8)")
+		"the server's AI is told where the raid's players will start (0.38.9)")
 	_check(scavs1.all(func(e: Node) -> bool: return RaidScope.nodes(e, &"player") == [w1.proxies.get(c1_id)]),
 		"a raid's scavs only see that raid's players (one proxy each)")
 	await _until(func() -> bool: return c1.enemies.size() == 3)
@@ -9246,7 +9252,7 @@ func _section_spawn_budget() -> void:
 		enemy.queue_free()
 	crowded.queue_free()
 	await _frames(2)
-	# 0.38.8 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
+	# 0.38.9 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
 	# the raid world, so it's told where the squads start; no AI starts near one, and none after the start guard ends
 	# is kept off that spot any more (the real players count then).
 	var start := player.global_position + Vector3(-90, 0, -90)
