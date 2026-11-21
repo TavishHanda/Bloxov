@@ -7198,9 +7198,13 @@ func _section_pmc_ai() -> void:
 	ref.free()
 	var spread_ok := true
 	for bot: Scav in [a, b]:
-		var skill := bot.accuracy_near / 0.7
-		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_far, 0.35 * skill) \
-			and is_equal_approx(bot.accuracy_long, 0.2 * skill)
+		# (its character's recoil and spread change its hit chances too, 0.38.8: taken out here, checked below)
+		var m := Characters.multipliers((bot as PmcAI).character["state"], (bot as PmcAI).character["id"])
+		var near := 0.7 / (float(m.get("recoil", 1.0)) * float(m.get("hip_spread", 1.0)))
+		var aimed := 1.0 / (float(m.get("recoil", 1.0)) * float(m.get("aim_spread", 1.0)))
+		var skill := bot.accuracy_far / (0.35 * aimed)
+		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_near, minf(minf(near, 1.0) * skill, 1.0)) \
+			and is_equal_approx(bot.accuracy_long, 0.2 * aimed * skill)
 	_check(spread_ok, "each AI PMC rolls one skill for all its hit chances (%.3f, %.3f)" % [a.accuracy_near, b.accuracy_near])
 	_check(String(a.faction).begins_with("pmc_") and a.faction != b.faction, "every AI PMC is its own side (always alone)")
 	_check(not scav.loner and scav.uses_fight_budget and not scav.silent and not scav.operator_look and scav.skill_spread == 0.0
@@ -7218,9 +7222,10 @@ func _section_pmc_ai() -> void:
 	puppet.pick_look(-3)
 	var puppet_look: Dictionary = (puppet.model as PixelModel).outfit
 	puppet.pick_look(-3)
-	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look and puppet.accuracy_near == 0.7
+	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look
 		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
 	puppet.queue_free()
+	await _pmc_character_checks()
 	await _pmc_kit_checks()
 	# Silent: no callouts, no chatter.
 	var said := []
@@ -7248,6 +7253,55 @@ func _section_pmc_ai() -> void:
 	FightBudget.reset(a)
 	for node: Node in [a, b, scav]:
 		node.queue_free()
+	await physics_frame
+
+
+## AI PMCs are the six characters (0.38.8, owner 2026-11-20; levels 5-15, owner's pick 2026-11-21).
+func _pmc_character_checks() -> void:
+	var seen := {}
+	var levels_ok := true
+	var points_ok := true
+	for seed_value in 300:
+		var pick := Characters.ai_pick(seed_value * 7919 + 13)
+		seen[pick["id"]] = true
+		var lv: int = pick["level"]
+		levels_ok = levels_ok and lv >= 5 and lv <= 15 and Characters.level(pick["state"], pick["id"]) == lv \
+			and (Characters.SKINS[pick["id"]] as Array).has(pick["skin"])
+		points_ok = points_ok and Characters.points_earned(pick["state"]) == (2 if lv >= 10 else 0) \
+			and Characters.points_left(pick["state"]) == 0
+	_check(seen.size() == 6, "AI PMCs come as all six characters (%s)" % str(seen.keys()))
+	_check(levels_ok, "an AI PMC is level 5-15, in one of its character's skins")
+	_check(points_ok, "an AI PMC at level 10+ has spent its 2 level points, below 10 it has none")
+	_check(Characters.ai_pick(4242) == Characters.ai_pick(4242), "the same id gives the same character, skin and level on every screen")
+	# Its traits on the AI's numbers.
+	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
+	var bot := _spawn(PMC_AI_SCENE, Vector3(40, 0.1, -40)) as PmcAI
+	await physics_frame
+	var m := Characters.multipliers(bot.character["state"], bot.character["id"])
+	var f := func(stat: String) -> float: return float(m.get(stat, 1.0))
+	_check(bot.character_seed == bot.get_instance_id() and is_equal_approx(bot.move_speed, ref.move_speed * f.call("move") * f.call("sprint"))
+		and is_equal_approx(bot.hearing_mult, ref.hearing_mult * f.call("hearing")) and is_equal_approx(bot.heal_time, ref.heal_time * f.call("heal_time"))
+		and is_equal_approx(bot.aim_time, ref.aim_time * f.call("ads")) and is_equal_approx(bot.search_mult, f.call("search"))
+		and is_equal_approx(bot.footstep_range, Scav.STEP_HEAR_RANGE * f.call("steps")),
+		"an AI PMC moves, hears, heals, aims, searches and makes noise as its character (%s level %d)" % [bot.character["id"], bot.character["level"]])
+	# A KORR searches faster, a VEGA's steps carry less far, a SABLE hears further (a character's real numbers).
+	var korr := ref.duplicate() as PmcAI
+	korr.apply_character(Characters.multipliers({"chars": {"korr": {"xp": 0, "lvl_points": 0, "exp_points": 0, "spent": {}}}}, "korr"))
+	_check(korr.search_mult < 1.0 and korr.accuracy_far < ref.accuracy_far and korr.accuracy_near > ref.accuracy_near, "KORR: faster searches and hip-fire, worse aimed shots")
+	korr.free()
+	bot.queue_free()
+	# A puppet wears the server AI's character: its model, all in that skin, and no operator outfit on top.
+	var who := Characters.ai_pick(-3)
+	var puppet := ref
+	puppet.puppet = true
+	puppet.dress_as_character(-3)
+	main.add_child(puppet)
+	puppet.pick_look(-3)
+	var outfit: Dictionary = (puppet.model as PixelModel).outfit
+	_check(puppet.character["id"] == who["id"] and not outfit.is_empty() and outfit.values().all(func(v: Variant) -> bool: return v == who["skin"])
+		and puppet.model.get_node_or_null("Gun/Muzzle") != null and puppet.muzzle != null,
+		"a puppet AI PMC is the server AI's character (%s, %s)" % [who["id"], who["skin"]])
+	puppet.queue_free()
 	await physics_frame
 
 

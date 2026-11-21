@@ -287,6 +287,8 @@ func sync_enemies(list: Array) -> void:
 			var gun: int = entry[3] if entry.size() > 3 else -1
 			puppet.loadout = AILoadouts.NET_GUNS[gun] if gun >= 0 and gun < AILoadouts.NET_GUNS.size() else ""
 			puppet.name = "Enemy%d" % id
+			if puppet is PmcAI:
+				(puppet as PmcAI).dress_as_character(id)   # (one of the six characters, the same on every screen)
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
 			puppet.pick_look(id)
