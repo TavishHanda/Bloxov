@@ -5979,7 +5979,9 @@ def main():
     for x, z, yaw, col in ((44, 85, 85, "car_a"), (80, 96, 72, "rust"), (125, 101, 92, "car_a"), (150, 104, 97, "rust"),
                            (57, 112, 10, "car_a"), (118, 52, 5, "rust")):
         car(x, z, yaw, col)
-    for x, z in ((48, 82), (88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
+    # (0.38.13, owner: "a random dumpster in the ground by the school": the one at (48, 82) stood on a slope, half
+    # buried on its uphill side; it's gone)
+    for x, z in ((88, 88), (124, 88), (147, 143), (78, 143), (126, 84)):
         dumpster(x, z)
 
     # the Last Stop Motel between town and farm (World art 0.17: it replaced the two road houses there). It's built

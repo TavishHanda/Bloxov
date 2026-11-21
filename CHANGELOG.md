@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.39.2 (Riptide: the lifeboat, the impound room, the Port Clinic, new meds)
+## 0.39.6 (Riptide: the lifeboat, the impound room, the Port Clinic, new meds)
 Owner's answers to the tester's Riptide feedback (2026-11-20, "Yea looks good" to the numbers):
 - **Lifeboat extract** replaces the Stern Ladder: a boat deck off A deck's corridor end on the bridge tower, the
   lifeboat hung in its davits over the side. Throw the winch: the alarm blares (the AI come to look) and the boat is
@@ -27,11 +27,61 @@ Owner's answers to the tester's Riptide feedback (2026-11-20, "Yea looks good" t
   across a stairwell doorway). Every such top now stops 2 cm short, map-wide (`settle_tops`).
 - **No spy slot beside the stairs**: every stairwell flight is now its lane's full width (3.8 m). It used to leave a 10 cm
   gap down each side that looked onto the flight below.
-- **An open vault door is solid** where it stands, on both maps. Its hitbox appears once it has swung and nobody is
-  in the way, so nobody gets stuck in it. The impound door sits at the room's west end, so when open it stands clear of
-  stairwell B's door.
+- **An open vault door is solid** where it stands (Frontlines' bunker and bank). Its hitbox only appears once it has
+  swung and nobody is in its way or in the corner behind it, so nobody is ever shut in. Riptide has no vault door (owner):
+  the impound room has a plain steel door that swings into the room (`KeyDoor.look`) and is solid the same way.
 - Net version 21 (the map changed). Tests for each; the map audits now skip loot behind a key door.
 
+## 0.39.5 (AI PMCs don't stand around)
+Owner (2026-11-21): a playtester killed an AI PMC that "was just standing still". Not from 0.38.11 (the six
+characters): a raid check that logs every bot standing on one spot for 12 s or more (10 Frontlines raids, 30 bots)
+found bots boxed in by other AI standing still for 30 s to over 2 minutes, several times a raid, waiting for every
+place and every way there to be clear of other AI (the steer-round-AI rule). A bug, not a rule change:
+- **Held up 12 s, a bot goes anyway** (`PmcAI.HOLD_GIVE_UP`): for 30 s (`COMMIT_TIME`) it stops steering round other
+  AI and walks to a place, fighting whoever it meets (the owner's rule: "steer around AI, fight if they meet"). Same
+  check after: no unhurt bot out of a fight stood still for more than ~25 s, bar one caught on something on its way to an extract (47 s). Bots still stand still while they
+  search a container (4-8 s), in an extract, hiding hurt in cover, or lying low after being sniped (the AI's own
+  fight rules, unchanged). No numbers the owner set changed; scavs, Raiders and bosses untouched.
+
+## 0.39.4 (Full lobbies after a minute)
+Owner (2026-11-21): "make sure it says in queue for like the first minute, and if after a minute the players dont
+find 6 people total to start a raid, the players in q are q'd up with the real players in q + AI bots".
+- **One minute in the queue:** the button says IN QUEUE (n/6) the whole time (real players only, no countdown). The
+  minute starts with the first player who queued; anyone who joins later doesn't restart it (`Matchmaker.BOT_WAIT`
+  and `queue_countdown`, both 60 s; were 90 s alone and 30 s for a group). 6 real players start the raid at once.
+- **Bots fill the lobby to 6 PMCs** (`Matchmaker.bots_fill`, on Frontlines and Riptide): a solo player gets 5 AI
+  PMCs, a duo 4, and so on; was 3 PMCs in all (4 in 1 raid in 4), which `bots_fill = 0` still gives.
+- The PvP smoke test runs without AI PMCs now (a full lobby of bots could hit the test players).
+- Load check (4 raids at once, sandbox, full project): 2 bots a raid 17.2 ms a frame, 5 bots 20.0 ms, no bots 15.1 ms.
+
+## 0.39.3 (The skill tree)
+Owner (2026-11-20): "the traits screen to kinda be like a skill tree in its own menu".
+- **OPEN SKILL TREE** on the CHARACTERS screen opens the points in their own menu (`scripts/skill_tree.gd`): the
+  character at the bottom, five branches growing up from it: its two upsides (5 steps of +2%), its passive (rank 1,
+  then ranks 2 and 3 for 2 points each) and its two downsides (2 steps, each a quarter smaller). Bought steps are lit
+  (green upsides, brass passive, red downsides), the next one you can buy has a yellow edge, the rest are dim; each
+  branch's current value sits on top. Hover a step to see what it does and costs; click the next one to buy it.
+  RESET POINTS moved into the tree. The rules and numbers are the same as before.
+- The CHARACTERS screen's right panel now shows the points left, the button, and what this character has bought.
+- Test: the tree's branches, buying from the bottom up, points spent, BACK.
+- Fix: the hideout cat could get boxed in (every straight line out grazing something) and stop walking for good;
+  it now backs out the way it came (`HideoutCat._wander`). This also made the cat test fail now and then.
+## 0.39.2 (Looting fixes: dropped items, found attachments, a body's gun parts)
+Owner's playtest (2026-11-21).
+- **Things taken out of a body and dropped at once no longer vanish online** ("my friend was swapping out backpacks
+  and he dropped a golden item, and then it disappeared"): the game sent the drop before the loot move, so the server
+  thought the item wasn't carried yet and threw the drop away. Now any change to the open container goes first
+  whenever you drop, throw or use something (`Network.items_leaving`, `NetRaid._send_container_change`).
+- **Taking a found-in-raid attachment off a gun in the PvP hideout works** ("The server didn't accept that change, so
+  your PvP stash is back as it was"): the server's hideout check didn't count an attachment's found mark while it
+  sat on the gun, so taking it off looked like a made-up found mark (`OnlineProfile.tally` counts `fatt`).
+- **A body's gun shows its attachments** (owner: "you should be able to see the attachments on the gun in the body so
+  u can take them off the gun easily without having to take the whole gun"): the same attachment slots as your own
+  gun along the bottom of the body's Primary / Secondary slot; click or tap one to take it off into your inventory
+  (`scripts/gun_parts_bar.gd`). Right-click "Remove ..." still works on any gun.
+- **Frontlines: the half-buried dumpster by the school is gone** (it stood on a slope at map (48, 82)). Removed in the
+  generator, the map's boxes and the outdoor model (`outdoor_00`); navigation re-baked. (Re-running the whole
+  generator today changes other scattered pieces too, so only this dumpster was taken out of the scene.)
 ## 0.39.1 (Smooth view on fast screens)
 Owner (2026-11-21): low FPS and dips even on strong PCs with hardware acceleration ("its not like smooth FPS i can
 feel the dips"), lag spikes online, a friend's first load taking minutes, random disconnects. Measured, not guessed:
