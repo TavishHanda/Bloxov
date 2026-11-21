@@ -79,6 +79,12 @@ const ESCAPE_GAIN := 0.5
 const PASS_FLOOR := 20.0
 const PASS_FLOOR_BOT := 40.0
 const HELD_UP := 10.0
+## (0.39.2 fix: in playtests and the raid report a bot boxed in by other AI could stand on one spot for minutes, every
+## place and way "too busy") Held up this long, it stops steering round AI for COMMIT_TIME s and goes to a place
+## anyway, fighting whoever it meets (the owner's rule: "steer around AI, fight if they meet"). Tuning, not the
+## owner's numbers.
+const HOLD_GIVE_UP := 12.0
+const COMMIT_TIME := 30.0
 const LOOK_AHEAD := 3.0
 const HURRY_TIME := 6.0
 const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
@@ -149,6 +155,7 @@ var turned_away := 0
 var _last_gap := INF
 var _flee_wait_left := 0.0
 var _held_for := 0.0
+var _commit_left := 0.0
 var _hurry_left := 0.0
 var _indoor_left := 0.0
 var _seen_state := State.IDLE
@@ -256,6 +263,7 @@ func _physics_process(delta: float) -> void:
 			_indoor_left = CHECK_EVERY
 			_look_indoors()
 		_hurry_left -= delta
+		_commit_left -= delta
 		if state in [State.ALERT, State.ENGAGE]:
 			_fought = true
 		_apart_left -= delta
@@ -403,6 +411,9 @@ func _wander(delta: float) -> Vector3:
 				return Vector3.ZERO   # (0.36.12: patching up after breaking off a fight; it plans once that's done)
 			_plan_wait -= delta
 			_held_for += delta
+			if _held_for > HOLD_GIVE_UP and _commit_left <= 0.0:
+				_commit_left = COMMIT_TIME   # (boxed in too long: it goes anyway, see HOLD_GIVE_UP)
+				_plan_wait = 0.0
 			if _plan_wait <= 0.0:
 				_next_destination()
 			return Vector3.ZERO
@@ -899,7 +910,7 @@ func _place_clear(p: Dictionary, others: Array) -> bool:
 ## The other AI in this raid: [position, is a bot, node], living ones only.
 func _others_at() -> Array:
 	var out := []
-	if not keep_apart:
+	if not keep_apart or _commit_left > 0.0:
 		return out
 	for node in RaidScope.nodes(self, &"enemies"):
 		var other := node as Scav
