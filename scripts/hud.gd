@@ -75,6 +75,13 @@ var _note_until := 0
 var _cam_status: Label
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
+## F3 overlay (0.39.1): the slowest frame and the longest wait between server updates in the last second, so a
+## tester can say whether a hitch was their machine (frame) or the connection / server (updates).
+var _worst_frame := 0.0
+var _shown_worst_frame := 0.0
+var _last_update_msec := -1
+var _worst_update_gap := 0
+var _shown_update_gap := 0
 
 
 func _ready() -> void:
@@ -711,11 +718,26 @@ func _update_debug(delta: float) -> void:
 		var want = JavaScriptBridge.eval("window.bloxovRaw ? window.bloxovRaw.want : null", true)
 		var active = JavaScriptBridge.eval("window.bloxovRaw ? window.bloxovRaw.active : null", true)
 		raw = "wanted=%s active=%s (F4 toggles, then Esc + click)" % [want, active]
-	debug_label.text = "FPS: %d\nRaw mouse: %s\nBiggest mouse move (last 1s): %d px\nSpikes dropped: %d\nRecent X moves: %s\nEnemies: %d" % [
-		Engine.get_frames_per_second(), raw, roundi(player.debug_max_delta),
+	_worst_frame = maxf(_worst_frame, delta * 1000.0)
+	var online := ""
+	if Network.main.in_online_raid():
+		var at := Network.main.states_msec
+		if at != _last_update_msec:
+			if _last_update_msec >= 0:
+				_worst_update_gap = maxi(_worst_update_gap, at - _last_update_msec)
+			_last_update_msec = at
+		online = "\nServer updates: longest gap %d ms (last 1s; ~50 is normal)" % _shown_update_gap
+	debug_label.text = "FPS: %d (slowest frame %d ms, last 1s)\nDraw calls: %d\nRaw mouse: %s\nBiggest mouse move (last 1s): %d px\nSpikes dropped: %d\nRecent X moves: %s\nEnemies: %d%s" % [
+		Engine.get_frames_per_second(), roundi(_shown_worst_frame),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		raw, roundi(player.debug_max_delta),
 		player.debug_spikes_dropped, str(player.debug_recent_dx),
-		get_tree().get_nodes_in_group("enemies").size()]
+		get_tree().get_nodes_in_group("enemies").size(), online]
 	_max_delta_timer += delta
 	if _max_delta_timer >= 1.0:
 		_max_delta_timer = 0.0
 		player.debug_max_delta = 0.0
+		_shown_worst_frame = _worst_frame
+		_worst_frame = 0.0
+		_shown_update_gap = _worst_update_gap
+		_worst_update_gap = 0
