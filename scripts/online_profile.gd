@@ -389,6 +389,8 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 	if chars["error"] != "":
 		return chars["error"]
 	cost += int(chars["money"])
+	for id: String in chars.get("used", {}):   # (NINE's files, used up by the unlock)
+		crafts["used"][id] = int(crafts["used"].get(id, 0)) + int(chars["used"][id])
 	# The materials locker (0.38.7): bought once; what's in it counts with the stash, so moving things in and out is free.
 	var locker := MaterialLocker.changes(old, new)
 	if locker["error"] != "":

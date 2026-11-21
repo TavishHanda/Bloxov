@@ -899,6 +899,9 @@ func repair(grid: GridInventory, stack: ItemStack) -> bool:
 
 
 func sell(grid: GridInventory, stack: ItemStack) -> void:
+	if ItemDB.item(stack.id).get("quest", false):   # (NINE's files: nobody buys them, they unlock NINE)
+		_message("Traders won't touch %s. Keep it for NINE." % stack.title())
+		return
 	var price := sell_price(stack)   # (free kit items go for $0, 0.16.7: a way to clear them out)
 	grid.remove(stack)
 	Profile.money += price

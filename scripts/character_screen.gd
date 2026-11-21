@@ -262,7 +262,7 @@ func refresh() -> void:
 		var head := _text(16, HudStyle.BRASS)
 		head.text = "TO UNLOCK:"
 		_needs.add_child(head)
-		for need: Array in Characters.requirements(state, showing, Profile.money, Profile.trader_levels):
+		for need: Array in Characters.requirements(state, showing, Profile.money, Profile.trader_levels, _held()):
 			var row := _text(16, HudStyle.LIFE if need[1] else HudStyle.BLOOD)
 			row.text = ("DONE  " if need[1] else "NEEDED  ") + str(need[0])
 			_needs.add_child(row)
@@ -290,8 +290,8 @@ func refresh() -> void:
 		_action.disabled = false
 		_status.text = "VEGA or VOSS. The one you don't choose costs %s to unlock later." % ItemDB.money(Characters.STARTER_PRICE)
 	else:
-		var problem := Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels)
-		_action.text = "UNLOCK  %s" % ItemDB.money(int(info["price"])) if int(info["price"]) > 0 else "LOCKED"
+		var problem := Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels, _held())
+		_action.text = "UNLOCK  %s" % ItemDB.money(int(info["price"])) if int(info["price"]) > 0 else ("UNLOCK WITH THE FILES" if info.get("files", false) else "LOCKED")
 		_action.disabled = problem != ""
 		_status.text = problem
 	_fill_points(c, _unlocked(showing))
@@ -345,11 +345,24 @@ func _on_action() -> void:
 			hideout.show_message("Make room in your stash first: your pockets get smaller.")
 			refresh()
 			return
-	elif Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels) == "":
+	elif Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels, _held()) == "":
 		Profile.money -= int(Characters.LIST[showing]["price"])
+		if Characters.LIST[showing].get("files", false):
+			for file: String in Characters.FILES:   # (NINE: the unlock uses the three files up)
+				if Profile.stash.take(file, 1) == 0:
+					(hideout.inventory as Inventory).take(file, 1)
 		(state["unlocked"] as Array).append(showing)
 		hideout.show_message("%s unlocked." % Characters.LIST[showing]["name"])
 	_changed()
+
+
+## NINE's files you have: in the stash or your loadout (id -> count).
+func _held() -> Dictionary:
+	var out := {}
+	for file: String in Characters.FILES:
+		var inventory: Inventory = hideout.get("inventory")
+		out[file] = Profile.stash.count_of(file) + (inventory.count_of(file) if inventory != null else 0)
+	return out
 
 
 ## Looks only (0.39): the skin `showing` wears.
