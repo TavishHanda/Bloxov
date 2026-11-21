@@ -302,6 +302,20 @@ const BOT_CALM_RANGE := 60.0
 const BOT_CALM_SLACK := 2
 
 
+## Where the raid's real squads will start (their Matchmaker spawn slots), told to the AI spawner before its AI comes
+## in (0.38.10): the AI used to be placed before any player was in this world, so it never kept away from them.
+func set_player_starts(slots: Array, seed_value: int) -> void:
+	var spawns := raid.get_node_or_null("PlayerSpawns")
+	var spawner := raid.get_node_or_null("EnemySpawner")
+	if spawns == null or spawns.get_child_count() == 0 or spawner == null:
+		return
+	var raid_script: Script = load(RAID_SCRIPT)
+	var starts: Array[Vector3] = []
+	for slot: Variant in slots:
+		starts.append(raid_script.call("spawn_position", spawns.get_children(), int(slot), 0, seed_value))
+	spawner.set("player_starts", starts)
+
+
 ## AI PMCs for this raid (0.36.2, owner: always alone, far from players, never told where one is): `count` bots,
 ## each at the free player spawn point farthest from every real squad's (`real_slots`, Matchmaker.spawn_slots), the
 ## same points the players' games turn those slots into (Raid.spawn_position, the raid's `seed_value`). Each gets a

@@ -54,6 +54,13 @@ extends Node3D
 ## {"scav": scene path, "raider": scene path}. Same AI, other clothes and names.
 @export var looks := {}
 
+## Where the raid's players start (0.38.10, owner: online a sniper scav and a zone's scavs shot players before they could
+## move). The server makes its AI before any player is in the raid world, so it never knew where they'd stand:
+## RaidWorld sets this before the AI comes in (offline the player is already there). These spots count as players
+## for the first START_GUARD seconds: no AI starts near one or where it can be seen from one, and snipers take
+## perches that don't look down on one.
+var player_starts: Array[Vector3] = []
+const START_GUARD := 60.0
 ## Spawned so far this raid.
 var scavs_spawned := 0
 var raiders_spawned := 0
@@ -116,13 +123,22 @@ func _spawn_snipers() -> void:
 
 func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
 	var space := get_world_3d().direct_space_state
+	var spots := _starts()
 	for player in players:
-		if player is Node3D and perch.global_position.distance_to((player as Node3D).global_position) < 120.0:
+		if player is Node3D:
+			spots.append((player as Node3D).global_position)
+	for spot in spots:
+		if perch.global_position.distance_to(spot) < 120.0:
 			var query := PhysicsRayQueryParameters3D.create(perch.global_position + Vector3(0, 1.6, 0),
-				(player as Node3D).global_position + Vector3(0, 1.4, 0), 1)
+				spot + Vector3(0, 1.4, 0), 1)
 			if space.intersect_ray(query).is_empty():
 				return true
 	return false
+
+
+## The players' start spots while they still count (START_GUARD).
+func _starts() -> Array[Vector3]:
+	return player_starts.duplicate() if _elapsed < START_GUARD else [] as Array[Vector3]
 
 
 ## The boss and its guards, at a spot in its zone: inside its building if the map has start spots for it (markers
@@ -373,6 +389,9 @@ func _far_from_players(marker: Marker3D, players: Array[Node]) -> bool:
 	for player in players:
 		if player is Node3D and marker.global_position.distance_to((player as Node3D).global_position) < min_distance_from_player:
 			return false
+	for spot in _starts():
+		if marker.global_position.distance_to(spot) < min_distance_from_player:
+			return false
 	return true
 
 
@@ -383,6 +402,10 @@ func _seen_by_players(marker: Marker3D, players: Array[Node]) -> bool:
 			continue
 		var eyes := (player as Player).camera.global_position
 		var query := PhysicsRayQueryParameters3D.create(eyes, marker.global_position + Vector3(0, 1.4, 0), 1)
+		if space.intersect_ray(query).is_empty():
+			return true
+	for spot in _starts():
+		var query := PhysicsRayQueryParameters3D.create(spot + Vector3(0, 1.6, 0), marker.global_position + Vector3(0, 1.4, 0), 1)
 		if space.intersect_ray(query).is_empty():
 			return true
 	return false

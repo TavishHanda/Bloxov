@@ -5593,6 +5593,11 @@ func _section_online_ai() -> void:
 		await _frames(3)
 	var scavs1 := RaidScope.nodes(w1.raid, &"enemies")
 	_check(scavs1.size() == 3 and RaidScope.nodes(w2.raid, &"enemies").size() == 3, "each online raid spawns its own 3 scavs on the server")
+	var w1_spawner := w1.raid.get_node("EnemySpawner") as EnemySpawner
+	_check(w1_spawner.player_starts.size() == 1 and w1_spawner.player_starts[0].distance_to(Raid.spawn_position(
+		w1.raid.get_node("PlayerSpawns").get_children(), int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["spawns"][c1_id][0]), 0,
+		int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["seed"]))) < 0.1,
+		"the server's AI is told where the raid's players will start (0.38.10)")
 	_check(scavs1.all(func(e: Node) -> bool: return RaidScope.nodes(e, &"player") == [w1.proxies.get(c1_id)]),
 		"a raid's scavs only see that raid's players (one proxy each)")
 	await _until(func() -> bool: return c1.enemies.size() == 3)
@@ -9309,6 +9314,32 @@ func _section_spawn_budget() -> void:
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()
 	crowded.queue_free()
+	await _frames(2)
+	# 0.38.10 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
+	# the raid world, so it's told where the squads start; no AI starts near one, and none after the start guard ends
+	# is kept off that spot any more (the real players count then).
+	var start := player.global_position + Vector3(-90, 0, -90)
+	var guarded := EnemySpawner.new()
+	guarded.enemy_scene = load(SCAV_SCENE)
+	guarded.set_physics_process(false)
+	guarded.initial_count = 2
+	guarded.player_starts = [start]
+	for spot: Vector3 in [start + Vector3(8, 0, 0), start + Vector3(-70, 0, -70)]:
+		var m := Marker3D.new()
+		m.position = spot
+		guarded.add_child(m)
+	main.add_child(guarded)
+	await _frames(2)
+	var near_start := get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return Vector2((e as Node3D).global_position.x - start.x, (e as Node3D).global_position.z - start.z).length() < guarded.min_distance_from_player)
+	_check(guarded.scavs_spawned >= 1 and near_start.is_empty(),
+		"no AI starts beside where a player will spawn (%d spawned, %d near the start)" % [guarded.scavs_spawned, near_start.size()])
+	guarded._elapsed = EnemySpawner.START_GUARD + 1.0
+	_check(guarded._starts().is_empty(), "the start spots stop counting once the start is over")
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	guarded.queue_free()
 	await _frames(2)
 	# 0.12.31 (owner: a Raider's partner spawned stuck in a roof): a partner/guard spot that would be inside
 	# something moves to a clear spot next to the leader instead.
