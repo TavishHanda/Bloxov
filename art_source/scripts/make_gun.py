@@ -273,7 +273,7 @@ def hound(m, look):
     m.part("Bolt", (0.044, 0.02, -0.1))                                           # (racked in first person)
     m.box((0.044, 0.02, -0.1), (0.024, 0.012, 0.014), "steel", part="Bolt")       # charging handle
     m.box((0.035, 0.024, 0.04), (0.004, 0.02, 0.14), metal)                       # selector lever
-    # A wedge (0.38.7, owner: "more triangly", the old slab looked ugly): thin at the wrist, deep at the butt.
+    # A wedge (0.38.8, owner: "more triangly", the old slab looked ugly): thin at the wrist, deep at the butt.
     stock = [(0.175, 0.035), (0.175, -0.008), (0.405, -0.11), (0.405, 0.027)]
     m.prism(stock, 0.026, furn)
     m.box((0, -0.0415, 0.411), (0.054, 0.141, 0.012), metal)                      # butt plate

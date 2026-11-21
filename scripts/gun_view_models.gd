@@ -70,7 +70,7 @@ static func add_hands(holder: Node3D, gun: String, path := HANDS) -> void:
 			child.free()
 	for mesh: GeometryInstance3D in hands.find_children("*", "GeometryInstance3D", true, false):
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	wear(hands, Profile.look)
+	wear(hands, PlayableModels.hands_look(Profile.characters))
 	holder.add_child(hands)
 	hands.set_meta("gun", gun)
 

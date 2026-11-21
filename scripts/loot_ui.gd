@@ -1449,12 +1449,25 @@ func _notification(what: int) -> void:
 		_doll.free()
 
 
-## Puts your character in the look `look` (the wardrobe changed it).
-func show_look(look: Dictionary) -> void:
-	if _doll != null:
-		var model := _doll.find_child("Character", true, false)
-		if model != null:
-			model.pick_outfit(look)
+## Shows the character you play, in its skin (the wardrobe or the CHARACTERS screen changed it; 0.39). `_look`
+## is the old wardrobe look, no longer drawn.
+func show_look(_look := {}) -> void:
+	if _doll == null:
+		return
+	var old := _doll.find_child("Character", true, false) as Node3D
+	if old == null:
+		return
+	var view := old.get_parent()
+	var id := str(Profile.characters.get("selected", "vega"))
+	var model := PlayableModels.make(id, Characters.skin_of(Profile.characters, id))
+	model.name = "Character"
+	model.rotation = old.rotation
+	view.remove_child(old)
+	old.queue_free()
+	view.add_child(model)
+	var stance := BodyPose.new(model)
+	stance.armed = false
+	stance.update(0.0)
 
 
 ## Your character, drawn by its own little camera (its own world, so it never shows up in the raid).
@@ -1470,12 +1483,10 @@ func _build_doll() -> SubViewportContainer:
 	view.size = Vector2i(176, 150)
 	view.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	holder.add_child(view)
-	var model := CHARACTER_MODEL.instantiate()
-	model.set_script(PIXEL_MODEL_SCRIPT)
+	var id := str(Profile.characters.get("selected", "vega"))   # (the character you play, in its skin: 0.39)
+	var model := PlayableModels.make(id, Characters.skin_of(Profile.characters, id))
 	model.name = "Character"
 	model.rotation.y = PI + 0.5
-	model.randomize_outfit = false
-	model.pick_outfit(Profile.look)   # (your look from the wardrobe, 0.21.6)
 	view.add_child(model)
 	var stance := BodyPose.new(model)   # standing at ease, no gun (0.23 jointed model)
 	stance.armed = false

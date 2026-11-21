@@ -51,6 +51,7 @@ var _online_button: Button
 ## START RAID: solo in PvE; in PvP it opens the queue and party panel (owner, 2026-11-07: no separate ONLINE button).
 var _raid_button: Button
 ## Which map a solo raid goes to (map 2, Riptide, 2026-11-09); hidden in PvP, which stays on Frontlines for now.
+var character_button: Button
 var _map_button: Button
 ## The war table's map (0.33.9): pick the raid's map on it.
 var map_select: MapSelect
@@ -978,7 +979,7 @@ func confirm_raid(go: Callable) -> void:
 	if _no_gear():
 		check_gear(go)
 		return
-	_ask_before(go, "START RAID?", "Head out on a solo raid against the AI with this loadout?", "START RAID", false)
+	_ask_before(go, "START RAID?", "Head out as %s on a solo raid against the AI with this loadout?" % Characters.LIST[str(Profile.characters.get("selected", "vega"))]["name"], "START RAID", false)
 
 
 ## Nothing on you but what's in the secure pocket (if anything).
@@ -1206,7 +1207,7 @@ func _build_top_bar() -> void:
 			open_options())
 	row.add_child(options_button)
 	_build_options_window()
-	# CRAFT (0.38.7, owner: "more accessible"): the workbench from the menu, not only by walking to it. Phones have
+	# CRAFT (0.38.8, owner: "more accessible"): the workbench from the menu, not only by walking to it. Phones have
 	# their own CRAFT tab in the nav.
 	var craft_button := Button.new()
 	craft_button.name = "CraftMenuButton"
@@ -1299,6 +1300,15 @@ func _build_top_bar() -> void:
 	_free_kit_button.pressed.connect(start_with_free_kit)
 	LootUI.style_button(_free_kit_button)
 	row.add_child(_free_kit_button)
+	# Who you raid as (0.39, owner: pick your character before the raid, like an agent): a button by START RAID.
+	character_button = Button.new()
+	character_button.name = "CharacterButton"
+	character_button.tooltip_text = "The character you raid as: pick another, unlock more, spend points"
+	character_button.focus_mode = Control.FOCUS_NONE
+	LootUI.style_button(character_button)
+	character_button.pressed.connect(func() -> void: show_screen("characters"))
+	row.add_child(character_button)
+	update_character_button()
 	_map_button = Button.new()
 	_map_button.name = "MapButton"
 	_map_button.tooltip_text = "Open the war table's map and pick where you raid"
@@ -1320,6 +1330,12 @@ func _build_top_bar() -> void:
 	_raid_button.pressed.connect(press_start_raid)
 	row.add_child(_raid_button)
 	_update_raid_button()
+
+
+## The character button's text: who you raid as.
+func update_character_button() -> void:
+	if character_button != null:
+		character_button.text = "AS " + str(Characters.LIST[str(Profile.characters.get("selected", "vega"))]["name"])
 
 
 ## START RAID: a solo raid from the PvE stash; from the PvP stash, the queue and party panel (signing in first).
@@ -1523,6 +1539,8 @@ func _reload_stash() -> void:
 	Profile.apply_inventory(inventory, Profile.loadout)
 	inventory.changed.connect(_queue_save)
 	screen.open_stash(Profile.stash)
+	screen.show_look()          # (each stash has its own characters, 0.39)
+	update_character_button()
 	if not Profile.stash.changed.is_connected(_queue_save):
 		Profile.stash.changed.connect(_queue_save)
 	if mode_button != null:
@@ -2330,8 +2348,14 @@ func close_trader_screen() -> void:
 	character_screen.visible = false
 
 
-## The wardrobe (0.21.6): pick your operator and change their parts.
+## The wardrobe (0.21.6) is the CHARACTERS screen since 0.39 (owner: the wardrobe has all the characters and their
+## skins): every PMC is one of the six, so there are no separate operators and parts any more.
 func open_wardrobe() -> void:
+	open_characters()
+
+
+## The old operator wardrobe (0.21.6), no longer opened: kept until its look is retired with the AI PMCs (0.39 stage 3).
+func open_old_wardrobe() -> void:
 	close_trader_screen()
 	wardrobe.open(Profile.look)
 
@@ -2366,7 +2390,7 @@ func _build_phone_nav() -> void:
 	phone_nav.name = "PhoneNav"
 	phone_nav.add_theme_constant_override("separation", 4)
 	phone_nav.visible = GameSettings.is_phone()
-	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["characters", "CHARS"], ["wardrobe", "WARDROBE"], ["craft", "CRAFT"], ["record", "RECORD"]]:
+	for spec: Array in [["gear", "GEAR"], ["traders", "TRADERS"], ["characters", "CHARS"], ["craft", "CRAFT"], ["record", "RECORD"]]:
 		var id: String = spec[0]
 		var button := Button.new()
 		button.name = id
