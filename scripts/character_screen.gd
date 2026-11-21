@@ -2,7 +2,7 @@ class_name CharacterScreen
 extends Control
 ## The characters (0.37.0, see Characters): pick who you play, unlock more (in-game money and a trader level), and
 ## spend upgrade points. Left: the six, middle: the picked one's level, traits and passive, right: their points and
-## the button to the skill tree (SkillTree, 0.39.2: the points get their own menu).
+## the button to the skill tree (SkillTree, 0.39.3: the points get their own menu).
 ## Online the server checks every change (OnlineProfile.audit); this screen only offers what it would allow.
 
 const SIDE_WIDTH := 300.0

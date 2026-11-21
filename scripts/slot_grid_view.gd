@@ -28,6 +28,11 @@ func rebuild() -> void:
 		var tile := ItemTile.new(shown, grid, ui)
 		tile.set_tile_size(_cells)
 		add_child(tile)
+		if ItemDB.kind(shown.id) == "weapon" and not ItemDB.attachment_slots(shown.id).is_empty():
+			# (its attachments, to take off without taking the gun, 0.38.13)
+			var parts := GunPartsBar.new(shown, grid, ui)
+			parts.position = Vector2(4, custom_minimum_size.y - parts.size.y - 4)
+			add_child(parts)
 	else:
 		_label = Label.new()
 		_label.text = grid.slot.to_upper()
