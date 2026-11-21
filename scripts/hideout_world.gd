@@ -29,6 +29,8 @@ const STATION_NOTES := {"war_table": "Pick your loadout, then START RAID (or go 
 var walker: HideoutWalker
 ## The expedition truck in the garage (0.38.1).
 var garage: HideoutGarage
+## Hideout visits (0.39.0): PvP party mates walking round with you.
+var visits: HideoutVisits
 ## TEMP playtest (0.35.29): the free camera, flying off the walker (only while FreeCam.playtest_anywhere is on).
 var free_cam: FreeCam
 var _cam_label: Label
@@ -129,6 +131,10 @@ func _ready() -> void:
 	garage.name = "Garage"
 	add_child(garage)
 	garage.setup(level)              # (0.38.1: the expedition truck, showing the parts you've built)
+	visits = HideoutVisits.new()
+	visits.name = "Visits"
+	add_child(visits)
+	visits.setup(walker, self, _hud)  # (0.39.0: PvP party mates walking round the leader's hideout with you)
 	_menu_layer = CanvasLayer.new()
 	_menu_layer.layer = 5
 	add_child(_menu_layer)
@@ -181,6 +187,9 @@ func _build_hud() -> void:
 	_crosshair.position = Vector2(-2, -2)
 	_crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(_crosshair)
+	var labels := WorldLabelsHUD.new()   # (0.39.0: party mates' name tags)
+	labels.name = "WorldLabels"
+	_hud.add_child(labels)
 	_prompt = Label.new()
 	_prompt.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -280,7 +289,7 @@ func _process(_delta: float) -> void:
 			cat_near = false
 		else:
 			station = null
-	decor_near = free and station == null and not cat_near and decor.in_reach()
+	decor_near = free and station == null and not cat_near and not HostView.active() and decor.in_reach()   # (visiting: not your corner)
 	seat = toys.seat_in_reach() if free and station == null and not cat_near and not decor_near else null
 	_use_button.visible = station != null or seat != null or cat_near or decor_near or toys.busy()
 	_use_button.text = ("GET UP  (%s)" if toys.seat != null else "STOP  (%s)" if toys.darts else "USE  (%s)") % use_key()

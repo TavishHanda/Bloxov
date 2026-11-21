@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.0 (Hideout visits)
+Owner (2026-11-21): "how hard is it to make it so people can join each other's hideouts? I wanna add that", then
+"for visiting friends PvP only". A new phase, built on a branch while 0.38 (Expeditions, Characters 2) went on.
+- **Walk round together:** in a PvP party, your party mates in the hideout walk round it with you as their character
+  in its skin, with a small name tag and footsteps (`scripts/hideout_visits.gd`). Your place goes to the server 10
+  times a second and only to your party mates who are in the hideout too (`Network._hideout_state`, flags trimmed to
+  crouch/prone/sprint/aim/gun). A mate who goes into a raid or leaves disappears after 3 seconds.
+- **The leader's hideout:** everyone sees the party leader's hideout: their corner's decor, their trophy shelf and the
+  truck parts they've built (`scripts/host_view.gd`; `HideoutDecor`/`HideoutTrophies`/`HideoutGarage` read through
+  it). A banner says "VISITING <NAME>'S HIDEOUT" (or who's in yours). The stash, traders, bench and every station
+  still open your own things; your corner can't be decorated while you're visiting.
+- **Hanging out:** at the range your mate holds their gun and you hear and see their shots; their punches swing the
+  punching bag (`Network._hideout_act`).
+- Looks only: the server just passes positions and these few events along (no hideout runs there, nothing is saved
+  or counts for anything), so it costs no extra hosting. No chat or player-written text (store rules); names come
+  from the server, already filtered. **Net version 20** (new messages).
 ## 0.38.14 (Your hands match your character)
 Owner (2026-11-21): the first-person hands should match the character you're playing.
 - Every character's skin has its own first-person sleeves and gloves, painted from that skin's jacket and gloves

@@ -35,7 +35,7 @@ func is_on() -> bool:
 	return _on
 
 
-## Rebuilds every spot from what's picked (Decor.showing).
+## Rebuilds every spot from what's picked (Decor.showing; the party leader's while visiting them, HostView).
 func refresh() -> void:
 	if not _on:
 		return
@@ -44,7 +44,7 @@ func refresh() -> void:
 			var old: Node3D = spots[spot]
 			remove_child(old)
 			old.queue_free()
-		spots[spot] = _build(spot, Decor.showing(spot))
+		spots[spot] = _build(spot, HostView.decor_showing(spot))
 
 
 ## True if you're by your corner and looking roughly at it.

@@ -87,12 +87,12 @@ const DEPTH := 0.46
 func _top_shelf() -> void:
 	var y: float = SHELF_Y[0]
 	# Bon's mask on a stand, at the left end: once you've killed him (Big Game, done or the kill counted).
-	if Profile.quests_done.has("big_game") or int(Profile.quest_progress.get("big_game", 0)) >= 1:
+	if HostView.killed_bon():
 		_bon_mask(Vector3(-0.58, y, 0.0))
 	# A token from each trader past level 1, in a row, with a star for each level past 2.
 	for i in TRADER_TOKENS.size():
 		var id: String = TRADER_TOKENS[i]
-		var level := int(Profile.trader_levels.get(id, 1))
+		var level := HostView.trader_level(id)
 		if level < 2:
 			continue
 		var at := Vector3(-0.2 + i * 0.22, y, 0.02)
@@ -104,14 +104,14 @@ func _top_shelf() -> void:
 
 func _middle_shelf() -> void:
 	var y: float = SHELF_Y[1]
-	var extracts := int(Profile.stats.get("extracts", 0))
+	var extracts := HostView.stat("extracts")
 	for i in EXTRACT_MEDALS.size():
 		var need: int = EXTRACT_MEDALS[i]
 		if extracts < need:
 			break
 		var medal := _medal(Vector3(-0.78 + i * 0.2, y, -0.05), i)
 		_add(medal, "Medal: %d extract%s" % [need, "" if need == 1 else "s"])
-	var earned := int(Profile.stats.get("earned", 0))
+	var earned := HostView.stat("earned")
 	var piles := 0
 	for step: int in CASH_STEPS:
 		if earned >= step:
@@ -130,7 +130,7 @@ func _middle_shelf() -> void:
 
 func _bottom_shelf() -> void:
 	var y: float = SHELF_Y[2]
-	var raids := int(Profile.stats.get("raids", 0))
+	var raids := HostView.stat("raids")
 	if raids > 0:
 		var jar := _node(Vector3(-0.65, y, 0.0), "Jar")
 		var fill := clampf(float(raids) / JAR_FULL, 0.06, 1.0) * 0.2
@@ -142,14 +142,14 @@ func _bottom_shelf() -> void:
 		_glass(jar, Vector3(0.2, 0.24, 0.2), Vector3(0.0, 0.12, 0.0))
 		_box(jar, Vector3(0.21, 0.03, 0.21), Vector3(0.0, 0.255, 0.0), STEEL)                 # the lid
 		_add(jar, "Casings jar: %d raid%s" % [raids, "" if raids == 1 else "s"])
-	if Profile.bench_level >= Crafting.max_level():
+	if HostView.bench_top():
 		var wrench := _node(Vector3(0.0, y, 0.0), "Wrench")
 		_box(wrench, Vector3(0.36, 0.025, 0.05), Vector3(0.0, 0.0125, 0.0), GOLD, "", 0.3)
 		_box(wrench, Vector3(0.09, 0.026, 0.1), Vector3(0.17, 0.0125, -0.055), GOLD, "", 0.3)
 		_box(wrench, Vector3(0.04, 0.03, 0.04), Vector3(0.18, 0.0125, -0.075), SHADOW, "", 0.3)
 		_box(wrench, Vector3(0.22, 0.02, 0.14), Vector3(0.0, -0.0, 0.0), WOOD_DARK)            # (on a little plinth)
 		_add(wrench, "Gold wrench: the workbench at its top level")
-	var done := Profile.quests_done.size()
+	var done := HostView.jobs_done()
 	var folders := done / FOLDERS_EVERY
 	if folders > 0:
 		var stack := _node(Vector3(0.6, y, 0.0), "Folders")
