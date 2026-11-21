@@ -75,7 +75,7 @@ var _note_until := 0
 var _cam_status: Label
 var _hit_from := Vector3.ZERO
 var _max_delta_timer := 0.0
-## F3 overlay (0.38.13): the slowest frame and the longest wait between server updates in the last second, so a
+## F3 overlay (0.39.1): the slowest frame and the longest wait between server updates in the last second, so a
 ## tester can say whether a hitch was their machine (frame) or the connection / server (updates).
 var _worst_frame := 0.0
 var _shown_worst_frame := 0.0

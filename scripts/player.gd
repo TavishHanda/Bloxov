@@ -60,7 +60,7 @@ var revive_time_left := 0.0
 var squad_check := Callable()
 var heal_duration := 0.0
 var _throw_cooldown_left := 0.0
-## Where the body was before the latest physics step (perf, 0.38.7): the view is drawn between that and where it is
+## Where the body was before the latest physics step (perf, 0.39.1): the view is drawn between that and where it is
 ## now, so it glides on screens faster than the 60 physics steps a second instead of standing still and jumping.
 var _tick_from := Vector3.INF
 ## The hand that holds grenades, meds and drinks (placeholder animations, 0.14.17).
