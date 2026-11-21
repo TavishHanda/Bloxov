@@ -2856,6 +2856,30 @@ func _section_hideout_world() -> void:
 	_check(Profile.money == 0 and (Profile.characters["unlocked"] as Array).has("vega"), "the other starter is bought for $50,000")
 	Profile.money = money_chars
 	chars._on_action()
+	# The skill tree (owner 2026-11-20: the points in their own menu): five branches from the bottom up.
+	chars.open_tree()
+	await process_frame
+	var tree := chars.tree
+	var tree_state := Profile.characters
+	var tree_c := Characters.char_of(tree_state, "vega")
+	tree_c["lvl_points"] = 5
+	tree.refresh()
+	var nodes_ok: bool = tree.visible and (tree._nodes["u0"] as Array).size() == Characters.UPSIDE_MAX \
+		and (tree._nodes["d1"] as Array).size() == Characters.DOWNSIDE_MAX and (tree._nodes["p"] as Array).size() == 3
+	_check(nodes_ok and (tree._nodes["u0"][0] as Button).get_meta("state") == "next" and (tree._nodes["u0"][1] as Button).get_meta("state") == "locked"
+		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 5 + 5 upside steps, the passive's 3 ranks, 2 + 2 downside steps")
+	tree.buy("u0", 2)
+	_check(int(tree_c["spent"]["u0"]) == 0, "a branch is bought from the bottom up")
+	tree.buy("u0", 0)
+	tree.buy("u0", 1)
+	tree.buy("p", 1)
+	_check(int(tree_c["spent"]["u0"]) == 2 and int(tree_c["spent"]["p"]) == 1 and Characters.points_left(tree_state) == 1
+		and (tree._nodes["u0"][1] as Button).get_meta("state") == "owned" and (tree._nodes["p"][2] as Button).get_meta("state") == "locked",
+		"clicking the next node spends points (2 on the upside, 2 on a passive rank)")
+	tree.close()
+	_check(not tree.visible and chars.visible, "BACK goes back to the CHARACTERS screen")
+	tree_c["lvl_points"] = 0
+	Characters.reset_points(tree_state, "vega")
 	menu_node.show_screen("gear")
 	_check(menu_node.current_screen() == "gear" and Profile.characters["selected"] == "vega", "and GEAR goes back to the stash")
 	# The mouse is never grabbed with the menu up (0.21.10).

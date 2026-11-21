@@ -1,7 +1,8 @@
 class_name CharacterScreen
 extends Control
 ## The characters (0.37.0, see Characters): pick who you play, unlock more (in-game money and a trader level), and
-## spend upgrade points. Left: the six, middle: the picked one's level, traits and passive, right: their points.
+## spend upgrade points. Left: the six, middle: the picked one's level, traits and passive, right: their points and
+## the button to the skill tree (SkillTree, 0.39.3: the points get their own menu).
 ## Online the server checks every change (OnlineProfile.audit); this screen only offers what it would allow.
 
 const SIDE_WIDTH := 300.0
@@ -25,6 +26,8 @@ var _banner: Label
 var _view: SubViewport
 var _skins: HBoxContainer
 var _needs: VBoxContainer
+## The upgrade points' own menu (SkillTree), over this screen.
+var tree: SkillTree
 
 
 func _init(menu: Node) -> void:
@@ -111,17 +114,19 @@ func _init(menu: Node) -> void:
 	right.add_child(_heading("UPGRADES"))
 	_points = _text(20, HudStyle.BRASS)
 	right.add_child(_points)
-	_spend = VBoxContainer.new()
-	_spend.add_theme_constant_override("separation", 6)
-	right.add_child(_spend)
 	_reset = Button.new()
-	_reset.name = "Reset"
+	_reset.name = "SkillTreeButton"
+	_reset.text = "OPEN SKILL TREE"
 	_reset.focus_mode = Control.FOCUS_NONE
-	_reset.custom_minimum_size = Vector2(0, 40)
-	_reset.size_flags_vertical = Control.SIZE_SHRINK_END | Control.SIZE_EXPAND
-	LootUI.style_button(_reset, 18)
-	_reset.pressed.connect(_on_reset)
+	_reset.custom_minimum_size = Vector2(0, 64)
+	LootUI.style_button(_reset, 24)
+	_reset.pressed.connect(open_tree)
 	right.add_child(_reset)
+	_spend = VBoxContainer.new()
+	_spend.add_theme_constant_override("separation", 4)
+	right.add_child(_spend)
+	tree = SkillTree.new(self)
+	add_child(tree)
 
 
 ## The character, drawn by its own little camera in its own world (like the stash screen's).
@@ -202,6 +207,7 @@ func _text(size: int, color := HudStyle.INK) -> Label:
 func open() -> void:
 	showing = str(Profile.characters.get("selected", "vega"))
 	visible = true
+	tree.visible = false
 	refresh()
 
 
@@ -291,36 +297,32 @@ func refresh() -> void:
 	_fill_points(c, _unlocked(showing))
 
 
+## The right panel: points left, the button to the skill tree, and what this character has bought.
 func _fill_points(c: Dictionary, unlocked: bool) -> void:
 	for child in _spend.get_children():
 		child.queue_free()
 	var state := Profile.characters
 	_points.text = "%d points to spend (shared by all characters, %d earned)" % [Characters.points_left(state), Characters.points_earned(state)]
 	var info: Dictionary = Characters.LIST[showing]
-	var keys := ["u0", "u1", "d0", "d1", "p"]
-	for key: String in keys:
-		var label := ""
+	for key: String in ["u0", "u1", "d0", "d1", "p"]:
 		var spent := int(c["spent"].get(key, 0))
+		var row := _text(15, HudStyle.INK if spent > 0 else HudStyle.INK_DIM)
 		if key == "p":
-			label = "%s rank %d" % [Characters.PASSIVES[info["passive"]]["name"], mini(Characters.passive_rank(c) + 1, 3)]
-			label += " (2 points)" if spent < 2 else " (top rank)"
+			row.text = "%s: rank %d / 3" % [Characters.PASSIVES[info["passive"]]["name"], Characters.passive_rank(c)]
 		else:
 			var index := 0 if key == "u0" else 1 if key == "u1" else 2 if key == "d0" else 3
-			var name_text := str(Characters.STAT_NAMES[str(info["traits"][index][0])])
-			label = ("Boost 2%%: %s (%d/%d)" % [name_text, spent, Characters.UPSIDE_MAX]) if key.begins_with("u") \
-				else ("Shrink: %s (%d/%d)" % [name_text, spent, Characters.DOWNSIDE_MAX])
-		var button := Button.new()
-		button.name = key
-		button.text = label
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(0, 40)
-		button.clip_text = true
-		LootUI.style_button(button, 15)
-		button.disabled = not unlocked or not Characters.can_spend(state, c, key)
-		button.pressed.connect(func() -> void: spend(key))
-		_spend.add_child(button)
-	_reset.text = "RESET POINTS  %s" % ItemDB.money(Characters.RESET_COST)
-	_reset.disabled = not unlocked or Characters.char_spent(c) == 0 or Profile.money < Characters.RESET_COST
+			var cap := Characters.UPSIDE_MAX if key.begins_with("u") else Characters.DOWNSIDE_MAX
+			row.text = "%s %s: %d / %d" % ["Boost" if key.begins_with("u") else "Shrink",
+				Characters.STAT_NAMES[str(info["traits"][index][0])], spent, cap]
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_spend.add_child(row)
+	_reset.disabled = false
+	_reset.tooltip_text = "" if unlocked else "Look around the tree; unlock %s to spend points." % info["name"]
+
+
+## The skill tree for the character being looked at (owner 2026-11-20: its own menu).
+func open_tree() -> void:
+	tree.open()
 
 
 func _on_action() -> void:
@@ -365,7 +367,8 @@ func spend(key: String) -> void:
 	_changed()
 
 
-func _on_reset() -> void:
+## Every point on this character back to the pool, for RESET_COST (from the skill tree).
+func reset_points() -> void:
 	if Profile.money < Characters.RESET_COST:
 		return
 	var state := Profile.characters
