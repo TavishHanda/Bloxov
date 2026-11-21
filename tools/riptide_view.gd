@@ -11,6 +11,8 @@ const VIEWS := {
 	"cannery-under": [Vector3(-136, 4.2, -154), Vector3(-141, 3.5, -160)],
 	"fuel-depot": [Vector3(-56, 8, -128), Vector3(-82, 5, -145)],
 	"lighthouse": [Vector3(-44, 5, -140), Vector3(-62, 9, -158)],
+	"cannery_s": [Vector3(-96, 13, -114), Vector3(-122, 5, -132)],
+	"roofs": [Vector3(-124, 16, 102), Vector3(-92, 8, 76)],
 	"lh-top": [Vector3(-62, 32.1, -157), Vector3(-100, 4, -100)],
 	"lh-balcony": [Vector3(-58.4, 32.1, -155.0), Vector3(-30, 10, -120)],
 	"lh-far": [Vector3(-40, 6, -120), Vector3(-62, 18, -158)],
