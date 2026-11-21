@@ -7,6 +7,20 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.10 (No more AI shooting you as you spawn)
+Owner, 2026-11-21: "when i spawned in frontlines in a pvp raid ... the sniper scav was shooting at me before i even
+could move"; "my friend spawn in and he instantly got killed by an AI before being able to move".
+- The cause: online, the server makes a raid's AI before any player is in its copy of the raid, so the spawner's
+  "away from and out of sight of every player" rule had nobody to keep away from. Zone scavs could start right next to
+  a squad's spawn and snipers could take a perch looking straight down on one.
+- Now the server tells the spawner where each real squad will start (`RaidWorld.set_player_starts`, the same spots the
+  players' games use) before the AI comes in. For the first 60 s (`EnemySpawner.START_GUARD`) those spots count as
+  players: no AI starts within `min_distance_from_player` (18 m, unchanged) of one, spots one can see are only used
+  when nothing hidden is left, and snipers prefer perches that don't look down on one. Offline nothing changes (the
+  player is already standing there). No gameplay numbers changed.
+- Smoke test: the spawner keeps off a start spot, the spots stop counting after the start, and the server's raid tells
+  its spawner where its player starts.
+
 ## 0.38.9 (Swap backpacks with a body)
 Owner (2026-11-21): "you should be able to drag the backpack on the looted body to replace your backpack ... see the
 contents of the backpack when looting ... your contents go to the body/bag on the ground and the backpack goes to
