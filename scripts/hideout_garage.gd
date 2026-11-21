@@ -21,7 +21,7 @@ func setup(level: Node) -> void:
 ## Shows the parts built now (after building one in the menu).
 func refresh() -> void:
 	var parts: Array = ["frame"]
-	for id: String in Profile.truck:
+	for id: String in HostView.truck():   # (the party leader's truck while visiting them, 0.39.0)
 		if not parts.has(id):
 			parts.append(id)
 	if parts == _shown and _truck != null:

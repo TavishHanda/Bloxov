@@ -30,6 +30,8 @@ const RATES := {
 	"report": [80.0, 100.0],
 	"kit": [1.0, 3.0],
 	"use": [4.0, 8.0],
+	"hideout": [15.0, 30.0],   # (hideout visits, 0.39.0: 10 a second)
+	"hideout_act": [15.0, 30.0],   # (range shots and bag punches seen by party mates, 0.39.0)
 	"account": [0.5, 4.0],
 	"save": [3.0, 10.0],
 }

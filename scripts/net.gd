@@ -162,6 +162,17 @@ var accounts: NetAccounts
 var teammates: Array[int] = []
 ## The other players in our raid: their latest state (RemotePlayer.capture) by peer id, and when it arrived.
 var states := {}
+## Hideout visits (0.39.0, owner 2026-11-21: PvP only): party mates walking round the hideout with us, as the server
+## relays them. Peer id -> [name, look text, state (RemotePlayer.capture's shape), seconds it arrived]. Looks only:
+## the hideout never runs on the server, which just passes positions between party members (HideoutVisits).
+var hideout_mates := {}
+## Visiting (0.39.0): the party leader's hideout as their game sent it (HostView.of_profile): [name, data, seconds].
+var hideout_host := []
+## Visiting (0.39.0, part 3): what party mates did in the hideout, for HideoutVisits to show and empty:
+## [peer, kind ("shot" at the range, "punch" on the bag), from, to, weapon id].
+var hideout_acts := []
+## How often our hideout position goes out while a party mate could see it (a walk round needs far fewer than a raid).
+const HIDEOUT_SEND_RATE := 10.0
 var states_msec := 0
 ## Server clock (seconds) of the last states update, and our clock when it arrived: lets shots say what moment
 ## of the raid we were looking at when we fired (the server checks hits against that moment).
@@ -1346,6 +1357,9 @@ func go_offline() -> void:
 		issued_kit = {}   # (kept while getting back into the raid: it's still what we went in with)
 	queued = false
 	party_code = ""
+	hideout_mates = {}
+	hideout_host = []
+	hideout_acts = []
 	party_names = []
 	states.clear()
 
@@ -1686,6 +1700,100 @@ func _put_back(pos: Vector3) -> void:
 @rpc("authority", "call_remote", "reliable")
 func _notice(text: String) -> void:
 	notice.emit(text)
+
+
+## Hideout visits (0.39.0): our place in the hideout, for our party mates there to see.
+func send_hideout_state(state: Array) -> void:
+	if is_client() and not in_raid:
+		_hideout_state.rpc_id(1, state)
+
+
+## Server: a player's hideout state goes to their party mates who are in the hideout too (not in a raid). Only
+## what's needed to draw them walking round goes on: no gun, no health, nothing that counts for anything.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func _hideout_state(state: Array) -> void:
+	var peer := _sender("hideout")
+	if peer == 0 or matchmaker.players[peer]["raid"] != 0:
+		return
+	if not is_valid_state(state):
+		_caught(peer, "bad_data", "hideout")
+		return
+	var party := matchmaker.party_of(peer)
+	if party.is_empty() or party["members"].size() < 2:
+		return
+	var pos: Vector3 = state[0]
+	if not pos.is_finite():
+		return
+	var shown := [pos, float(state[1]), clampf(float(state[2]), -1.6, 1.6), 0.0,
+		int(state[4]) & (Hitbox.FLAG_CROUCH | Hitbox.FLAG_SPRINT | Hitbox.FLAG_PRONE | Hitbox.FLAG_AIM | Hitbox.FLAG_ARMED | (0xFF << Hitbox.GUN_SHIFT))]
+	var who: Dictionary = matchmaker.players[peer]
+	for member: int in party["members"]:
+		if member != peer and matchmaker.players.has(member) and matchmaker.players[member]["raid"] == 0 and _peer_open(member):
+			_hideout_peer.rpc_id(member, peer, String(who["name"]), String(who.get("look", "")), shown)
+
+
+## Hideout visits (0.39.0): the party leader's hideout look (HostView.of_profile), for the party to see.
+func send_hideout_look(data: Dictionary) -> void:
+	if is_client() and not in_raid:
+		_hideout_look.rpc_id(1, data)
+
+
+## Server: only a party's leader sends their hideout's look; it goes to the rest of the party in the hideout. It's
+## looks only (the game cleans it, HostView.clean), so the server just keeps it small.
+@rpc("any_peer", "call_remote", "reliable")
+func _hideout_look(data: Dictionary) -> void:
+	var peer := _sender("lobby")
+	if peer == 0 or matchmaker.players[peer]["raid"] != 0 or not matchmaker.is_leader(peer):
+		return
+	if var_to_bytes(data).size() > 4096:
+		_caught(peer, "bad_data", "hideout_look")
+		return
+	var party := matchmaker.party_of(peer)
+	for member: int in party["members"]:
+		if member != peer and matchmaker.players.has(member) and matchmaker.players[member]["raid"] == 0 and _peer_open(member):
+			_hideout_host.rpc_id(member, String(matchmaker.players[peer]["name"]), data)
+
+
+## Hideout visits (0.39.0, part 3): something we did that our party mates should see and hear (a range shot from
+## `from` to `to` with `weapon`, a punch on the bag from `from`).
+func send_hideout_act(kind: String, from: Vector3, to := Vector3.ZERO, weapon := "") -> void:
+	if is_client() and not in_raid and party_names.size() > 1:
+		_hideout_act.rpc_id(1, kind, from, to, weapon)
+
+
+## Server: passes a hideout act on to the party mates in the hideout. Looks and sounds only.
+@rpc("any_peer", "call_remote", "unreliable_ordered")
+func _hideout_act(kind: String, from: Vector3, to: Vector3, weapon: String) -> void:
+	var peer := _sender("hideout_act")
+	if peer == 0 or matchmaker.players[peer]["raid"] != 0:
+		return
+	if not kind in ["shot", "punch"] or not from.is_finite() or not to.is_finite() \
+			or (weapon != "" and not (ItemDB.ITEMS.has(weapon) and ItemDB.kind(weapon) == "weapon")):
+		_caught(peer, "bad_data", "hideout_act")
+		return
+	var party := matchmaker.party_of(peer)
+	if party.is_empty():
+		return
+	for member: int in party["members"]:
+		if member != peer and matchmaker.players.has(member) and matchmaker.players[member]["raid"] == 0 and _peer_open(member):
+			_hideout_mate_act.rpc_id(member, peer, kind, from, to, weapon)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _hideout_mate_act(peer: int, kind: String, from: Vector3, to: Vector3, weapon: String) -> void:
+	if hideout_acts.size() < 64:
+		hideout_acts.append([peer, kind, from, to, weapon])
+
+
+@rpc("authority", "call_remote", "reliable")
+func _hideout_host(who: String, data: Dictionary) -> void:
+	hideout_host = [who, data, Time.get_ticks_msec() / 1000.0]
+
+
+@rpc("authority", "call_remote", "unreliable_ordered")
+func _hideout_peer(peer: int, who: String, look: String, state: Array) -> void:
+	if is_valid_state(state):
+		hideout_mates[peer] = [who, look, state, Time.get_ticks_msec() / 1000.0]
 
 
 @rpc("authority", "call_remote", "reliable")

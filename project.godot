@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Bloxov"
 config/description="Blocky voxel extraction shooter."
-config/version="0.38.15"
-config/net_version=19
+config/version="0.39.1"
+config/net_version=20
 run/main_scene="res://scenes/title.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 boot_splash/bg_color=Color(0.0705882, 0.0784314, 0.0901961, 1)

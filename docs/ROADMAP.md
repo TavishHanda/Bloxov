@@ -120,7 +120,7 @@ Steam fee dates, is `docs/RELEASE_PLAN.md`. It comes before the older list below
   account for solo). The current save becomes the solo stash. **Plan: `docs/archive/STASH_UPDATE_PLAN.md`** (the PvE/PvP split,
   the account model, the companion API and Postgres schema, the four levels of server authority, migration, phases,
   tests, risks and the open questions the owner still needs to answer).
-- **Shared hideouts (owner, 2026-11-01; later, "when it's the right time"):** when you're in someone's lobby you can
+- **Shared hideouts (BUILT as 0.39.0, PvP only, owner 2026-11-21; see PHASES.md 0.39; was: owner, 2026-11-01, later):** when you're in someone's lobby you can
   walk round their hideout together (or they visit yours). Needs the hideout to run online like a small raid world
   (players' positions synced, the stations stay each player's own), so it fits after the Stash update's accounts.
 - **Hideout customizing (owner, 2026-11-01; later):** players change their hideout (furniture, posters, lights,
