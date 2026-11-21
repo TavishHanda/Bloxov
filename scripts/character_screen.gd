@@ -21,6 +21,10 @@ var _status: Label
 var _points: Label
 var _spend: VBoxContainer
 var _reset: Button
+var _banner: Label
+var _view: SubViewport
+var _skins: HBoxContainer
+var _needs: VBoxContainer
 
 
 func _init(menu: Node) -> void:
@@ -58,13 +62,31 @@ func _init(menu: Node) -> void:
 
 	var middle := _panel(columns, 0.0)
 	middle.get_parent().get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# The first pick (0.38.3, 0.39: make it obvious): a banner over everything until VEGA or VOSS is chosen.
+	_banner = _heading("CHOOSE YOUR FIRST CHARACTER: VEGA (Nova) or VOSS (Exion)")
+	_banner.add_theme_font_size_override("font_size", 26)
+	_banner.add_theme_color_override("font_color", HudStyle.BRASS)
+	_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	middle.add_child(_banner)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 14)
+	middle.add_child(top)
+	top.add_child(_build_preview())
+	var titles := VBoxContainer.new()
+	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(titles)
 	_name = _heading("")
 	_name.add_theme_font_size_override("font_size", 44)
-	middle.add_child(_name)
+	titles.add_child(_name)
 	_role = _text(20, HudStyle.BRASS)
-	middle.add_child(_role)
+	titles.add_child(_role)
 	_level = _text(20)
-	middle.add_child(_level)
+	titles.add_child(_level)
+	_skins = HBoxContainer.new()
+	_skins.add_theme_constant_override("separation", 6)
+	titles.add_child(_skins)
+	_needs = VBoxContainer.new()
+	titles.add_child(_needs)
 	_bio = _text(16, HudStyle.INK_DIM)
 	middle.add_child(_bio)
 	_traits = VBoxContainer.new()
@@ -100,6 +122,51 @@ func _init(menu: Node) -> void:
 	LootUI.style_button(_reset, 18)
 	_reset.pressed.connect(_on_reset)
 	right.add_child(_reset)
+
+
+## The character, drawn by its own little camera in its own world (like the stash screen's).
+func _build_preview() -> SubViewportContainer:
+	var holder := SubViewportContainer.new()
+	holder.stretch = true
+	holder.custom_minimum_size = Vector2(190, 250)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_view = SubViewport.new()
+	_view.own_world_3d = true
+	_view.transparent_bg = true
+	_view.size = Vector2i(190, 250)
+	_view.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	holder.add_child(_view)
+	var camera := Camera3D.new()
+	camera.fov = 30.0
+	var eye := Vector3(0, 1.25, 5.6)
+	camera.transform = Transform3D(Basis.looking_at(Vector3(0, 1.1, 0) - eye), eye)
+	_view.add_child(camera)
+	var light := DirectionalLight3D.new()
+	light.rotation = Vector3(-0.7, 0.5, 0)
+	_view.add_child(light)
+	var environment := WorldEnvironment.new()
+	environment.environment = Environment.new()
+	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.environment.ambient_light_color = Color(0.75, 0.75, 0.8)
+	_view.add_child(environment)
+	return holder
+
+
+func _show_model(id: String, skin: String) -> void:
+	var old := _view.get_node_or_null("Character")
+	if old != null and old.get_meta("who", "") == id + "/" + skin:
+		return
+	if old != null:
+		_view.remove_child(old)
+		old.queue_free()
+	var model := PlayableModels.make(id, skin)
+	model.name = "Character"
+	model.set_meta("who", id + "/" + skin)
+	model.rotation.y = PI + 0.35
+	_view.add_child(model)
+	var stance := BodyPose.new(model)
+	stance.armed = false
+	stance.update(0.0)
 
 
 func _panel(parent: Control, width: float) -> VBoxContainer:
@@ -165,6 +232,34 @@ func refresh() -> void:
 	var bar := Characters.level_progress(int(c["xp"]))
 	_level.text = "Level %d / %d" % [lv, Characters.MAX_LEVEL] + ("  ·  %d / %d XP" % [bar[0], bar[1]] if int(bar[1]) > 0 else "  ·  top level")
 	_bio.text = str(info["bio"])
+	var picked: bool = state.get("picked", true)
+	_banner.visible = not picked
+	var skin := Characters.skin_of(state, showing)
+	_show_model(showing, skin)
+	for child in _skins.get_children():
+		child.queue_free()
+	for option: String in Characters.SKINS[showing]:
+		var b := Button.new()
+		b.name = "Skin_" + option
+		b.text = option.to_upper()
+		b.toggle_mode = true
+		b.button_pressed = option == skin
+		b.focus_mode = Control.FOCUS_NONE
+		LootUI.style_button(b, 14)
+		b.disabled = not _unlocked(showing)
+		b.pressed.connect(func() -> void: pick_skin(option))
+		_skins.add_child(b)
+	_skins.visible = _unlocked(showing)
+	for child in _needs.get_children():
+		child.queue_free()
+	if not _unlocked(showing) and not (not picked and Characters.STARTERS.has(showing)):
+		var head := _text(16, HudStyle.BRASS)
+		head.text = "TO UNLOCK:"
+		_needs.add_child(head)
+		for need: Array in Characters.requirements(state, showing, Profile.money, Profile.trader_levels):
+			var row := _text(16, HudStyle.LIFE if need[1] else HudStyle.BLOOD)
+			row.text = ("DONE  " if need[1] else "NEEDED  ") + str(need[0])
+			_needs.add_child(row)
 	for child in _traits.get_children():
 		child.queue_free()
 	for i in 4:
@@ -187,7 +282,7 @@ func refresh() -> void:
 	elif not state.get("picked", true) and Characters.STARTERS.has(showing):
 		_action.text = "CHOOSE %s (FREE)" % info["name"]
 		_action.disabled = false
-		_status.text = "Pick your first character: VEGA (Nova) or VOSS (Exion). The other unlocks later for %s." % ItemDB.money(Characters.STARTER_PRICE)
+		_status.text = "VEGA or VOSS. The one you don't choose costs %s to unlock later." % ItemDB.money(Characters.STARTER_PRICE)
 	else:
 		var problem := Characters.unlock_problem(state, showing, Profile.money, Profile.trader_levels)
 		_action.text = "UNLOCK  %s" % ItemDB.money(int(info["price"])) if int(info["price"]) > 0 else "LOCKED"
@@ -255,6 +350,14 @@ func _on_action() -> void:
 	_changed()
 
 
+## Looks only (0.39): the skin `showing` wears.
+func pick_skin(skin: String) -> void:
+	if not _unlocked(showing):
+		return
+	Profile.characters.get_or_add("skins", {})[showing] = skin
+	_changed()
+
+
 func spend(key: String) -> void:
 	if not Characters.spend(Profile.characters, showing, key):
 		return
@@ -311,4 +414,8 @@ func _fit_pockets() -> bool:
 func _changed() -> void:
 	Network.main.set_look(Operators.to_text(Profile.look) + Characters.net_tag(Profile.characters))
 	hideout.save_now()
+	if hideout.get("screen") != null:
+		hideout.screen.show_look()   # (the stash screen's character, 0.39)
+	if hideout.has_method("update_character_button"):
+		hideout.update_character_button()
 	refresh()

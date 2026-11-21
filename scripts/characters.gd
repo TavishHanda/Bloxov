@@ -41,6 +41,11 @@ const KIND_OF := {"scav": "scav", "sniper": "scav", "deckhand": "scav", "raider"
 ## The two starters: a new player picks one for free; the other unlocks for STARTER_PRICE (owner, 2026-11-20).
 const STARTERS: Array[String] = ["vega", "voss"]
 const STARTER_PRICE := 50000
+## Each character's skins (0.39, looks only, free to change), the first its default. The models' slot options
+## (PlayableModels, make_character.py) are these names.
+const SKINS := {"vega": ["nova", "dusk", "night"], "voss": ["officer", "parade", "field"],
+	"sable": ["woodland", "desert", "snow"], "patch": ["field", "city", "winter"], "nine": ["subject", "escaped", "lab"],
+	"korr": ["quartermaster", "scrounger", "frost"]}
 ## The order they're listed in.
 const ORDER: Array[String] = ["vega", "voss", "sable", "patch", "nine", "korr"]
 ## Each trait: [stat, value at level 20, upside?]. Stats are multipliers (1 + value): see mult().
@@ -113,7 +118,7 @@ static var last_raid := {}
 
 ## A new state: no starter picked yet (VEGA stands in until the player picks, `pick_starter`).
 static func fresh() -> Dictionary:
-	return {"selected": "vega", "unlocked": ["vega"], "picked": false, "chars": {}}
+	return {"selected": "vega", "unlocked": ["vega"], "picked": false, "skins": {}, "chars": {}}
 
 
 static func _num(value: Variant) -> bool:
@@ -145,6 +150,10 @@ static func clean(data: Variant) -> Dictionary:
 				chars[id] = _clean_char(data["chars"][id])
 	if unlocked.is_empty():
 		unlocked.append("vega")
+	if data.get("skins") is Dictionary:
+		for id: Variant in data["skins"]:
+			if id is String and SKINS.has(id) and (SKINS[id] as Array).has(data["skins"][id]):
+				out["skins"][id] = data["skins"][id]
 	var pick: Variant = data.get("selected")
 	out["selected"] = pick if pick is String and unlocked.has(pick) else str(unlocked[0])
 	# 0.37.0-0.38.1 kept expedition points for the whole account; since 0.38.2 each character has its own (owner).
@@ -267,6 +276,35 @@ static func reset_points(state: Dictionary, id: String) -> void:
 	var c := char_of(state, id)
 	for key in SPEND_KEYS:
 		c["spent"][key] = 0
+
+
+## The skin `id` wears (its first when none was picked).
+static func skin_of(state: Dictionary, id: String) -> String:
+	var skins: Dictionary = state.get("skins", {}) if state.get("skins") is Dictionary else {}
+	return skin_or_default(id, str(skins.get(id, "")))
+
+
+static func skin_or_default(id: String, skin: String) -> String:
+	var options: Array = SKINS.get(id, SKINS["vega"])
+	return skin if options.has(skin) else str(options[0])
+
+
+## What `id` needs to unlock, each with whether it's met: [[text, met], ...] (shown in full on the CHARACTERS screen).
+static func requirements(state: Dictionary, id: String, money: int, trader_levels: Dictionary) -> Array:
+	var info: Dictionary = LIST[id]
+	var out := []
+	if not state.get("picked", true) and not STARTERS.has(id):
+		out.append(["Pick VEGA or VOSS first", false])
+	if info.get("files", false):
+		out.append(["Find the 3 Subject 09 files in Site Zero (coming in a later update)", false])
+		return out
+	var trader := str(info.get("trader", ""))
+	if trader != "":
+		var have := int(trader_levels.get(trader, 1))
+		out.append(["%s level %d (you have %d)" % [Traders.title(trader), int(info["trader_level"]), have], have >= int(info["trader_level"])])
+	if int(info["price"]) > 0:
+		out.append(["%s (you have %s)" % [ItemDB.money(int(info["price"])), ItemDB.money(money)], money >= int(info["price"])])
+	return out
 
 
 ## The first pick: `id` (a starter) is the player's, free; the other starter stays locked. False if already picked.
@@ -413,25 +451,38 @@ static func net_tag(state: Dictionary) -> String:
 	if not LIST.has(id):
 		id = "vega"
 	var steps := float(multipliers(state, id).get("steps", 1.0))
-	return "%d%02d" % [ORDER.find(id), clampi(roundi(steps * 100.0) - 50, 0, 99)]
+	return "%d%02d%d" % [ORDER.find(id), clampi(roundi(steps * 100.0) - 50, 0, 99), maxi((SKINS[id] as Array).find(skin_of(state, id)), 0)]
 
 
 ## A tag from the network, kept only if it's possible: a real character and steps no quieter than the quietest
 ## anyone can be (a made-up tag can't make you silent).
+## Since 0.39 a fourth digit is the skin.
 static func clean_tag(tag: String) -> String:
-	if tag.length() != 3 or not tag.is_valid_int():
+	if tag.length() < 3 or tag.length() > 4 or not tag.is_valid_int():
 		return ""
 	var index := int(tag[0])
-	var steps := clampi(int(tag.substr(1)), 0, 99)
+	var steps := clampi(int(tag.substr(1, 2)), 0, 99)
 	if index < 0 or index >= ORDER.size():
 		return ""
-	return "%d%02d" % [index, maxi(steps, 5)]   # (at least 0.55: VEGA's quietest)
+	var skin := int(tag[3]) if tag.length() == 4 else 0
+	if skin >= (SKINS[ORDER[index]] as Array).size():
+		skin = 0
+	return "%d%02d%d" % [index, maxi(steps, 5), skin]   # (at least 0.55: VEGA's quietest)
+
+
+## Who someone is from their look text: [character, skin] (VEGA in her first skin when it has no tag).
+static func character_of_look(text: String, look_length: int) -> Array:
+	var tag := clean_tag(text.substr(look_length))
+	if tag == "":
+		return ["vega", SKINS["vega"][0]]
+	var id: String = ORDER[int(tag[0])]
+	return [id, SKINS[id][int(tag[3])]]
 
 
 ## How far someone's steps carry, from their look text (1.0 when it has no tag).
 static func steps_of_look(text: String, look_length: int) -> float:
 	var tag := clean_tag(text.substr(look_length))
-	return 1.0 if tag == "" else (float(int(tag.substr(1))) + 50.0) / 100.0
+	return 1.0 if tag == "" else (float(int(tag.substr(1, 2))) + 50.0) / 100.0
 
 
 ## The hideout's check of a profile change (OnlineProfile.audit): unlocks paid for and allowed, XP and earned points
