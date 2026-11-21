@@ -1,16 +1,23 @@
 extends SceneTree
 # Renders the first-person hands on every gun, at the hip and aimed, for checking them and for the owner's option sheets
 # (make_hands.py). xvfb-run -a godot --rendering-driver opengl3 -s tools/hands_view.gd -- out=/tmp/hands [hands=<glb>]
-# Writes <out>-<key>-hip.png and <out>-<key>-aim.png (640x360, from the window's size) for the rifle, pistol, smg, shotgun and sniper.
+# [keys=rifle,pistol] [char=vega/nova]. Writes <out>-<key>-hip.png and <out>-<key>-aim.png (640x360, from the window's size) for the rifle, pistol, smg, shotgun and sniper.
 const ADS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0, -0.036, -0.28)}   # (Gun.ADS_POSITIONS)
 
 
 func _initialize() -> void:
 	var out := "/tmp/hands"
 	var hands := GunViewModels.HANDS
+	var keys: Array[String] = ["rifle", "reaper", "pistol", "smg", "shotgun", "sniper", "viper", "hornet", "brawler", "talon"]
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("out="): out = a.substr(4)
 		if a.begins_with("hands="): hands = a.substr(6)
+		if a.begins_with("keys="): keys.assign(a.substr(5).split(","))
+		if a.begins_with("char="):   # (a character's sleeves and gloves, "<id>/<skin>", 0.38.14)
+			var who := a.substr(5).split("/")
+			Profile.characters = Characters.fresh()
+			Profile.characters["selected"] = who[0]
+			Profile.characters["skins"] = {who[0]: who[1] if who.size() > 1 else ""}
 	var main: Node = (load("res://scenes/main.tscn") as PackedScene).instantiate()
 	for c in main.get_children():
 		if not c.name in ["WorldEnvironment", "Sun", "Level"]:
@@ -27,7 +34,7 @@ func _initialize() -> void:
 	var models := GunViewModels.build_all(gun)
 	models["rifle"] = gun.get_node("Model"); models["pistol"] = gun.get_node("PistolModel")
 	var ads := ADS.merged(GunViewModels.ADS)
-	for key: String in ["rifle", "reaper", "pistol", "smg", "shotgun", "sniper", "viper", "hornet", "brawler", "talon"]:
+	for key: String in keys:
 		var model: Node3D = models[key]
 		var old := model.get_node("Hands"); model.remove_child(old); old.free()
 		GunViewModels.add_hands(model, HeldGun.MODELS[GunViewModels.WEAPONS[key]], hands)
