@@ -1206,6 +1206,21 @@ func _build_top_bar() -> void:
 			open_options())
 	row.add_child(options_button)
 	_build_options_window()
+	# CRAFT (0.38.7, owner: "more accessible"): the workbench from the menu, not only by walking to it. Phones have
+	# their own CRAFT tab in the nav.
+	var craft_button := Button.new()
+	craft_button.name = "CraftMenuButton"
+	craft_button.text = "CRAFT"
+	craft_button.tooltip_text = "The workbench: make things from what's in your stash"
+	craft_button.focus_mode = Control.FOCUS_NONE
+	craft_button.visible = not GameSettings.is_phone()
+	LootUI.style_button(craft_button)
+	craft_button.pressed.connect(func() -> void:
+		if craft_screen.visible:
+			close_trader_screen()
+		else:
+			open_craft())
+	row.add_child(craft_button)
 	if GameSettings.pvp_stash_on():
 		mode_button = Button.new()
 		mode_button.name = "ModeButton"
