@@ -48,12 +48,12 @@ static func trips_of(profile: Dictionary) -> int:
 
 
 ## Why `part` can't be built now ("" = it can).
-static func cant_build(stash: GridInventory, money: int, truck: Array, part: String) -> String:
+static func cant_build(stash: GridInventory, money: int, truck: Array, part: String, locker: MaterialLocker = null) -> String:
 	if not PARTS.has(part):
 		return "No such part."
 	if truck.has(part):
 		return "Already built."
-	if not Crafting.has_parts(stash, PARTS[part]["needs"]):
+	if not Crafting.has_parts(stash, PARTS[part]["needs"], 1, locker):
 		return "Not enough parts in the stash."
 	if money < int(PARTS[part]["money"]):
 		return "Not enough money."
@@ -61,12 +61,12 @@ static func cant_build(stash: GridInventory, money: int, truck: Array, part: Str
 
 
 ## Builds `part`: takes its loot from the stash and adds it to `truck`. Returns the error ("" = done). The caller
-## takes the money (Profile, or the server's copy).
-static func build(stash: GridInventory, money: int, truck: Array, part: String) -> String:
-	var why := cant_build(stash, money, truck, part)
+## takes the money (Profile, or the server's copy). Parts come from the stash first, then `locker` (0.38.7).
+static func build(stash: GridInventory, money: int, truck: Array, part: String, locker: MaterialLocker = null) -> String:
+	var why := cant_build(stash, money, truck, part, locker)
 	if why != "":
 		return why
-	Crafting._use(stash, PARTS[part]["needs"], 1)
+	Crafting._use(stash, PARTS[part]["needs"], 1, locker)
 	truck.append(part)
 	return ""
 

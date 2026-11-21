@@ -46,6 +46,8 @@ static var bench_level := 1
 static var crafted: Dictionary = {}
 ## Expeditions (0.38.0, see Expedition): the truck's parts built so far, and how many trips this stash has made.
 static var truck: Array[String] = []
+## The materials locker (0.38.7, see MaterialLocker): bought once, holds crafting materials outside the stash.
+static var locker := MaterialLocker.new()
 static var expeditions := 0
 ## Saved loadouts (0.21.2, owner): [{"name", "kit"}, ...], see Loadouts.
 static var loadout_presets: Array = []
@@ -146,6 +148,7 @@ static func _apply(data: Dictionary) -> void:
 	bench_level = Crafting.bench_of(data)
 	crafted = Crafting.crafted_of(data)
 	truck = Expedition.truck_of(data)
+	locker = MaterialLocker.from_data(data.get("locker"))
 	expeditions = Expedition.trips_of(data)
 	loadout_presets = []
 	for entry in _array(data.get("presets")):
@@ -276,6 +279,7 @@ static func reset() -> void:
 	bench_level = 1
 	crafted = {}
 	truck = []
+	locker = MaterialLocker.new()
 	expeditions = 0
 	loadout_presets = []
 	characters = Characters.fresh()
@@ -373,6 +377,7 @@ static func online_data() -> Dictionary:
 		"bench_level": bench_level,
 		"crafted": crafted,
 		"truck": truck,
+		"locker": locker.to_data(),
 		"expeditions": expeditions,
 		"characters": characters,
 	}
@@ -380,7 +385,7 @@ static func online_data() -> Dictionary:
 
 ## Builds a truck part from the stash and money (Expedition). Returns the error ("" = built, and saved).
 static func build_truck_part(part: String) -> String:
-	var why := Expedition.build(stash, money, truck, part)
+	var why := Expedition.build(stash, money, truck, part, locker)
 	if why != "":
 		return why
 	money -= int(Expedition.PARTS[part]["money"])

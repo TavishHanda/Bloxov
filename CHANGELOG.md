@@ -22,8 +22,23 @@ Owner's answers to the tester's Riptide feedback (2026-11-20, "Yea looks good" t
 - **Painkillers** (heal 15, 1 s, six to a stack, uncommon, $900) and the **Trauma Kit** (heal 100, 7 s, 2x2, rare,
   $5,500): found in the clinic and the ship's sick bay. Icons, hand models, a pill-bottle sound. No real drug names;
   the kit's cross is green (a red cross on white is a protected emblem).
-- Net version 19 (the map changed). Tests for each; the map audits updated (loot behind a key door is skipped).
+- Net version 20 (the map changed). Tests for each; the map audits updated (loot behind a key door is skipped).
 
+## 0.38.12 (The materials locker)
+Owner (2026-11-21): "a place in the hideout where you can store all your craftable items like the nuts and bolts
+... so it's not cluttering your main inventory. You can buy it and it's really expensive." Price and size picked by
+the owner: $150,000, up to 50 of each.
+- **The materials locker** (`scripts/material_locker.gd`, `scripts/locker_screen.gd`): bought once from the
+  workbench's new MATERIALS LOCKER button (phones: CRAFT tab, then MATERIALS LOCKER). It holds up to 50 of each
+  crafting material as a plain count, no grid: bolts, wires, scrap, duct tape, powder tins, medical supplies, car
+  batteries and fuel cans. STORE ALL (or STORE per row) moves them out of the stash; TAKE 1 / TAKE ALL put them
+  back. Free-kit stacks never go in; found-in-raid marks stay and come out first, for jobs.
+- **The workbench and the truck use it:** recipes, the bench upgrade and truck parts count and take parts from the
+  stash first, then the locker (`Crafting.have/craft/_use`, `Expedition.build` take the locker).
+- **Saved with the stash** (`"locker"` in the profile), PvE and PvP. Leaving on an expedition starts it over like the
+  workbench. The server's PvP hideout check counts what's in it with the stash (so moving things in and out is
+  free), charges $150,000 when it appears and refuses it disappearing or being over-filled
+  (`MaterialLocker.clean/changes`, `OnlineProfile.entries/audit`). **Net version 19** (the profile's shape).
 ## 0.38.11 (Characters 2, part 2: AI PMCs are the six characters)
 Owner (2026-11-20): "AI pmc will be randomly chosen between those 6 ... with their actual stats"; level 5-15 (owner's
 pick, 2026-11-21).
