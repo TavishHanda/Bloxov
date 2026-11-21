@@ -7,6 +7,33 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.14 (Your hands match your character)
+Owner (2026-11-21): the first-person hands should match the character you're playing.
+- Every character's skin has its own first-person sleeves and gloves, painted from that skin's jacket and gloves
+  (`art_source/scripts/make_hand_skins.py` -> `assets/models/hands/outfit/<sleeve|glove>-<id>-<skin>.png`), so VOSS
+  in his officer's uniform has slate sleeves and white gloves, KORR's quartermaster coat is teal, and so on (36 new
+  textures). `PlayableModels.hands_look` names them; `GunViewModels.wear` uses them as they are (the old mapping onto
+  the four wardrobe colours is gone). Climbing hands too.
+- `tools/hands_view.gd` takes `char=<id>/<skin>` and `keys=` for pictures. Test: every character and skin has both.
+
+## 0.38.13 (Looser shots on the move, less war far off, key 5, Med Parts, no breath woosh)
+Owner, 2026-11-21 (all four proposed and OK'd): "when jumping and shooting and moving and shooting u need to get way
+more bullet spread"; PvP shooting "sounds like a straight up war"; "lets add a key 5"; the "meds" item confuses
+playtesters.
+- Spread: moving spread doubled on every gun (Hound hip while moving 1.6 -> 2.3 degrees, aimed while moving 0.8 ->
+  1.35); in the air +4 -> +7 degrees. Standing, crouching, prone and the AI's aim are unchanged.
+- Far gunfire (`Hearing.shot_heard`): someone else's shots past 150 m aren't heard, at most 4 far shots (past 45 m)
+  sound at once and the rest are skipped, and the far boom is 4 dB softer. Shots that come at you, close shots and
+  your own gun are unchanged. (PvE too: the same scav and AI shots.)
+- Key 5: a second quick slot on the hotbar (1, 2, 3, 4, 5, V), rebindable in OPTIONS, tappable on touch screens.
+  Energy drinks go on it by themselves when it's free; anything else binds there with right-click > Bind once key 4
+  is taken. Its empty slot shows a faint can. Old saves keep their bindings.
+- "Medical Supplies" (short "Meds") is now **Med Parts**, its description says it's a crafting part (same item id,
+  same uses and price).
+- No more out-of-breath "woosh" at low stamina, on any map (owner, 2026-11-21: "remove the wooshing noise at low
+  stamina completely"; it was already off on Riptide). The heartbeat when badly hurt stays.
+- Net lock re-recorded (no net version change: the hotbar list grew by one at the end, old games read the first three).
+
 ## 0.38.12 (The materials locker)
 Owner (2026-11-21): "a place in the hideout where you can store all your craftable items like the nuts and bolts
 ... so it's not cluttering your main inventory. You can buy it and it's really expensive." Price and size picked by

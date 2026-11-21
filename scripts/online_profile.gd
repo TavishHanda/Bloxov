@@ -56,7 +56,7 @@ static func fresh() -> Dictionary:
 			"pockets": [{"id": "rifle_ammo", "count": 90, "x": 0, "y": 0}, {"id": "bandage", "count": 1, "x": 1, "y": 0}],
 			"backpack": [],
 			"secure": [],
-			"hotbar": ["", "", ""],
+			"hotbar": ["", "", "", ""],
 		},
 		"stats": {"raids": 0, "extracts": 0, "deaths": 0, "earned": 0},
 		"free_kit_raid": -1,
@@ -169,7 +169,7 @@ static func more_than(loadout: Dictionary, carried: Dictionary) -> Dictionary:
 ## What's left of a loadout after dying: only the secure pocket (and hotbar bindings). Same as Profile.death_loadout.
 static func death_loadout(loadout: Dictionary) -> Dictionary:
 	return {"equipment": {}, "pockets": [], "backpack": [], "secure": loadout.get("secure", []),
-		"hotbar": loadout.get("hotbar", ["", "", ""])}
+		"hotbar": loadout.get("hotbar", ["", "", "", ""])}
 
 
 # --- The hideout check (Stash update Phase 3, 0.31.3) ----------------------------------
