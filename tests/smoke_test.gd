@@ -5059,9 +5059,9 @@ func _section_crafting() -> void:
 		"a recipe above the workbench's level is refused")
 	_check(Crafting.craft(stash, "grenade", 1, 2) == "" and stash.count_of("grenade") == 1
 		and stash.count_of("duct_tape") == 0, "at workbench level 2 the grenade can be made")
-	var free_tape := ItemStack.new("duct_tape", 1, 7, 19)
-	free_tape.free = true
-	stash.place(free_tape)
+	var kit_tape := ItemStack.new("duct_tape", 1, 7, 19)
+	kit_tape.free = true
+	stash.place(kit_tape)
 	_check(Crafting.have(stash, "duct_tape") == 0, "free-kit stacks don't count as parts")
 	var found_scrap := ItemStack.new("scrap", 1, 6, 19)
 	found_scrap.found = true
@@ -5098,6 +5098,58 @@ func _section_crafting() -> void:
 	_check(not (hideout.craft_screen.find_child("UpgradeButton", true, false) as Button).visible, "level 2 is the top for now")
 	hideout.craft_screen._set_times("bandage", 5)
 	_check(hideout.craft_screen.times["bandage"] == 5, "the selector picks how many to make")
+	# The materials locker (0.38.7, owner 2026-11-21): $150,000, up to 50 of each material, crafting uses it.
+	var held_bolts := Profile.stash.count_of("bolts")
+	Profile.money = MaterialLocker.PRICE - 1
+	hideout.open_craft()
+	(hideout.craft_screen.find_child("LockerButton", true, false) as Button).pressed.emit()
+	_check(hideout.current_screen() == "locker", "the workbench's MATERIALS LOCKER button opens the locker")
+	_check(hideout.store_materials() == 0 and not hideout.buy_locker() and not Profile.locker.owned,
+		"nothing goes in before it's bought, and it can't be bought short of the money")
+	Profile.money = MaterialLocker.PRICE + 5
+	(hideout.locker_screen.find_child("BuyButton", true, false) as Button).pressed.emit()
+	_check(Profile.locker.owned and Profile.money == 5, "BUY takes $150,000")
+	Profile.stash.add("bolts", 60)
+	var watches := Profile.stash.count_of("gold_watch")
+	Profile.stash.add("gold_watch", 1)
+	var locker_tape := ItemStack.new("duct_tape")
+	locker_tape.free = true
+	Profile.stash.place(_spot_for(Profile.stash, locker_tape))
+	(hideout.locker_screen.find_child("StoreAllButton", true, false) as Button).pressed.emit()
+	_check(Profile.locker.count("bolts") == MaterialLocker.MAX_EACH and Profile.stash.count_of("bolts") == held_bolts + 60 - MaterialLocker.MAX_EACH,
+		"STORE ALL fills the locker to %d of each and leaves the rest in the stash" % MaterialLocker.MAX_EACH)
+	_check(Profile.stash.count_of("gold_watch") == watches + 1 and Profile.stash.stacks.has(locker_tape) and Profile.locker.count("duct_tape") == 0,
+		"only crafting materials go in, never free-kit stacks")
+	_check(Crafting.have(Profile.stash, "bolts", Profile.locker) == held_bolts + 60, "the workbench counts the locker's parts too")
+	var bolt_stacks: Array = Profile.stash.stacks.filter(func(st: ItemStack) -> bool: return st.id == "bolts")
+	for st: ItemStack in bolt_stacks:
+		Profile.stash.remove(st)
+	Profile.stash.add("gunpowder", 1)
+	_check(hideout.craft("smg_ammo", 1) and Profile.locker.count("bolts") == MaterialLocker.MAX_EACH - 2,
+		"crafting takes parts from the locker when the stash has none")
+	var saved = JSON.parse_string(Profile.save_text())
+	var again := MaterialLocker.from_data(saved.get("locker"))
+	_check(again.owned and again.count("bolts") == MaterialLocker.MAX_EACH - 2, "the locker is saved")
+	_check(MaterialLocker.from_data({"owned": true, "items": [{"id": "bolts", "count": 999}, {"id": "gold_bar", "count": 1}]}).count("bolts") == MaterialLocker.MAX_EACH
+		and MaterialLocker.from_data({"owned": false, "items": [{"id": "bolts", "count": 5}]}).total() == 0,
+		"a saved locker is cleaned: %d of each at most, materials only, empty until bought" % MaterialLocker.MAX_EACH)
+	hideout.take_material("bolts", MaterialLocker.MAX_EACH)
+	_check(Profile.locker.count("bolts") == 0 and Profile.stash.count_of("bolts") == MaterialLocker.MAX_EACH - 2, "TAKE ALL puts them back in the stash")
+	var found_locker := MaterialLocker.new()
+	found_locker.owned = true
+	var found_stash := GridInventory.new("Stash", 8, 20)
+	found_stash.add("scrap", 2, ItemStack.FOUND)
+	found_locker.store(found_stash)
+	found_locker.items["scrap"][0] += 1
+	found_locker.take(found_stash, "scrap", 2)
+	_check(found_stash.count_of("scrap") == 2 and found_stash.stacks.all(func(st: ItemStack) -> bool: return st.found),
+		"found-in-raid marks stay in the locker and come out first (for jobs)")
+	Profile.stash.remove(locker_tape)
+	for st: ItemStack in Profile.stash.stacks.filter(func(x: ItemStack) -> bool: return x.id in ["bolts", "gold_watch"]):
+		Profile.stash.remove(st)
+	Profile.stash.add("bolts", held_bolts)
+	Profile.stash.add("gold_watch", watches)
+	Profile.locker = MaterialLocker.new()
 	Profile.money = money
 	Profile.bench_level = 1
 	Profile.crafted = {}
@@ -5303,6 +5355,15 @@ func _section_pvp_hideout() -> void:
 	step.call("upgrading the workbench", func() -> void: hideout.upgrade_bench())
 	_check(Profile.bench_level == 2, "(the test reached workbench level 2)")
 	step.call("crafting at the new level", func() -> void: hideout.craft("grenade", 1))
+	# The materials locker (0.38.7): bought once; moving materials in and out and crafting from it all pass.
+	step.call("buying the materials locker", func() -> void: hideout.buy_locker())
+	raid_gain.call(func() -> void:
+		for entry in [["gunpowder", 2], ["scrap", 3], ["bolts", 6]]:
+			Profile.stash.add(entry[0], entry[1], ItemStack.FOUND))
+	step.call("storing materials in the locker", func() -> void: hideout.store_materials())
+	_check(Profile.locker.count("bolts") >= 6 and Crafting.have(Profile.stash, "bolts") == 0, "(the test's bolts are in the locker)")
+	step.call("crafting from the locker", func() -> void: hideout.craft("rifle_ammo", 1))
+	step.call("taking materials out of the locker", func() -> void: hideout.take_material("bolts", 2))
 	hideout.save_loadout("PvP test")
 	step.call("equipping a saved loadout, buying it new", func() -> void: hideout.equip_loadout(0, true))
 	raid_gain.call(func() -> void:   # (dying in a raid: the server keeps only the secure pocket)
@@ -5335,6 +5396,18 @@ func _section_pvp_hideout() -> void:
 		p["bench_level"] = 1
 		p["crafted"]["suppressor"] = 1)
 	refused.call("a free workbench level", func(p: Dictionary) -> void: p["bench_level"] = 3)
+	refused.call("materials from nowhere in the locker", func(p: Dictionary) -> void: p["locker"]["items"].append({"id": "gunpowder", "count": 5}))
+	refused.call("selling the locker back", func(p: Dictionary) -> void: p["locker"] = {"owned": false, "items": []})
+	var no_locker: Dictionary = JSON.parse_string(JSON.stringify(base))
+	no_locker["locker"] = {"owned": false, "items": []}
+	no_locker["money"] = int(base["money"]) + MaterialLocker.PRICE - 1
+	no_locker = OnlineProfile.clean(no_locker)
+	var locked: Dictionary = JSON.parse_string(JSON.stringify(no_locker))
+	locked["locker"] = {"owned": true, "items": []}
+	locked["money"] = int(no_locker["money"])
+	_check(OnlineProfile.audit(no_locker, OnlineProfile.clean(locked)) != "", "the PvP hideout check refuses a free materials locker")
+	locked["money"] = int(no_locker["money"]) - MaterialLocker.PRICE
+	_check(OnlineProfile.audit(no_locker, OnlineProfile.clean(locked)) == "", "and takes one paid for")
 	refused.call("a craft count going down", func(p: Dictionary) -> void: p["crafted"] = {})
 	refused.call("a found-in-raid mark", func(p: Dictionary) -> void: p["stash"][0]["found"] = true)
 	var worn_base: Dictionary = JSON.parse_string(JSON.stringify(base))

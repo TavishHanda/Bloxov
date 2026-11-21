@@ -25,6 +25,7 @@ var record: RecordScreen
 var craft_screen: CraftScreen
 ## Expeditions (0.38.0): the truck and leaving.
 var expedition_screen: ExpeditionScreen
+var locker_screen: LockerScreen
 ## Set while leaving on an expedition: the old stash must not be saved over the new one.
 var _leaving := false
 ## The shared pool's expedition points and who went, as we left (the cutscene says what was earned).
@@ -153,6 +154,9 @@ func _ready() -> void:
 	expedition_screen = ExpeditionScreen.new(self)
 	expedition_screen.visible = false
 	add_child(expedition_screen)
+	locker_screen = LockerScreen.new(self)
+	locker_screen.visible = false
+	add_child(locker_screen)
 	character_screen = CharacterScreen.new(self)
 	character_screen.visible = false
 	add_child(character_screen)
@@ -436,7 +440,7 @@ func upgrade_stash() -> bool:
 
 ## Crafts `recipe` `times` over into the stash. True if it worked.
 func craft(recipe: String, times: int) -> bool:
-	var why := Crafting.craft(Profile.stash, recipe, times, Profile.bench_level)
+	var why := Crafting.craft(Profile.stash, recipe, times, Profile.bench_level, Profile.locker)
 	if why != "":
 		_message(why)
 		return false
@@ -459,7 +463,7 @@ func upgrade_bench() -> bool:
 	if Profile.money < int(cost["money"]):
 		_message("Not enough money for the workbench upgrade (%s)" % ItemDB.money(int(cost["money"])))
 		return false
-	var why := Crafting.use_bench_parts(Profile.stash, level)
+	var why := Crafting.use_bench_parts(Profile.stash, level, Profile.locker)
 	if why != "":
 		_message(why)
 		return false
@@ -476,6 +480,55 @@ func upgrade_bench() -> bool:
 func open_craft() -> void:
 	close_trader_screen()
 	craft_screen.open()
+
+
+# --- The materials locker (0.38.7, owner 2026-11-21) ---------------------------------
+## Bought once at the workbench; holds crafting materials outside the stash (see MaterialLocker).
+
+## The locker's screen.
+func open_locker() -> void:
+	close_trader_screen()
+	locker_screen.open()
+
+
+## Buys the locker. True if it worked.
+func buy_locker() -> bool:
+	if Profile.locker.owned:
+		return false
+	if Profile.money < MaterialLocker.PRICE:
+		_message("Not enough money for the materials locker (%s)" % ItemDB.money(MaterialLocker.PRICE))
+		return false
+	Profile.money -= MaterialLocker.PRICE
+	Profile.locker.owned = true
+	UISounds.play(self, UISounds.BUY, -10.0)
+	_message("Materials locker bought")
+	_queue_save()
+	_fill_trader()
+	return true
+
+
+## Moves the stash's materials into the locker (only `id`, or all of them). How many went in.
+func store_materials(id := "") -> int:
+	var moved := Profile.locker.store(Profile.stash, id)
+	if moved > 0:
+		_message("Stored %d in the locker" % moved)
+		_queue_save()
+		_fill_trader()
+	elif Profile.locker.owned:
+		_message("Nothing to store (the locker holds %d of each)" % MaterialLocker.MAX_EACH)
+	return moved
+
+
+## Moves up to `n` of `id` back to the stash. How many fit.
+func take_material(id: String, n: int) -> int:
+	var moved := Profile.locker.take(Profile.stash, id, n)
+	if moved > 0:
+		_message("Took %s" % ItemDB.label(id, moved))
+		_queue_save()
+		_fill_trader()
+	elif Profile.locker.count(id) > 0:
+		_message("No room in your stash")
+	return moved
 
 
 # --- Expeditions (0.38.0, owner 2026-11-20) ------------------------------------------
@@ -2330,6 +2383,7 @@ func close_trader_screen() -> void:
 	record.visible = false
 	craft_screen.visible = false
 	expedition_screen.visible = false
+	locker_screen.visible = false
 	character_screen.visible = false
 
 
@@ -2363,6 +2417,8 @@ func current_screen() -> String:
 		return "craft"
 	if expedition_screen.visible:
 		return "truck"
+	if locker_screen.visible:
+		return "locker"
 	if character_screen.visible:
 		return "characters"
 	return "gear"
@@ -2403,6 +2459,8 @@ func show_screen(id: String) -> void:
 			open_craft()
 		"truck":
 			open_expedition()
+		"locker":
+			open_locker()
 		"characters":
 			open_characters()
 		_:

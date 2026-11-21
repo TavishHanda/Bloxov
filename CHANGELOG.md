@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.8 (The materials locker)
+Owner (2026-11-21): "a place in the hideout where you can store all your craftable items like the nuts and bolts
+... so it's not cluttering your main inventory. You can buy it and it's really expensive." Price and size picked by
+the owner: $150,000, up to 50 of each.
+- **The materials locker** (`scripts/material_locker.gd`, `scripts/locker_screen.gd`): bought once from the
+  workbench's new MATERIALS LOCKER button (phones: CRAFT tab, then MATERIALS LOCKER). It holds up to 50 of each
+  crafting material as a plain count, no grid: bolts, wires, scrap, duct tape, powder tins, medical supplies, car
+  batteries and fuel cans. STORE ALL (or STORE per row) moves them out of the stash; TAKE 1 / TAKE ALL put them
+  back. Free-kit stacks never go in; found-in-raid marks stay and come out first, for jobs.
+- **The workbench and the truck use it:** recipes, the bench upgrade and truck parts count and take parts from the
+  stash first, then the locker (`Crafting.have/craft/_use`, `Expedition.build` take the locker).
+- **Saved with the stash** (`"locker"` in the profile), PvE and PvP. Leaving on an expedition starts it over like the
+  workbench. The server's PvP hideout check counts what's in it with the stash (so moving things in and out is
+  free), charges $150,000 when it appears and refuses it disappearing or being over-filled
+  (`MaterialLocker.clean/changes`, `OnlineProfile.entries/audit`). **Net version 18** (the profile's shape).
+
 ## 0.38.7 (Characters 2, part 1: the six models, and you raid as your character)
 Owner (2026-11-20): every PMC is one of the six characters, picked before the raid like an agent, each with skins;
 the first pick says clearly it's VEGA or VOSS, and what the others need is shown. This is the first part.

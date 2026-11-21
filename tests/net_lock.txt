@@ -1,11 +1,11 @@
-17
+18
 rpc 6787eb4d9196
 scripts/item_db.gd 00b37360e951
-scripts/online_profile.gd 6c0e9beea7e0
+scripts/online_profile.gd 0f1cba7f4c3e
 scripts/net_guard.gd 346b32036407
 scripts/net_accounts.gd 258aaabe6e07
 scripts/matchmaker.gd e35a6013c288
 scripts/traders.gd 097bf3da1ca0
 scripts/quests.gd bcf15ec04d88
-scripts/crafting.gd de89b4a45e52
+scripts/crafting.gd f85c74305b6b
 scripts/health.gd a1585a197e2a
