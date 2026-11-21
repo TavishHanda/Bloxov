@@ -246,6 +246,8 @@ func _other_title() -> String:
 ## Moves `stack` from `from` to `to` with its top-left at `cell`. If there's a matching stack with room at
 ## `merge_cell`, merges into it instead. Returns true if anything moved.
 func move_stack(stack: ItemStack, from: GridInventory, to: GridInventory, cell: Vector2i, rotated: bool, merge_cell := Vector2i(-1, -1)) -> bool:
+	if to != from and _pack_blocks(stack, from, to):
+		return false
 	var target := _merge_target(stack, to, merge_cell)
 	if target != null:
 		var moved := mini(stack.count, target.space_left())
@@ -390,6 +392,10 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	var others := other_grids()
 	if others.is_empty():
 		return
+	if _body_pack_full(grid):
+		# (a body's full backpack: it comes to you contents and all, swapping with yours, 0.38.9)
+		equip_from_grid(grid, stack, "backpack")
+		return
 	# Shift+clicking something in the container/stash sends it to you, and vice versa.
 	var to_player := others.has(grid)
 	var destinations: Array[GridInventory] = inventory.grids() if to_player else others
@@ -448,6 +454,8 @@ func _place_in_first(stack: ItemStack, grids: Array[GridInventory], before_place
 func equip_from_grid(grid: GridInventory, stack: ItemStack, slot: String) -> bool:
 	if not inventory.slot_accepts(slot, stack.id):
 		return false
+	if slot == "backpack" and _is_body_pack_slot(grid):
+		return swap_backpacks()
 	var old := inventory.equipped(slot)
 	if old != null and not inventory.can_unequip(slot):
 		_say("Empty your backpack first")
@@ -461,6 +469,72 @@ func equip_from_grid(grid: GridInventory, stack: ItemStack, slot: String) -> boo
 		_stow(old, grid, old_cell)
 	UISounds.play(self, UISounds.EQUIP, -10.0)
 	_after_move()
+	return true
+
+
+## A body's backpack slot (its GridInventory), or null when what's open isn't a body.
+func _body_pack_slot() -> GridInventory:
+	if _has_container() and container.pack != null and container.gear.has("backpack"):
+		return container.gear["backpack"]
+	return null
+
+
+func _is_body_pack_slot(grid: GridInventory) -> bool:
+	return grid != null and grid == _body_pack_slot()
+
+
+## True if `grid` is a body's backpack slot with things in that backpack (it only moves by swapping with yours).
+func _body_pack_full(grid: GridInventory) -> bool:
+	return _is_body_pack_slot(grid) and not grid.is_empty() and not container.pack.is_empty()
+
+
+## True (and says why) if moving `stack` from `from` to `to` would split a body's backpack from what's in it, or put
+## that backpack inside itself.
+func _pack_blocks(stack: ItemStack, from: GridInventory, to: GridInventory) -> bool:
+	if _body_pack_full(from) or _body_pack_full(to):
+		_say("Drag it onto your backpack to swap")
+		return true
+	return _is_body_pack_slot(from) and to == container.pack
+
+
+## Swaps backpacks with the body that's open (0.38.9, owner): yours goes into its backpack slot with everything in it,
+## and its backpack comes to you with everything in it. Either side can have no backpack (then it's a straight move).
+## Things keep their spots (both sides are the same size as the backpack they're in); anything that doesn't fit goes
+## wherever there's room.
+func swap_backpacks() -> bool:
+	var slot_grid := _body_pack_slot()
+	if slot_grid == null:
+		return false
+	var theirs: ItemStack = slot_grid.stacks[0] if not slot_grid.is_empty() else null
+	var mine := inventory.equipped("backpack")
+	if theirs == null and mine == null:
+		return false
+	var my_items: Array[ItemStack] = inventory.backpack.stacks.duplicate() if inventory.backpack != null else []
+	var their_items: Array[ItemStack] = container.pack.stacks.duplicate()
+	for stack in my_items:
+		inventory.backpack.remove(stack)
+	for stack in their_items:
+		container.pack.remove(stack)
+	if theirs != null:
+		slot_grid.remove(theirs)
+	if mine != null:
+		inventory.unequip("backpack")
+		slot_grid.place(mine)
+	container.fit_pack()
+	if theirs != null:
+		inventory.equip("backpack", theirs)
+	for stack in my_items:
+		if not container._put_in_pack(stack):
+			container.add_to_pile([stack])
+	for stack in their_items:
+		if inventory.backpack != null and inventory.backpack.fits(stack.id, stack.x, stack.y, stack.rotated):
+			inventory.backpack.place(stack)
+		else:
+			_stow(stack, null, Vector2i.ZERO)
+		inventory.auto_bind(stack.id)
+	UISounds.play(self, UISounds.EQUIP, -10.0)
+	_after_move()
+	_rebuild_layout.call_deferred()
 	return true
 
 
@@ -539,12 +613,20 @@ func can_drop_on_slot(slot: String) -> bool:
 		return str(ItemDB.item(gun.id)["ammo"]) == drag_stack.id and can_load(gun)
 	if drag_stack == null or not inventory.slot_accepts(slot, drag_stack.id):
 		return false
+	if slot == "backpack" and drag_slot == "" and _is_body_pack_slot(drag_from):
+		return true   # (a body's backpack onto yours: they swap, contents and all)
 	var current := inventory.equipped(slot)
 	return current == null or current == drag_stack or (drag_slot == "" and inventory.can_unequip(slot))
 
 
 func _after_move() -> void:
 	Effects.sound(get_tree().current_scene, PICKUP_SOUND, -10.0)
+	if _has_container() and container.pack != null:
+		# (a backpack went into or out of a body's backpack slot: its contents grid grows or goes, 0.38.9)
+		var size := Vector2i(container.pack.width, container.pack.height)
+		container.fit_pack()
+		if size != Vector2i(container.pack.width, container.pack.height):
+			_rebuild_layout.call_deferred()
 	if _has_container() and container.remove_when_empty and container.is_empty():
 		container.queue_free()
 		container = null
@@ -555,7 +637,7 @@ func _after_move() -> void:
 # --- Dragging ------------------------------------------------------------------
 
 func start_drag_from_slot(slot: String) -> void:
-	if not inventory.can_unequip(slot):
+	if not inventory.can_unequip(slot) and not (slot == "backpack" and _body_pack_slot() != null):
 		_say("Empty your backpack first")
 		return
 	_cancel_drag()
@@ -597,8 +679,12 @@ func drop_cell(view: GridView) -> Vector2i:
 func can_drop_at(view: GridView, cell: Vector2i) -> bool:
 	if attach_target(view) != null or (drag_slot == "" and _ammo_target(view, drag_stack) != null):
 		return true
+	if drag_slot == "backpack" and _is_body_pack_slot(view.grid):
+		return true   # (your backpack onto a body's: they swap)
 	if drag_slot != "":
-		return _slot_item_fits(drag_slot, view.grid, cell, drag_rotated)
+		return inventory.can_unequip(drag_slot) and _slot_item_fits(drag_slot, view.grid, cell, drag_rotated)
+	if view.grid != drag_from and (_body_pack_full(drag_from) or _body_pack_full(view.grid) or (_is_body_pack_slot(drag_from) and view.grid == container.pack)):
+		return false
 	if _merge_target(drag_stack, view.grid, cell + _grab_cell) != null:
 		return true
 	return view.grid.fits(drag_stack.id, cell.x, cell.y, drag_rotated, drag_stack if view.grid == drag_from else null)
@@ -662,7 +748,9 @@ func _finish_drag() -> void:
 	elif view is GridView:
 		var grid_view := view as GridView
 		var cell := drop_cell(grid_view)
-		if slot != "":
+		if slot == "backpack" and _is_body_pack_slot(grid_view.grid):
+			swap_backpacks()
+		elif slot != "":
 			unequip_to_grid(slot, grid_view.grid, cell, rotated)
 		else:
 			move_stack(stack, from, grid_view.grid, cell, rotated, cell + _grab_cell)
@@ -1070,7 +1158,7 @@ func split_stack(grid: GridInventory, stack: ItemStack) -> bool:
 
 ## Drop on the ground, even with a container open (0.15.19, owner: a Drop option while looting).
 func drop_to_ground(grid: GridInventory, stack: ItemStack) -> void:
-	if player == null:
+	if player == null or _pack_blocks(stack, grid, null):
 		return
 	grid.remove(stack)
 	_drop_or_overflow(stack)
@@ -1082,7 +1170,7 @@ func drop_stack(grid: GridInventory, stack: ItemStack) -> void:
 	if other_grid() != null and not other_grids().has(grid):
 		quick_move(grid, stack)
 		return
-	if player == null:
+	if player == null or _pack_blocks(stack, grid, null):
 		return
 	grid.remove(stack)
 	_drop_or_overflow(stack)
@@ -1267,6 +1355,10 @@ func _build_other_column() -> void:
 		if container.gear.has(LootContainer.TAG_SLOT):
 			_add_slot_view(_other_box, LootContainer.TAG_SLOT, Vector2i(2, 1))
 		_add_slot_rows(_other_box, _add_slot_view)
+		if container.worn_pack() != null:
+			# What's in the backpack it wears (0.38.9, owner): drag that backpack onto yours to swap, contents and all.
+			_other_box.add_child(_section(container.pack.title))
+			_add_view(_other_box, container.pack)
 		_other_box.add_child(_section("Pockets"))
 		_add_view(_other_box, other)
 	else:

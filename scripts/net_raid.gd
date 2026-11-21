@@ -260,11 +260,14 @@ func _drop_body() -> void:
 		var stack := player.inventory.equipped(slot)
 		if stack != null:
 			data.append(GridInventory.stack_data(stack))
-	for grid in [player.inventory.pockets, player.inventory.backpack]:
-		if grid != null:
-			for stack in grid.stacks:
-				data.append(GridInventory.stack_data(stack))
-	Network.main.drop_items(data, true)
+	for stack in player.inventory.pockets.stacks:
+		data.append(GridInventory.stack_data(stack))
+	# (what's in our backpack stays in it on the body, 0.38.9: whoever loots us can take it, contents and all)
+	var pack := []
+	if player.inventory.backpack != null:
+		for stack in player.inventory.backpack.stacks:
+			pack.append(GridInventory.stack_data(stack))
+	Network.main.drop_items(data, true, pack)
 
 
 func _show_message(text: String) -> void:
@@ -397,7 +400,7 @@ func on_player_fired(_peer: int, from: Vector3, end: Vector3, weapon: String, su
 	var block := Hearing.block_of(camera, from)
 	var stream := GunSounds.shot_for(weapon, heard, place, block, Hearing.behind(camera, from))
 	if not Hearing.shot_heard(world, from, end, stream.get_length()):
-		return   # (0.38.9: too far, or enough far shots sounding already)
+		return   # (0.38.10: too far, or enough far shots sounding already)
 	Effects.shot_at(world, stream, from,
 		float(stats.get("shot_db", -4.0)) - (6.0 if suppressed else 0.0)
 		+ Hearing.at_you_db(world, from, end, unit_size) + GunSounds.block_db(block),

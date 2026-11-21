@@ -321,7 +321,7 @@ func _section_accuracy() -> void:
 	_check(rates["hip crouched"] > 0.85 and rates["hip crouched"] < 0.95, "hip fire crouched hits ~90%% (%.0f%%)" % (rates["hip crouched"] * 100))
 	_check(rates["hip walking"] < 0.3, "hip fire while walking is hard (%.0f%%)" % (rates["hip walking"] * 100))
 	_check(rates["aimed standing"] > 0.99 and rates["aimed crouched"] > 0.99, "aimed shots standing/crouched hit 100%")
-	# 0.38.9 (owner: "way more bullet spread" moving and jumping): moving spread doubled, so aimed walking is loose too.
+	# 0.38.10 (owner: "way more bullet spread" moving and jumping): moving spread doubled, so aimed walking is loose too.
 	_check(rates["aimed walking"] > 0.2 and rates["aimed walking"] < 0.4, "aimed while walking hits ~30%% (%.0f%%)" % (rates["aimed walking"] * 100))
 	_check(gun.spread_for(1.0, false, false, true) > 7.0, "shooting in the air spreads by over 7 degrees")
 
@@ -1184,7 +1184,7 @@ func _section_items() -> void:
 	_check(inv.hotbar[1] == "grenade", "a grenade goes on key 4 by itself")
 	inv.unbind(inv.hotbar[Inventory.FLEX_KEY]) if inv.hotbar[Inventory.FLEX_KEY] != "" else null
 	inv.add("energy_drink", 1)
-	_check(inv.hotbar[Inventory.FLEX_KEY] == "energy_drink" and inv.hotbar[1] == "grenade", "an energy drink goes on key 5 by itself (0.38.9)")
+	_check(inv.hotbar[Inventory.FLEX_KEY] == "energy_drink" and inv.hotbar[1] == "grenade", "an energy drink goes on key 5 by itself (0.38.10)")
 	inv.take("energy_drink", 1)
 	inv.unbind("energy_drink")
 	var probe := Grenade.new()
@@ -1756,6 +1756,7 @@ func _section_loot_ui() -> void:
 	_check(corpse.gear["secondary"].stacks == [my_pistol], "shift+click a pistol into a body: it fills the empty Secondary slot first")
 	loot_ui.close()
 	corpse.queue_free()
+	await _check_backpack_swap(main, player, loot_ui, inv)
 	expected_value = inv.total_value()
 	# Pressing F to close the loot screen doesn't reopen it (F has to be let go first).
 	var it := player.interactor
@@ -4125,7 +4126,7 @@ func _section_keybinds() -> void:
 	_check(Keybinds.name_of("jump") == "Space" and Keybinds.name_of("map") == "M" and Keybinds.name_of("extracts") == "O"
 		and Keybinds.name_of("sprint") == "Shift", "bad or doubled saved keys fall back to the defaults")
 	# Key caps fit any key; the hotbar shows the keys its slots are on.
-	_check(Hearing.SHOT_MAX_RANGE == 150.0 and Hearing.FAR_AT_ONCE == 4, "far shots: none past 150 m, 4 at once (0.38.9)")
+	_check(Hearing.SHOT_MAX_RANGE == 150.0 and Hearing.FAR_AT_ONCE == 4, "far shots: none past 150 m, 4 at once (0.38.10)")
 	_check(HudStyle.keycap_width("F", 22) == 22.0 and HudStyle.keycap_width("TAB", 22) > 22.0, "key caps widen for longer names")
 	_check(HotbarHUD.slot_action(0) == "weapon_1" and HotbarHUD.slot_action(2) == "hotbar_3"
 		and HotbarHUD.slot_action(3) == "hotbar_4" and HotbarHUD.slot_action(4) == "hotbar_5" and HotbarHUD.slot_action(5) == "melee",
@@ -5398,7 +5399,7 @@ func _net_peer(branch_name: String) -> Network:
 ## player says it brought plenty (every gun, rounds, grenades and the items the tests drop).
 func _send_test_kit(c: Network) -> void:
 	var kit := []
-	for id in ["ak", "pistol", "smg", "shotgun", "sniper", "phone", "gold_watch", "bunker_key"]:
+	for id in ["ak", "pistol", "smg", "shotgun", "sniper", "phone", "gold_watch", "bunker_key", "backpack_medium"]:
 		kit.append([id, 1, 0, 0, false, 0])
 	for id in ["rifle_ammo", "pistol_ammo", "smg_ammo", "shells", "sniper_ammo", "grenade", "bandage"]:
 		for i in 4:
@@ -6298,6 +6299,14 @@ func _section_online_loot() -> void:
 	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
 	c1.close_container()
 	await _frames(2)
+	# (0.38.9) A dead player's backpack keeps what was in it on their body.
+	var packed_before: int = got[c1]["bags"].size()
+	c2.drop_items([["backpack_medium", 1, 0, 0, false, 0]], true, [["phone", 1, 1, 1, false, 0], ["not_an_item", 1, 0, 0, false, 0]])
+	await _until(func() -> bool: return got[c1]["bags"].size() > packed_before)
+	var packed := world.container(got[c1]["bags"].keys()[-1])
+	_check(packed != null and packed.worn_pack() != null and packed.pack.width == 5 and packed.pack.stacks.size() == 1
+		and packed.pack.stacks[0].id == "phone" and packed.pack.stacks[0].x == 1 and packed.grid.is_empty(),
+		"online, a dead player's backpack keeps its contents on their body (fake items left out)")
 	# PMC dog tag (0.15.28, owner): only on a player killed by another player, named, in its own slot.
 	_check(not rival_body.gear.has(LootContainer.TAG_SLOT), "a player who wasn't killed by a player leaves no dog tag")
 	var c1_peer: int = c1.multiplayer.get_unique_id()
@@ -10485,7 +10494,7 @@ func _face_player(node: Node3D) -> void:
 
 
 func _section_sound() -> void:
-	# Less war (0.38.9, owner): far shots past 150 m are silent, at most 4 far ones at once; ones at you always play.
+	# Less war (0.38.10, owner): far shots past 150 m are silent, at most 4 far ones at once; ones at you always play.
 	var ear_cam := Hearing.listener(main)
 	if ear_cam != null:
 		var ear := ear_cam.global_position
@@ -11413,3 +11422,58 @@ func _section_raid_prep() -> void:
 	RaidPrep.release()
 	_check(not RaidPrep.ready_for(MAP), "and lets go when told")
 	RaidPrep.always = false
+
+
+## Swapping backpacks with a body (0.38.9, owner): you see what's in a body's backpack, and dragging its backpack onto
+## yours swaps them, each with what's inside.
+func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Inventory) -> void:
+	var gold := ItemStack.new("gold_watch", 1, 2, 1)
+	var corpse := LootContainer.spawn_bag(main, player.global_position, "Rival's Body",
+		[ItemStack.new("backpack_large"), ["bandage", 1]], 0.0, true, [gold])
+	_check(corpse.pack != null and corpse.pack.width == 6 and corpse.pack.height == 5 and corpse.pack.stacks == [gold]
+		and gold.x == 2 and gold.y == 1 and corpse.grid.count_of("bandage") == 1,
+		"a body's backpack keeps what was in it (in its own 6x5 grid, where it was); the rest is in its pockets")
+	var copy := LootContainer.new()
+	copy.grid = GridInventory.new("Pockets", 4, 3)
+	copy.load_net_data(corpse.net_data())
+	_check(copy.worn_pack() != null and copy.pack.width == 6 and copy.pack.count_of("gold_watch") == 1, "a body's backpack contents go over the network")
+	var bad := corpse.net_data()
+	bad[3][0] = [1, 1, [["ak", 1, 0, 0, false, 0]]]   # (a backpack slot can't hold a gun: no backpack, so no backpack grid)
+	bad[3][4] = [1, 1, []]
+	copy.load_net_data(bad)
+	_check(copy.worn_pack() == null and copy.pack.width == 0 and copy.grid.count_of("gold_watch") == 1,
+		"no backpack in the slot: its contents fall into the pockets, nothing is lost")
+	copy.free()
+	var had_bag := inv.equipped("backpack") != null
+	if not had_bag:
+		inv.equip("backpack", ItemStack.new("backpack_small"))
+	var my_bag := inv.equipped("backpack")
+	var spot := inv.backpack.find_spot("phone")
+	var my_stuff := ItemStack.new("phone", 1, spot[0], spot[1], spot[2])
+	inv.backpack.place(my_stuff)
+	var my_count := inv.backpack.stacks.size()
+	var their_bag: ItemStack = corpse.gear["backpack"].stacks[0]
+	loot_ui.open_for(corpse)
+	await process_frame
+	_check(loot_ui._views.any(func(v: Control) -> bool: return v is GridView and (v as GridView).grid == corpse.pack),
+		"the loot screen shows what's in a body's backpack")
+	_check(not loot_ui.move_stack(their_bag, corpse.gear["backpack"], corpse.grid, Vector2i(0, 0), false)
+		and corpse.gear["backpack"].stacks == [their_bag], "a body's full backpack can't be pulled off its contents")
+	loot_ui.drag_stack = their_bag
+	loot_ui.drag_from = corpse.gear["backpack"]
+	_check(loot_ui.can_drop_on_slot("backpack"), "its backpack can be dropped on yours even though yours has things in it")
+	loot_ui.drag_stack = null
+	loot_ui.drag_from = null
+	_check(loot_ui.equip_from_grid(corpse.gear["backpack"], their_bag, "backpack") and inv.equipped("backpack") == their_bag
+		and inv.backpack.width == 6 and inv.backpack.stacks == [gold] and gold.x == 2 and gold.y == 1,
+		"drag the body's backpack onto yours: it comes to you with what's in it")
+	_check(corpse.gear["backpack"].stacks == [my_bag] and corpse.pack.stacks.has(my_stuff) and corpse.pack.stacks.size() == my_count
+		and corpse.pack.width == int(ItemDB.item(my_bag.id)["grid"][0]), "and yours goes on the body with what was in it")
+	loot_ui.quick_move(corpse.gear["backpack"], my_bag)
+	_check(inv.equipped("backpack") == my_bag and inv.backpack.stacks.has(my_stuff) and inv.backpack.stacks.size() == my_count and corpse.gear["backpack"].stacks == [their_bag]
+		and corpse.pack.stacks == [gold], "shift+click it back: they swap again")
+	loot_ui.close()
+	corpse.queue_free()
+	inv.backpack.remove(my_stuff)   # (the rest of the test expects the kit as it was)
+	if not had_bag:
+		inv.unequip("backpack")

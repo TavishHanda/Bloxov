@@ -14,7 +14,7 @@ signal equipment_changed
 
 const SLOTS: Array[String] = ["primary", "secondary", "armor", "helmet", "backpack"]
 const HOTBAR_SIZE := 4
-## Hotbar indexes (0 = key 3): the meds key, the knife key, and the keys items can be bound to. Key 5 (0.38.9, owner:
+## Hotbar indexes (0 = key 3): the meds key, the knife key, and the keys items can be bound to. Key 5 (0.38.10, owner:
 ## a second flex key, energy drinks go there by themselves) is index 3, after the knife, so old saves keep their places.
 const MEDS_KEY := 0
 const KNIFE_KEY := 2
@@ -33,7 +33,7 @@ var backpack: GridInventory = null
 var equipment := {"primary": null, "secondary": null, "armor": null, "helmet": null, "backpack": null}
 ## Item ids on the hotbar: index 0 = key 3 (meds), 1 = key 4 (bindable, grenades go there), 2 = the knife (V),
 ## 3 = key 5 (bindable, energy drinks go there). "" = empty; only BINDABLE_KEYS are ever filled.
-## (Owner, 0.9.0: 1, 2, 3, 4, V; was 3-6. 0.38.9: 1, 2, 3, 4, 5, V.)
+## (Owner, 0.9.0: 1, 2, 3, 4, V; was 3-6. 0.38.10: 1, 2, 3, 4, 5, V.)
 var hotbar: Array[String] = ["", "", "", ""]
 ## The med key 3 uses (owner, 0.9.3: hold 3 to switch): "" = Auto (the best fit for how hurt you are, like H),
 ## else that item id. Running out of it falls back to Auto.
@@ -368,7 +368,7 @@ func unbind(id: String) -> void:
 
 
 ## Picked-up items that go on the hotbar by themselves: grenades go on key 4 if it's free (0.14.5), energy drinks on
-## key 5 if it's free (0.38.9). Heals all live on key 3 (owner, 0.8.1).
+## key 5 if it's free (0.38.10). Heals all live on key 3 (owner, 0.8.1).
 func auto_bind(id: String) -> void:
 	if ItemDB.kind(id) == "throwable" and can_bind(id):
 		bind_to_hotbar(id)

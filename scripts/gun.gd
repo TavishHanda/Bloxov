@@ -36,14 +36,14 @@ const ADS_POSITIONS := {"rifle": Vector3(0, -0.092, -0.36), "pistol": Vector3(0,
 @export_group("Accuracy")
 ## Spread is the radius (degrees) of the circle shots land in, spread evenly over it.
 ## Design targets (scav chest at 20 m, see GUNS_PLAN.md): hip ~75% hits standing, ~90% crouched, ~20% walking;
-## aimed ~100% standing or crouched, ~30% walking (was ~90% until moving spread doubled in 0.38.9, owner).
+## aimed ~100% standing or crouched, ~30% walking (was ~90% until moving spread doubled in 0.38.10, owner).
 ## Spread when fully aimed down sights.
 @export var base_spread_deg := 0.15
 ## Extra spread when firing from the hip (fades out as you aim in).
 @export var hip_spread_deg := 0.68
-## Extra spread while moving (reduced while aiming). Per gun, ItemDB "move_spread" (doubled in 0.38.9, owner).
+## Extra spread while moving (reduced while aiming). Per gun, ItemDB "move_spread" (doubled in 0.38.10, owner).
 @export var moving_spread_deg := 0.75
-## In the air (jumping, falling). 4 -> 7 in 0.38.9 (owner: "way more bullet spread" jumping and shooting).
+## In the air (jumping, falling). 4 -> 7 in 0.38.10 (owner: "way more bullet spread" jumping and shooting).
 @export var airborne_spread_deg := 7.0
 ## Crouching tightens your spread.
 @export var crouch_spread_multiplier := 0.9
