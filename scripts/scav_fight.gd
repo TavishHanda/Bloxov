@@ -975,10 +975,11 @@ func net_fired(end: Vector3) -> void:
 	var place := GunSounds.Place.ROOM if Hearing.indoors else GunSounds.Place.OUTDOOR
 	var block := Hearing.block_of(camera, muzzle_pos)
 	var stream := GunSounds.shot_for(carried_gun, heard, place, block, Hearing.behind(camera, muzzle_pos))
-	Effects.shot_at(world, stream, muzzle_pos,
-		shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size) + GunSounds.block_db(block),
-		shot_pitch, shot_unit_size, GunSounds.block_delay(block))
-	Hearing.gunshot(world, muzzle_pos, end, shot_volume_db)
+	if Hearing.shot_heard(world, muzzle_pos, end, stream.get_length()):   # (0.38.9: less war far off)
+		Effects.shot_at(world, stream, muzzle_pos,
+			shot_volume_db + Hearing.at_you_db(world, muzzle_pos, end, shot_unit_size) + GunSounds.block_db(block),
+			shot_pitch, shot_unit_size, GunSounds.block_delay(block))
+		Hearing.gunshot(world, muzzle_pos, end, shot_volume_db)
 	Hearing.heard_shot(world, muzzle_pos)   # (0.30.3: a fight ducks the ambience)
 	_muzzle_flash_time = 0.05
 

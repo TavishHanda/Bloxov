@@ -903,7 +903,7 @@ func open_menu(grid: GridInventory, stack: ItemStack) -> void:
 	if ItemDB.kind(stack.id) in ["heal", "drink"] and player != null:
 		_menu.add_item("Use" if ItemDB.kind(stack.id) == "heal" else "Drink", MenuAction.USE)
 		if inventory.hotbar.has(stack.id):
-			_menu.add_item("Unbind (key %d)" % (inventory.hotbar.find(stack.id) + 3), MenuAction.UNBIND)
+			_menu.add_item("Unbind (key %s)" % Keybinds.cap(Inventory.KEY_ACTIONS[inventory.hotbar.find(stack.id)]), MenuAction.UNBIND)
 		elif inventory.can_bind(stack.id):
 			_menu.add_item("Bind to hotbar", MenuAction.BIND)
 	if ItemDB.equip_slot(stack.id) != "":

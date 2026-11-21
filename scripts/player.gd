@@ -226,9 +226,9 @@ func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount:
 
 
 func _hotbar_key(event: InputEvent) -> int:
-	# Keys 3 and 4 (the knife is on V, not a number key).
+	# Keys 3, 4 and 5 (the knife is on V, not a number key).
 	for i in Inventory.HOTBAR_SIZE:
-		if i != Inventory.KNIFE_KEY and event.is_action_pressed("hotbar_%d" % (i + 3)):
+		if i != Inventory.KNIFE_KEY and event.is_action_pressed(Inventory.KEY_ACTIONS[i]):
 			return i
 	return -1
 

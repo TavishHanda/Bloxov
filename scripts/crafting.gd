@@ -101,7 +101,7 @@ static func use_bench_parts(stash: GridInventory, level: int) -> String:
 	return ""
 
 
-## What a recipe's parts line reads: "Medical Supplies 1/1 · Duct Tape 0/1", for `times` crafts.
+## What a recipe's parts line reads: "Med Parts 1/1 · Duct Tape 0/1", for `times` crafts.
 static func parts_text(stash: GridInventory, needs: Dictionary, times := 1) -> Array:
 	var parts := []
 	for id: String in needs:
