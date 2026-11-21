@@ -462,7 +462,7 @@ func _on_died() -> void:
 		drops.append([id, ItemDB.roll_count(id)])
 	if kit == "pmc":
 		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
-	# (0.36.7: what an AI PMC took from containers; 0.38.8: it's in the backpack it wears, like a player's)
+	# (0.36.7: what an AI PMC took from containers; 0.38.9: it's in the backpack it wears, like a player's)
 	var in_pack: Array = carried_loot.duplicate() if kit == "pmc" else []
 	var title := body_name
 	if bot_name != "":

@@ -274,7 +274,7 @@ func throw_grenade(from: Vector3, vel: Vector3, on_kill := Callable()) -> void:
 
 
 ## A bag of items (a dead player's body, things a player dropped) at `pos`. A body gets gear slots.
-## `pack`: a body's backpack contents (stack data, 0.38.8).
+## `pack`: a body's backpack contents (stack data, 0.38.9).
 func drop_bag(pos: Vector3, title: String, data: Array, body := false, pack := []) -> void:
 	var contents := []
 	for entry in data:

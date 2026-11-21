@@ -47,7 +47,7 @@ const LOOKS := {
 var grid: GridInventory
 ## Bodies only (owner, 0.11.13: loot a body's loadout): slot -> one-item GridInventory. Empty for other containers.
 var gear := {}
-## Bodies only (0.38.8, owner: see what's in a body's backpack, and swap backpacks with it): what's inside the backpack
+## Bodies only (0.38.9, owner: see what's in a body's backpack, and swap backpacks with it): what's inside the backpack
 ## in its backpack slot. Sized from that backpack (0 x 0 with none; fit_pack). Null for other containers.
 var pack: GridInventory = null
 var searched := false
@@ -205,7 +205,7 @@ func fit_pack() -> void:
 
 
 ## Everything in it, for the network: the pockets' GridInventory.to_data(), plus (bodies) each gear slot's, then the
-## dog tag slot's (if it has one), then what's in its backpack (0.38.8).
+## dog tag slot's (if it has one), then what's in its backpack (0.38.9).
 func net_data() -> Array:
 	return LootContainer.grids_data(all_grids())
 
@@ -318,7 +318,7 @@ func mark_searched() -> void:
 
 ## Drops a bag in the world holding `contents` ([id, count] pairs, or ItemStacks). Bodies and dropped items.
 ## A body (`body`) gets gear slots: the first gun/armor/backpack for each slot goes there, the rest in its pockets.
-## `pack_contents` (ItemStacks, bodies only, 0.38.8): what was in the backpack it wore; it stays in that backpack
+## `pack_contents` (ItemStacks, bodies only, 0.38.9): what was in the backpack it wore; it stays in that backpack
 ## (where it was, if it still fits), and anything that doesn't fit goes in the pockets.
 static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0, body := false, pack_contents := []) -> LootContainer:
 	var scene := "res://scenes/backpack_bag.tscn" if bag_name in BACKPACK_BODIES else "res://scenes/loot_bag.tscn"

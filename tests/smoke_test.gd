@@ -5088,6 +5088,12 @@ func _section_crafting() -> void:
 	for entry in [["med_supplies", 1], ["duct_tape", 1], ["bolts", 10], ["wires", 3], ["scrap", 3]]:
 		Profile.stash.add(entry[0], entry[1])
 	var bandages := Profile.stash.count_of("bandage")
+	var craft_menu := hideout.find_child("CraftMenuButton", true, false) as Button
+	_check(craft_menu != null and craft_menu.visible == not GameSettings.is_phone(), "the menu's top bar has a CRAFT button (0.38.8)")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "craft", "the CRAFT button opens crafting")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "gear", "pressing CRAFT again goes back to the stash")
 	hideout.open_craft()
 	_check(hideout.current_screen() == "craft", "the workbench opens the crafting screen")
 	var row: Control = hideout.craft_screen._rows.get_node("bandage")
@@ -6284,7 +6290,7 @@ func _section_online_loot() -> void:
 	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
 	c1.close_container()
 	await _frames(2)
-	# (0.38.8) A dead player's backpack keeps what was in it on their body.
+	# (0.38.9) A dead player's backpack keeps what was in it on their body.
 	var packed_before: int = got[c1]["bags"].size()
 	c2.drop_items([["backpack_medium", 1, 0, 0, false, 0]], true, [["phone", 1, 1, 1, false, 0], ["not_an_item", 1, 0, 0, false, 0]])
 	await _until(func() -> bool: return got[c1]["bags"].size() > packed_before)
@@ -11394,7 +11400,7 @@ func _section_raid_prep() -> void:
 	RaidPrep.always = false
 
 
-## Swapping backpacks with a body (0.38.8, owner): you see what's in a body's backpack, and dragging its backpack onto
+## Swapping backpacks with a body (0.38.9, owner): you see what's in a body's backpack, and dragging its backpack onto
 ## yours swaps them, each with what's inside.
 func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Inventory) -> void:
 	var gold := ItemStack.new("gold_watch", 1, 2, 1)

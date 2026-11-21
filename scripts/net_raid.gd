@@ -262,7 +262,7 @@ func _drop_body() -> void:
 			data.append(GridInventory.stack_data(stack))
 	for stack in player.inventory.pockets.stacks:
 		data.append(GridInventory.stack_data(stack))
-	# (what's in our backpack stays in it on the body, 0.38.8: whoever loots us can take it, contents and all)
+	# (what's in our backpack stays in it on the body, 0.38.9: whoever loots us can take it, contents and all)
 	var pack := []
 	if player.inventory.backpack != null:
 		for stack in player.inventory.backpack.stacks:
