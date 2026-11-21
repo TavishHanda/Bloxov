@@ -6812,6 +6812,14 @@ func _section_riptide() -> void:
 		and is_equal_approx(raijin.health.damage_multiplier, 0.5) and is_equal_approx(raijin.health.head_multiplier, 0.45),
 		"Raijin carries the Reaper and wears assault armor and helmet")
 	_check(Array(raijin.extra_drops) == ["formula", "backpack_raid"], "Raijin drops the Formula and the Raid Pack")
+	# (0.39.6, owner picked "Relentless push"): longer chases, short breaks, no side-steps, no waiting on his guards
+	_check(raijin.never_cover and raijin.guard_leash == 0.0 and raijin.chase_range == 60.0 and raijin.push_speed == 1.0
+		and raijin.chase_burst_min == 6.0 and raijin.chase_burst_max == 9.0 and raijin.chase_pause_min == 0.5
+		and raijin.chase_pause_max == 1.0 and raijin.reposition_chance == 0.0, "Raijin pushes relentlessly (0.39.6)")
+	var bon_check := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
+	_check(bon_check.guard_leash == 15.0 and bon_check.chase_range == 45.0 and bon_check.reposition_chance == 0.5,
+		"Bon keeps his own style")
+	bon_check.free()
 	raijin.free()
 	var riptide_map := (load(MAP) as PackedScene).instantiate()
 	var spawner_meta: Dictionary = riptide_map.get_meta("spawner", {})
