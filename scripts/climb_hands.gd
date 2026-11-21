@@ -51,7 +51,7 @@ func _ready() -> void:
 	PixelModel.make_crisp(_hands)
 	for mesh: GeometryInstance3D in _hands.find_children("*", "GeometryInstance3D", true, false):
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	GunViewModels.wear(_hands, Profile.look)
+	GunViewModels.wear(_hands, PlayableModels.hands_look(Profile.characters))
 	_hands.top_level = true
 	add_child(_hands)
 

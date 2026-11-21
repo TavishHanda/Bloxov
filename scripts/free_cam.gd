@@ -323,9 +323,8 @@ func _add_stand_in() -> void:
 	stand_in.quiet = true
 	stand_in.collision_layer = 0
 	stand_in.collision_mask = 0
+	var id := str(Profile.characters.get("selected", "vega"))   # (you, as your character: 0.39)
+	PlayableModels.replace(stand_in, id, Characters.skin_of(Profile.characters, id))
 	player.get_parent().add_child(stand_in)
 	stand_in.remove_from_group(RemotePlayer.GROUP)
-	var pixel := stand_in.model as PixelModel
-	if pixel != null:
-		pixel.pick_outfit(Profile.look)
 	stand_in.push_state(RemotePlayer.capture(player))

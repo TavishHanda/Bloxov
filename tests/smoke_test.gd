@@ -295,8 +295,8 @@ func _section_ads() -> void:
 			var over := mesh.get_surface_override_material(i) as BaseMaterial3D
 			if over != null and over.albedo_texture != null:
 				sleeve_paths.append(over.albedo_texture.resource_path.get_file())
-	var want_sleeve := "sleeve-%s.png" % Operators.clean(Profile.look)["Top"]
-	var want_glove := "glove-%s.png" % Operators.clean(Profile.look)["Gloves"]
+	var want_sleeve := "sleeve-%s.png" % PlayableModels.hands_look(Profile.characters)["Top"]   # (your character's, 0.39)
+	var want_glove := "glove-%s.png" % PlayableModels.hands_look(Profile.characters)["Gloves"]
 	_check(sleeve_paths.has(want_sleeve) and sleeve_paths.has(want_glove), "the hands wear your character's jacket and gloves %s" % str(sleeve_paths))
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
@@ -2778,9 +2778,9 @@ func _section_hideout_world() -> void:
 	_check(world.menu.screen.find_child("Worth", true, false) != null, "the stash shows what it's worth")
 	# Phones (0.21.10): every screen you'd walk to has a tab on the menu.
 	var menu_node = world.menu
-	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 6, "the menu has phone tabs: gear, traders, characters, wardrobe, craft, record")
+	_check(menu_node.phone_nav != null and menu_node.phone_nav.get_child_count() == 5, "the menu has phone tabs: gear, traders, characters, craft, record")
 	menu_node.show_screen("wardrobe")
-	_check(menu_node.current_screen() == "wardrobe" and menu_node.wardrobe.visible, "the WARDROBE tab opens the wardrobe")
+	_check(menu_node.current_screen() == "characters", "the wardrobe is the CHARACTERS screen (0.39)")
 	menu_node.show_screen("record")
 	await process_frame
 	_check(menu_node.current_screen() == "record" and menu_node.record._stats.text.begins_with("RAIDS") and not menu_node.wardrobe.visible,
@@ -2833,36 +2833,28 @@ func _section_hideout_world() -> void:
 	pmc.free()
 	_check(slots_match and Operators.LIST.all(func(o: Dictionary) -> bool: return Operators.clean(o["look"]) == o["look"]),
 		"every wardrobe part and operator matches the PMC model's outfits")
+	# 0.39 (owner): the wardrobe is the CHARACTERS screen: your character and its skins; the stash screen shows them.
 	world.close_menu()
 	walker.global_position = (world.get_node("Level/Stations/wardrobe") as Node3D).global_position + Vector3.UP * 0.1
 	for i in 3:
 		await process_frame
 	world.use_station()
-	var wardrobe: WardrobeScreen = world.menu.wardrobe
-	(wardrobe.find_child("ghost", true, false) as Button).pressed.emit()
-	var ghost_on: bool = Profile.look == Operators.by_id("ghost")["look"] and wardrobe._name.text == "GHOST"
-	wardrobe.cycle("Hat", 1)
-	_check(wardrobe.visible and ghost_on and Profile.look["Hat"] != Operators.by_id("ghost")["look"]["Hat"]
-		and wardrobe._name.text == "YOUR OWN" and world.menu.screen._doll.find_child("Character", true, false).outfit == Profile.look,
-		"the wardrobe: pick an operator, change a part, it's worn (and shows in the inventory)")
-	# 0.22.5 (owner): the character stands still, and click/touch-drag turns them.
-	var turn_before: float = wardrobe.model.rotation.y
-	for i in 2:
-		await process_frame
-	var still := is_equal_approx(wardrobe.model.rotation.y, turn_before)
-	var drag := InputEventMouseMotion.new()
-	drag.button_mask = MOUSE_BUTTON_MASK_LEFT
-	drag.relative = Vector2(100, 0)
-	wardrobe._preview_input(drag)
-	var turned := not is_equal_approx(wardrobe.model.rotation.y, turn_before)
-	drag.button_mask = 0
-	var after_drag: float = wardrobe.model.rotation.y
-	wardrobe._preview_input(drag)
-	_check(still and turned and wardrobe.model.rotation.y == after_drag,
-		"the wardrobe character doesn't spin by itself; dragging turns them, moving without a press doesn't")
-	var sent := Operators.to_text(Profile.look)
-	_check(Operators.from_text(sent) == Profile.look and Network.main.my_look == sent + Characters.net_tag(Profile.characters)
-		and Operators.from_text("99x") == Operators.clean({}), "your look goes online as short text; junk turns into a real look")
+	var char_screen: CharacterScreen = world.menu.character_screen
+	var playing := str(Profile.characters["selected"])
+	char_screen.look_at_character(playing)
+	var second_skin: String = Characters.SKINS[playing][1]
+	char_screen.pick_skin(second_skin)
+	var doll: Node = world.menu.screen._doll.find_child("Character", true, false)
+	var preview: Node = char_screen._view.get_node_or_null("Character")
+	_check(world.menu.current_screen() == "characters" and Characters.skin_of(Profile.characters, playing) == second_skin
+		and doll != null and doll.get_meta("who", "") == "" and (doll as PixelModel).outfit.values().all(func(v) -> bool: return v == second_skin)
+		and preview != null and preview.get_meta("who", "") == playing + "/" + second_skin,
+		"the wardrobe opens your character: a skin is worn, shown on the stash screen and in the preview")
+	var sent := Network.main.my_look
+	var who := Characters.character_of_look(sent, Operators.SLOTS.size())
+	_check(who == [playing, second_skin] and sent.ends_with(Characters.net_tag(Profile.characters)),
+		"your character and skin go online in your look's tag (%s)" % sent)
+	char_screen.pick_skin(Characters.SKINS[playing][0])
 	world.menu.change_look(look_before)
 	world.close_menu()
 	world.open_menu("workbench")
@@ -4456,7 +4448,14 @@ func _section_net() -> void:
 	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0]})
 	var body: RemotePlayer = net_raid.remotes.get(77)
 	Network.main.looks.erase(77)
-	_check(body != null and (body.model as PixelModel).outfit == Operators.by_id("ghost")["look"], "another player wears the look they picked")
+	_check(body != null and (body.model as PixelModel).outfit.values().all(func(v) -> bool: return v == "nova")
+		and (body.model as PixelModel).outfit_slots().has("Hat"), "another player with no character tag is VEGA in her first skin (0.39)")
+	Network.main.looks[78] = ghost_text + "1052"
+	net_raid.sync_remotes({77: [Vector3(2, 0.1, -12), 0.0, 0.0, 0.0, 0], 78: [Vector3(3, 0.1, -12), 0.0, 0.0, 0.0, 0]})
+	var voss_body: RemotePlayer = net_raid.remotes.get(78)
+	Network.main.looks.erase(78)
+	_check(voss_body != null and (voss_body.model as PixelModel).outfit.values().all(func(v) -> bool: return v == "field"),
+		"another player is the character they play, in their skin (VOSS, field)")
 	_check(body != null and body.global_position.is_equal_approx(Vector3(2, 0.1, -12)) and body.collision_layer == 2, "another player appears as a body on the player layer")
 	body.set_process(false)
 	body._buffer.clear()
@@ -4483,13 +4482,19 @@ func _section_net() -> void:
 		"kneeling and after standing up, their legs face forward (%.2f, %.2f)" % [shin_front.z, stood_front.z])
 	# The fitted boxes (Hitbox) still match the model in each pose (after changing the model or a pose, re-run
 	# tools/fit_hitboxes.gd and paste its numbers into hitbox.gd).
+	# (Measured on the PMC model: every character has its body and the same hitboxes, 0.39.)
 	var off := 0.0
+	var fit_model: Node3D = LootUI.CHARACTER_MODEL.instantiate()
+	fit_model.set_script(LootUI.PIXEL_MODEL_SCRIPT)
+	main.add_child(fit_model)
+	var fit_pose := BodyPose.new(fit_model)
 	for fit: Array in [[{"crouch": 1.0}, Hitbox.CROUCH_PARTS], [{"prone": 1.0}, Hitbox.PRONE_PARTS], [{"downed": 1.0}, Hitbox.DOWNED_PARTS]]:
-		var measured := body.pose.measure(fit[0])
+		var measured := fit_pose.measure(fit[0])
 		for i in measured.size():
 			var want: Array = fit[1][i]
 			off = maxf(off, maxf((measured[i][0] as Vector3).distance_to(want[0]), (measured[i][1] as Vector3).distance_to(want[1])))
 			off = maxf(off, absf(measured[i][3] - want[3]))
+	fit_model.free()
 	_check(off < 0.01, "the crouch, prone and downed hitboxes fit the model (%.3f m off)" % off)
 	_check(absf(Hitbox.CROUCH_PARTS[0][0].y - Hitbox.CROUCH_HEAD) < 0.002,
 		"a crouching player's head box keeps its old height (owner)")
@@ -5022,7 +5027,7 @@ func _section_playables() -> void:
 	Characters.char_of(shared_after["characters"], "sable")["spent"]["u0"] = 1
 	_check(Characters.changes(shared, shared_after)["error"] != "", "but not on a locked one")
 	# Online tags: steps can't be made quieter than VEGA's quietest.
-	_check(Characters.clean_tag("000") == "005" and Characters.clean_tag("x") == "" and Characters.clean_tag("975") == "",
+	_check(Characters.clean_tag("000") == "0050" and Characters.clean_tag("1203") == "1200" and Characters.clean_tag("1202") == "1202" and Characters.clean_tag("x") == "" and Characters.clean_tag("975") == "",
 		"a made-up character tag is cleaned or dropped")
 	var tagged := Operators.to_text(Profile.look) + Characters.net_tag(Characters.fresh())
 	_check(Characters.steps_of_look(tagged, Operators.SLOTS.size()) < 1.0, "VEGA's footsteps carry less far online")
