@@ -7,6 +7,30 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.7 (Characters 2, part 1: the six models, and you raid as your character)
+Owner (2026-11-20): every PMC is one of the six characters, picked before the raid like an agent, each with skins;
+the first pick says clearly it's VEGA or VOSS, and what the others need is shown. This is the first part.
+- **Six character models** (`art_source/scripts/make_character.py`: `build_vega` ... `build_korr`, written to
+  `assets/models/characters/<id>.glb`), on the PMC's body and joints, so poses and hitboxes are the PMC's (the
+  hitbox test now measures the PMC model itself). Each slot's options are the character's skins, so a skin is the
+  whole outfit: VEGA nova/dusk/night, VOSS officer/parade/field, SABLE woodland/desert/snow, PATCH field/city/winter,
+  NINE subject/escaped/lab, KORR quartermaster/scrounger/frost (`Characters.SKINS`). KORR got his own face after the
+  owner's look (ginger braided beard, brass glasses). Pictures: `tools/playable_sheet.gd`.
+- **You are your character:** other players see you as your character in your skin (`PlayableModels.replace` swaps
+  the remote body's model; the look tag gained a 4th digit, the skin: `Characters.net_tag`/`clean_tag`/
+  `character_of_look`), the stash screen and free cam show it, and your first-person sleeves and gloves follow the
+  skin (`PlayableModels.hands_look`). **Net version 17** (the tag's format).
+- **The wardrobe is the CHARACTERS screen:** the wardrobe station and tab open it (the WARDROBE phone tab is gone);
+  it has a 3D preview of the character and its skins (`CharacterScreen.pick_skin`, saved in the characters' state,
+  free to change, looks only).
+- **Pick before the raid:** an "AS <NAME>" button next to START RAID opens the CHARACTERS screen, and the START
+  RAID question says who you go as.
+- **First pick:** a banner "CHOOSE YOUR FIRST CHARACTER: VEGA (Nova) or VOSS (Exion)" until you pick.
+- **Unlock needs shown:** a locked character lists each need (trader level, money) as DONE or NEEDED, with what you
+  have (`Characters.requirements`).
+- Not yet: AI PMCs still wear the old PMC outfits (next part: one of the six, with that character's stats), and the
+  traits' skill-tree menu.
+
 ## 0.38.6 (Riptide: the container yard opens up, a taller lighthouse)
 Owner's playtest feedback (2026-11-20: containers "cutting off a whole lane ... place them sideways"; "some have one
 side open some have both some have none"; the lighthouse "should for sure be taller ... a really cool sniper spot").

@@ -127,11 +127,10 @@ func sync_remotes(states: Dictionary) -> void:
 			remote.name = "Remote%d" % peer
 			remote.player_name = Network.main.names.get(peer, "")
 			remote.teammate = Network.main.teammates.has(peer)
+			# Their character in its skin (0.39: every PMC is one of the six), swapped in before it's ready.
+			var who := Characters.character_of_look(String(Network.main.looks.get(peer, "")), Operators.SLOTS.size())
+			PlayableModels.replace(remote, who[0], who[1])
 			get_parent().add_child(remote)
-			# Their character, as they picked it in the wardrobe (0.21.6).
-			var pixel := remote.model as PixelModel
-			if pixel != null:
-				pixel.pick_outfit(Operators.from_text(String(Network.main.looks.get(peer, ""))))
 			remote.step_mult = Characters.steps_of_look(String(Network.main.looks.get(peer, "")), Operators.SLOTS.size())
 			remotes[peer] = remote
 		remote.push_state(states[peer])
