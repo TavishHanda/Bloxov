@@ -298,6 +298,16 @@ func _section_ads() -> void:
 	var want_sleeve := "sleeve-%s.png" % PlayableModels.hands_look(Profile.characters)["Top"]   # (your character's, 0.39)
 	var want_glove := "glove-%s.png" % PlayableModels.hands_look(Profile.characters)["Gloves"]
 	_check(sleeve_paths.has(want_sleeve) and sleeve_paths.has(want_glove), "the hands wear your character's jacket and gloves %s" % str(sleeve_paths))
+	# 0.38.14 (owner): every character and skin has its own sleeves and gloves (make_hand_skins.py).
+	var missing: Array[String] = []
+	for id: String in Characters.ORDER:
+		for skin: String in Characters.SKINS[id]:
+			for kind in ["sleeve", "glove"]:
+				var path := "res://assets/models/hands/outfit/%s-%s-%s.png" % [kind, id, skin]
+				if not ResourceLoader.exists(path):
+					missing.append(path.get_file())
+	_check(missing.is_empty() and want_sleeve.begins_with("sleeve-" + str(Profile.characters.get("selected", "vega")) + "-"),
+		"every character's skins have their own first-person sleeves and gloves (missing %s)" % str(missing))
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
 	player.teleport_to(START_SPOT)
@@ -459,6 +469,14 @@ func _section_movement() -> void:
 	await create_timer(1.0).timeout
 	var walk := player.horizontal_speed()
 	_check(absf(walk - player.walk_speed) < 0.3, "walk speed ~%.1f (got %.2f)" % [player.walk_speed, walk])
+	# The view glides between physics steps (0.39.1): drawn at most one step behind the body, never further.
+	await process_frame
+	var lag := player.recoil.position.length()
+	_check(lag > 0.0 and lag <= player.walk_speed / Engine.physics_ticks_per_second + 0.01,
+		"view drawn between physics steps (%.3f m behind, at most one step)" % lag)
+	player.teleport_to(player.global_position + Vector3(0, 0, 5))
+	player._smooth_view()
+	_check(player.recoil.position.length() < 0.001, "a teleport isn't smoothed (%.3f m)" % player.recoil.position.length())
 	Input.action_press("sprint")
 	await create_timer(1.0).timeout
 	var sprint := player.horizontal_speed()
@@ -4400,6 +4418,51 @@ func _section_net() -> void:
 	c2.set_queued(true)
 	await _until(func() -> bool: return not log[c2].is_empty() and log[c2][-1].contains("leader"))
 	_check(log[c2][-1].contains("leader"), "the server tells a non-leader they can't queue")
+	# Hideout visits (0.39.0): a party mate's hideout place goes to the rest of the party in the hideout, only the
+	# looks part of it, and to nobody outside the party.
+	var c1_peer: int = c1.multiplayer.get_unique_id()
+	var hideout_walk := [Vector3(2, 0.1, 3), 0.5, 0.2, 0.7, Hitbox.FLAG_CROUCH | Hitbox.FLAG_DEAD | Hitbox.FLAG_HIT]
+	await _until(func() -> bool:
+		c1.send_hideout_state(hideout_walk)
+		return c2.hideout_mates.has(c1_peer))
+	var heard_mate: Array = c2.hideout_mates.get(c1_peer, ["", "", [], 0.0])
+	_check(heard_mate[0] == "Alpha" and (heard_mate[2] as Array).size() == 5 and (heard_mate[2][0] as Vector3).is_equal_approx(Vector3(2, 0.1, 3))
+		and int(heard_mate[2][4]) == Hitbox.FLAG_CROUCH and float(heard_mate[2][3]) == 0.0,
+		"Bravo sees party mate Alpha walking round the hideout (crouched; no death, hits or lean passed on)")
+	_check(c3.hideout_mates.is_empty() and not c1.hideout_mates.has(c1_peer), "nobody outside the party sees it, and you don't see yourself")
+	var hv := HideoutVisits.new()
+	root.add_child(hv)
+	hv.sync({c1_peer: ["Alpha", "", hideout_walk, 10.0]}, 10.5)
+	var mate_body: RemotePlayer = hv.mates.get(c1_peer)
+	_check(mate_body != null and mate_body.player_name == "Alpha" and mate_body.teammate, "the hideout shows a party mate with their name tag")
+	hv.sync({c1_peer: ["Alpha", "", hideout_walk, 10.0]}, 10.0 + HideoutVisits.GONE_AFTER + 0.5)
+	_check(hv.mates.is_empty(), "a mate who stops sending (a raid, gone offline) leaves the hideout")
+	hv.queue_free()
+	# Part 2: the party leader's hideout look goes to the party; anyone else's is dropped.
+	var host_look := HostView.of_profile()
+	host_look["truck"] = ["frame"]
+	c2.send_hideout_look({"raids": 999})
+	c1.send_hideout_look(host_look)
+	await _until(func() -> bool: return c2.hideout_host.size() == 3)
+	_check(c2.hideout_host.size() == 3 and c2.hideout_host[0] == "Alpha" and c1.hideout_host.is_empty()
+		and HostView.clean(c2.hideout_host[1])["truck"] == ["frame"], "the leader's hideout look reaches the party (a non-leader's doesn't)")
+	var cleaned := HostView.clean({"decor": {"poster": "nova", "flag": "made_up"}, "raids": -5, "traders": {"guns": 99}, "truck": ["frame", "rocket"], "note": "hi"})
+	_check(cleaned["decor"] == {"poster": "nova"} and cleaned["raids"] == 0 and cleaned["traders"]["guns"] == 9 and cleaned["truck"] == ["frame"]
+		and not cleaned.has("note"), "a hideout look from the network is cleaned (known decor and parts, sane numbers, nothing else)")
+	var hv2 := HideoutVisits.new()
+	root.add_child(hv2)
+	hv2.show_host("Alpha", cleaned)
+	_check(HostView.active() and HostView.decor_showing("poster") == "nova" and HostView.decor_showing("flag") == String(Decor.SPOTS["flag"][0][0])
+		and HostView.truck() == ["frame"] and HostView.stat("raids") == 0, "visiting shows the leader's corner, record and truck")
+	hv2.show_host("", {})
+	_check(not HostView.active() and HostView.stat("raids") == int(Profile.stats.get("raids", 0)), "back home shows your own")
+	hv2.queue_free()
+	# Part 3: a range shot or a bag punch reaches the party mate (not someone outside the party).
+	c1.send_hideout_act("shot", Vector3(1, 1.5, 2), Vector3(1, 1.5, 40), "ak")
+	await _until(func() -> bool: return not c2.hideout_acts.is_empty())
+	_check(not c2.hideout_acts.is_empty() and c2.hideout_acts[0][1] == "shot" and c2.hideout_acts[0][4] == "ak" and c3.hideout_acts.is_empty(),
+		"a range shot reaches the party mate in the hideout, nobody else")
+	c2.hideout_acts.clear()
 	var ghost_text := Operators.to_text(Operators.by_id("ghost")["look"])
 	c1.set_look(ghost_text)   # (the wardrobe, 0.21.6)
 	c1.set_queued(true)

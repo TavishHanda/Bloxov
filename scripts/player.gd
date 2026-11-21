@@ -60,6 +60,9 @@ var revive_time_left := 0.0
 var squad_check := Callable()
 var heal_duration := 0.0
 var _throw_cooldown_left := 0.0
+## Where the body was before the latest physics step (perf, 0.39.1): the view is drawn between that and where it is
+## now, so it glides on screens faster than the 60 physics steps a second instead of standing still and jumping.
+var _tick_from := Vector3.INF
 ## The hand that holds grenades, meds and drinks (placeholder animations, 0.14.17).
 var hand: HandItem
 ## 0 = no grenade out, 1 = pulling it out, 2 = holding it, 3 = winding up to throw.
@@ -435,9 +438,23 @@ func _process(delta: float) -> void:
 		hand.put_away()
 	drink_boost_left = maxf(drink_boost_left - delta, 0.0)
 	_throw_cooldown_left -= delta
+	_smooth_view()
+
+
+## Draws the view part way between the last two physics steps (Engine.get_physics_interpolation_fraction), so the
+## camera moves the same amount every drawn frame. Looks only: the body and everything the game checks stay at the
+## physics position. A jump of over a metre in one step (teleport, respawn) isn't smoothed.
+func _smooth_view() -> void:
+	if proxy or _tick_from == Vector3.INF:
+		return
+	var offset := _tick_from.lerp(global_position, Engine.get_physics_interpolation_fraction()) - global_position
+	if offset.length_squared() > 1.0:
+		offset = Vector3.ZERO
+	recoil.position = head.global_basis.inverse() * offset
 
 
 func _physics_process(delta: float) -> void:
+	_tick_from = global_position
 	if is_vaulting():
 		_update_vault(delta)
 		return
