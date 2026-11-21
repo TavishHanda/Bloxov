@@ -1,8 +1,8 @@
-19
-rpc f64d3136d676
+20
+rpc 9a215769c764
 scripts/item_db.gd 00b37360e951
 scripts/online_profile.gd 0f1cba7f4c3e
-scripts/net_guard.gd 346b32036407
+scripts/net_guard.gd 016b33a1d638
 scripts/net_accounts.gd 258aaabe6e07
 scripts/matchmaker.gd e35a6013c288
 scripts/traders.gd 097bf3da1ca0
