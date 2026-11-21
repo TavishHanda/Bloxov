@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.39.1 (Looting fixes: dropped items, found attachments, a body's gun parts)
+## 0.39.2 (Looting fixes: dropped items, found attachments, a body's gun parts)
 Owner's playtest (2026-11-21).
 - **Things taken out of a body and dropped at once no longer vanish online** ("my friend was swapping out backpacks
   and he dropped a golden item, and then it disappeared"): the game sent the drop before the loot move, so the server
@@ -23,6 +23,27 @@ Owner's playtest (2026-11-21).
 - **Frontlines: the half-buried dumpster by the school is gone** (it stood on a slope at map (48, 82)). Removed in the
   generator, the map's boxes and the outdoor model (`outdoor_00`); navigation re-baked. (Re-running the whole
   generator today changes other scattered pieces too, so only this dumpster was taken out of the scene.)
+## 0.39.1 (Smooth view on fast screens)
+Owner (2026-11-21): low FPS and dips even on strong PCs with hardware acceleration ("its not like smooth FPS i can
+feel the dips"), lag spikes online, a friend's first load taking minutes, random disconnects. Measured, not guessed:
+- **The view now glides on screens faster than 60 Hz.** The game moves your body 60 times a second; on a 144 Hz
+  screen the camera stood still on 125 of 215 frames and then jumped (`tools/pace_probe.gd`, walking at a steady
+  speed: frame-to-frame spread 118% at 144 Hz, 133% at 165 Hz, 178% at 240 Hz). That reads as dips even when the FPS
+  counter is high. The camera is now drawn between the last two physics steps (`Player._smooth_view`, on the Recoil
+  node): no frame stands still, spread 13% / 18% / 26% (what's left is the walking bob). Looks only: the body, shots
+  and everything the server checks stay at the physics position (at most one step, ~5 cm walking, behind). 60 Hz
+  screens look the same as before. Teleports aren't smoothed.
+- **F3 overlay** also shows the slowest frame of the last second, draw calls and, online, the longest wait between
+  server updates (about 50 ms is normal), so a tester can tell whether a hitch was their machine or the connection.
+- **The server logs how it keeps up** with each 5-minute stats line while raids run: its slowest frame and how many
+  frames took over 50 ms (Heroku logs).
+- **The web page asks the browser to keep the downloaded game** (`navigator.storage.persist()`, not on Firefox,
+  which would show a prompt), so it and the save aren't cleared when space runs low or the site wasn't visited.
+- Tools: `tools/pace_probe.gd` (frame pacing), `tools/server_tick_probe.gd` (server frame time with N raids:
+  one Frontlines raid with AI PMCs p50 4 ms / p99 15 ms here, two raids p50 9 / p99 37 ms, 6% of frames over budget),
+  `tools/live_server_probe.gd` (joins the live server's lobby or a lone raid and times its updates: live, one raid,
+  p50 55 ms / p99 62 ms, steady).
+
 ## 0.39.0 (Hideout visits)
 Owner (2026-11-21): "how hard is it to make it so people can join each other's hideouts? I wanna add that", then
 "for visiting friends PvP only". A new phase, built on a branch while 0.38 (Expeditions, Characters 2) went on.

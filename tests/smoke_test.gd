@@ -469,6 +469,14 @@ func _section_movement() -> void:
 	await create_timer(1.0).timeout
 	var walk := player.horizontal_speed()
 	_check(absf(walk - player.walk_speed) < 0.3, "walk speed ~%.1f (got %.2f)" % [player.walk_speed, walk])
+	# The view glides between physics steps (0.39.1): drawn at most one step behind the body, never further.
+	await process_frame
+	var lag := player.recoil.position.length()
+	_check(lag > 0.0 and lag <= player.walk_speed / Engine.physics_ticks_per_second + 0.01,
+		"view drawn between physics steps (%.3f m behind, at most one step)" % lag)
+	player.teleport_to(player.global_position + Vector3(0, 0, 5))
+	player._smooth_view()
+	_check(player.recoil.position.length() < 0.001, "a teleport isn't smoothed (%.3f m)" % player.recoil.position.length())
 	Input.action_press("sprint")
 	await create_timer(1.0).timeout
 	var sprint := player.horizontal_speed()
