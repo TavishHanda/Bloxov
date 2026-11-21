@@ -9,7 +9,7 @@ extends SceneTree
 
 
 ## Places you only reach by a ladder (the AI doesn't climb): no walking route is expected. Sniper perches too.
-const LADDER_ONLY := ["SternLadder"]
+const LADDER_ONLY: Array[String] = []   # (0.38.7: the stern ladder is no longer an extract)
 
 
 func _initialize() -> void:
@@ -48,7 +48,10 @@ func _run() -> void:
 	var kill := float(main.get_meta("kill_height", -20.0))
 	var bad := 0
 	var things: Array = []   # [what, name, position]
-	for n in get_nodes_in_group("loot_containers"): things.append(["loot", "%s (%s)" % [n.name, n.get_meta("place", "")], (n as Node3D).global_position])
+	var locked := {}   # (0.38.7: loot behind a key door; the shut door is in the AI's bake like a wall)
+	for n in get_nodes_in_group("loot_containers"):
+		things.append(["loot", "%s (%s)" % [n.name, n.get_meta("place", "")], (n as Node3D).global_position])
+		if n.has_meta("locked"): locked[things[-1][1]] = true
 	for n in get_nodes_in_group("extracts"): things.append(["extract", n.name, (n as Node3D).global_position])
 	for n in main.find_children("*", "StaticBody3D", true, false):
 		if n is MapSwitch: things.append(["switch", n.name, (n as Node3D).global_position])
@@ -69,7 +72,7 @@ func _run() -> void:
 			q.map = map; q.start_position = start; q.target_position = near; q.path_search_max_polygons = 0
 			var r := NavigationPathQueryResult3D.new()
 			NavigationServer3D.query_path(q, r)
-			var ladder_only: bool = t[1] in LADDER_ONLY or (t[0] == "AI spawn" and String(t[1]).begins_with("Perch"))
+			var ladder_only: bool = t[1] in LADDER_ONLY or locked.has(t[1]) or (t[0] == "AI spawn" and String(t[1]).begins_with("Perch"))
 			if not ladder_only and (r.path.is_empty() or r.path[r.path.size() - 1].distance_to(near) > 0.8):
 				problem = "no walking route from the shore"
 		if problem == "" and t[0] in ["AI spawn", "player spawn"]:

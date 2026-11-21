@@ -87,6 +87,18 @@ static func build(id: String) -> Node3D:
 			box(m, Vector3(0.09, 0.025, 0.01), Vector3(0, -0.01, 0.046), "white")
 			box(m, Vector3(0.025, 0.09, 0.01), Vector3(0, -0.01, 0.046), "white")
 			box(m, Vector3(0.08, 0.02, 0.02), Vector3(0, 0.09, 0), "black")
+		"painkillers":   # (0.38.7) a pill bottle, a white cap, a plain label
+			cyl(m, 0.026, 0.075, Vector3.ZERO, "orange", Vector3.ZERO, 0.0, 0.85)
+			cyl(m, 0.0265, 0.035, Vector3(0, -0.005, 0), "paper")
+			cyl(m, 0.028, 0.022, Vector3(0, 0.048, 0), "white")
+		"trauma_kit":    # (0.38.7) a fat olive pouch, a green cross on a white patch, the zip and a carry handle
+			box(m, Vector3(0.3, 0.26, 0.12), Vector3.ZERO, "olive")
+			box(m, Vector3(0.3, 0.03, 0.122), Vector3(0, 0.09, 0), "olive_dk")
+			box(m, Vector3(0.11, 0.11, 0.005), Vector3(0, -0.02, 0.062), "white")
+			box(m, Vector3(0.075, 0.025, 0.006), Vector3(0, -0.02, 0.064), "green")   # (green: a red cross on white is
+			box(m, Vector3(0.025, 0.075, 0.006), Vector3(0, -0.02, 0.064), "green")   # a protected emblem)
+			box(m, Vector3(0.12, 0.025, 0.03), Vector3(0, 0.14, 0), "black")
+		"impound_key": _key(m, "steel_lt", 1.15)
 		"bunker_key": _key(m, "iron", 1.0)
 		"bank_vault_key": _key(m, "brass", 1.25)
 		"beans": _can(m, 0.04, 0.11, "orange", "steel_lt")

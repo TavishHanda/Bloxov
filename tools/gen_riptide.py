@@ -111,7 +111,8 @@ player_spawns = []   # (x, y, z)
 enemy_spawns = []    # (x, y, z, zone or "")
 boss_starts = []
 perches = []         # (x, y, z, face x, face z)
-switches = []        # (node, switch_id, prompt, x, y, z): MapSwitch
+switches = []        # (node, switch_id, prompt, x, y, z[, open_delay]): MapSwitch
+key_doors = []       # (0.38.7) locked doors (KeyDoor): (name, x, y, z, yaw, key, place); you walk up from its -z side
 labels = []          # (text, x, z, big)
 footprints = []      # (x0, z0, x1, z1)
 
@@ -520,8 +521,13 @@ CANNERY_PROPS = [
     # the north street's sheds: a workbench and racks (west), a store (middle), a tool shed (east)
     ("bench", -149.85, -149.15, -126.0, -122.5, 0.0, 0.9), ("shelves", -137.0, -136.15, -127.5, -124.0, 0.0, 2.1),
     ("drums", -140.0, -138.0, -127.85, -127.05, 0.0, 1.0),
-    ("shelves", -115.85, -115.25, -121.5, -118.0, 0.0, 2.1), ("crates", -103.0, -101.0, -121.6, -119.8, 0.0, 1.4),
-    ("shelves", -111.0, -107.0, -112.75, -112.15, 0.0, 2.1),
+    # (0.38.7, owner: "a little like medical care area near the port") the middle one is the Port Clinic: the waiting
+    # room (west: benches, a low table, the reception counter), two treatment bays (east: a bed and a cabinet each)
+    ("bench", -115.85, -115.25, -121.4, -118.6, 0.0, 0.5), ("bench", -115.85, -115.25, -115.4, -112.6, 0.0, 0.5),
+    ("mess_table", -113.6, -112.4, -120.6, -119.4, 0.0, 0.5), ("counter", -111.5, -108.0, -114.85, -114.15, 0.0, 1.05),
+    ("desk", -110.9, -108.7, -113.0, -112.2, 0.0, 0.76),
+    ("sick_bed", -101.25, -100.15, -120.6, -118.4, 0.0, 0.7), ("sick_bed", -101.25, -100.15, -115.6, -113.4, 0.0, 0.7),
+    ("med_cab", -104.4, -102.6, -112.65, -112.15, 0.0, 1.9),
     ("bench", -69.85, -69.15, -125.0, -121.0, 0.0, 0.9), ("tool_cab", -58.75, -58.15, -118.5, -116.0, 0.0, 1.6),
     ("drums", -64.5, -61.5, -114.95, -114.15, 0.0, 1.0),
 ]
@@ -834,6 +840,20 @@ def plaza_tower_props(fl):
         box(x, fl[f], z, x + 0.55, fl[f] + 0.9, z + 0.55, "wood", kind=kind)
 
 
+def impound_room(y, h):
+    """(0.38.7, owner: Harbor Tower "needs a key room with something that makes sense") the impound room, off the
+    harbourmaster's office on floor 1 (its north-east corner): what the port authority seized, behind a steel door the
+    Impound Key opens. A weapon crate, the safe, and the seized cargo stacked by the wall."""
+    x0, x1, z0, z1 = -97.0, -92.0, -30.0, -25.0
+    wall("z", x0, z0, z1, y, h, "wall")
+    wall("x", z1, x0, x1, y, h, "wall", [door(-94.5)])
+    key_doors.append(("ImpoundDoor", -94.5, y, z1, 180.0, "impound_key", "Impound"))
+    box(-96.8, y, -27.8, -95.6, y + 1.4, -26.2, "wood", kind="crates")      # the seized cargo
+    box(-96.8, y, -26.0, -95.8, y + 0.9, -25.3, "wood", kind="crates")
+    add_loot("Impound", "crate", -95.9, y, -29.2, 0.0)                     # the weapon crate
+    add_loot("Impound", "safe", -93.2, y, -29.3, 0.0)
+
+
 def plaza():
     """Harbor Tower (six floors, two stairwells, a closed roof), the customs hall the pier starts from, the canteen
     and the garage; the road in from the gate, broken up by parked lorries and barriers."""
@@ -868,6 +888,7 @@ def plaza():
             footprints.append((-132.0, -30.0, -84.0, -10.0))
             labels.append(("HARBOR TOWER", -108, -36, 0))
             plaza_tower_props(fl)
+            impound_room(fl[1], 3.5 - SLAB_T)
             for f, (x, z, kind) in enumerate([(-113.0, -28.9, "crate"), (-94.0, -12.0, "locker"), (-122.0, -12.0, "crate"),
                                               (-94.0, -28.0, "locker"), (-112.0, -28.5, "safe"), (-100.0, -11.5, "safe")]):
                 add_loot("Offices", kind, x, fl[f], z, 180 if z > -20 else 0)
@@ -1061,8 +1082,15 @@ def breakers():
     with modeled("north_point", -110.0, -145.0), kinded("nshed"):     # (shore art pass 3a)
         for x0, x1, z0, z1, h in [(-150.0, -136.0, -128.0, -118.0, 4.0), (-116.0, -100.0, -122.0, -112.0, 5.0),
                                   (-70.0, -58.0, -126.0, -114.0, 4.5)]:
+            clinic = x0 == -116.0
             hall(x0, x1, z0, z1, h, "wall", n=[door((x0 + x1) / 2)], s=[door(x0 + 3.0)], w=[window((z0 + z1) / 2)],
-                 e=[window((z0 + z1) / 2)])
+                 e=[window(-119.5), window(-114.5)] if clinic else [window((z0 + z1) / 2)])   # (a window per bay)
+            if clinic:      # the Port Clinic (0.38.7): the bays' wall, a door into each, the wall between them
+                wall("z", -105.0, z0, z1, SHORE, h, "wall", [door(-119.5), door(-114.5)])
+                wall("x", -117.0, -105.0, x1, SHORE, h, "wall")
+                labels.append(("PORT CLINIC", -108, -126, 0))
+    add_loot("Clinic", "locker", -102.6, SHORE, -121.6)                 # the med cabinet (north bay)
+    add_loot("Clinic", "crate", -103.6, SHORE, -116.4)                  # (south bay, against the bays' wall)
     add_loot("Shed", "crate", -148.0, SHORE, -120.0)
     add_loot("Shed", "crate", -60.0, SHORE, -124.0, table="field")
     container(-84.0, SHORE, -127.0, "z", "container_b", 2)
@@ -1249,7 +1277,10 @@ def _gallery_mole_boats():
     labels.append(("BREAKWATER", 0, -134, 0))
     ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
     box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
-    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0))
+    # (0.38.7, owner: an extract at the end of the landing "that i can activate to open like the ship") shut until
+    # its engine is started from the wheelhouse: the alarm sounds, it's ready 20 s later
+    extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0, "pilot_boat"))
+    switches.append(("PilotBoatEngine", "pilot_boat", "Start the pilot boat's engine", 66.9, SHORE + 1.1, -119.0, 20.0))
     room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
 
     # The sea side (east): two boats moored against the hull, ladders up to the deck
@@ -1267,7 +1298,8 @@ def _gallery_mole_boats():
     # The stern ladder down to a dinghy (an extract)
     box(57.0, 0.2, SZ1 + 0.4, 63.0, 0.8, SZ1 + 6.0, "wood")
     ladder(60.0, 0.8, SZ1 + 0.4, 0, DECK - 0.8, "Stern")
-    extracts.append(("SternLadder", "STERN LADDER", 60.0, 0.8, SZ1 + 3.5))
+    # (0.38.7, owner: the ship's extract "isn't that risky at all ... could be higher up in the ship" -> the lifeboat on
+    # the bridge tower's boat deck, tower()) the stern ladder and its dinghy stay, as a way on and off the ship
     box(56.8, 0.8, SZ1 + 0.6, 57.2, 2.8, SZ1 + 6.0, "wood")              # the screen on the barge side
     box(56.8, 2.8, SZ1 + 1.8, 63.2, 3.0, SZ1 + 6.0, "roof")              # the canopy (0.35.16: clear of a climber's head)
 
@@ -1635,7 +1667,8 @@ def tower():
             n = [window(37.0), window(41.0), window(47.5)] + ([window(52.5)] if i == 2 else [])
             s = [window(38.5), window(46.0), window(51.0)]
             w = [window(79.0), window(85.0)] + side + [window(97.0), window(102.0)]
-            e = side + [window(100.0)]
+            # (0.38.7) on A deck the corridor's east end is a door out onto the boat deck and the lifeboat
+            e = ([door(91.5)] if i == 1 else side) + [window(100.0)]
         # (0.36.22) each outside wall is cut where an inside wall meets it, so each room paints its own stretch (a
         # stretch running past a corner took the paint of the room it mostly faced: the stairs' steel in the corridor)
         n, s = n + [split(44.0), split(51.0), split(54.0)], s + [split(43.0), split(54.0)]
@@ -1673,6 +1706,18 @@ def tower():
               {0: "W", 1: "S", 2: "W", 3: "S", 4: "W", 6: "W", 7: "W", 11: "W"}, roof=True)
     # the outside ladder up the back, from the aft deck to the helideck
     ladder(58.0, DECK, TZ1 + 0.4, 0, ROOF - DECK, "Tower")
+    # (0.38.7, owner: the ship's extract "could be higher up in the ship" with a switch that "takes some time to
+    # open") the boat deck: a platform off A deck's corridor end, the lifeboat hung in its davits over the side. The
+    # winch lowers it: the alarm blares and it's ready to board 30 s later.
+    slab(TX1, SX1, 84.0, 99.0, DECK2, "metal")
+    for z in (84.4, 98.6):
+        box(SX1 - 0.6, DECK, z - 0.2, SX1 - 0.2, DECK2 - SLAB_T, z + 0.2, "rust")    # its posts
+    wall("z", SX1 - 0.1, 84.0, 99.0, DECK2, 1.0, "rust", t=0.12)
+    wall("x", 84.0, TX1, SX1, DECK2, 1.0, "rust", t=0.12)
+    wall("x", 99.0, TX1, SX1, DECK2, 1.0, "rust", t=0.12)
+    box(SX1 + 0.4, DECK2 - 1.6, 86.5, SX1 + 3.2, DECK2 + 0.9, 96.5, "rust", kind="lifeboat", solid=False)
+    extracts.append(("Lifeboat", "LIFEBOAT", 64.0, DECK2, 91.5, "lifeboat"))
+    switches.append(("LifeboatWinch", "lifeboat", "Lower the lifeboat", 65.3, DECK2 + 1.1, 97.6, 30.0))
     tower_props()
     # loot by room
     add_loot("ShipArmory", "locker", 45.6, DECK, 74.7, 0)
@@ -2153,7 +2198,8 @@ def spawner_meta():
             f'"bosses": [{bosses}], "looks": {{{looks}}}, '
             f'"max_alive": {25 + crews}, "scav_budget": {scavs + 4}, "raider_budget": {raiders + 3}, '
             '"scav_interval_min": 60.0, "scav_interval_max": 80.0, '
-            '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0}')
+            '"raider_times": PackedFloat32Array(240, 480, 660), "min_distance_from_player": 40.0, '
+            '"scav_keys": {"impound_key": 0.02}}')   # (0.38.7: now and then a scav has the Impound Key)
 
 
 # (0.35.17, owner: "when you open the map and look at all the names on the map its super cluttered") The map screen
@@ -2161,7 +2207,7 @@ def spawner_meta():
 # the ship) stay in the generator as notes. name -> None (where the generator put it) or (text, x, z) to move or rename.
 MAP_LABELS = {
     "THE LANDING": None, "LEVIATHAN": ("LEVIATHAN", 48, 34), "LIGHTHOUSE": None, "CANNERY": None,
-    "CONTAINER TERMINAL": None, "HARBOR TOWER": None, "CUSTOMS": None, "SILOS": None,
+    "CONTAINER TERMINAL": None, "HARBOR TOWER": None, "PORT CLINIC": None, "CUSTOMS": None, "SILOS": None,
     "SLIPWAY": ("SHIPYARD", -108, 124), "PIER": None, "BREAKWATER": None, "BARGE LINE": None,
     "FORECASTLE": ("BOW", 48, -96), "DRILL FLOOR": ("DRILL FLOOR", 48, -2), "BRIDGE TOWER": ("BRIDGE TOWER", 48, 78),
     "SITE ZERO (BELOW)": ("SITE ZERO", 48, -50),
@@ -2272,11 +2318,15 @@ def sea_planes():
     return subs, out
 
 
+LOCKED_PLACES = {"Impound"}   # (loot behind a key door)
+
+
 def write_scene():
     xs, zs, hs = terrain()
     subs, sea = sea_planes()
     scenes = {"crate": "res://scenes/loot_crate.tscn", "locker": "res://scenes/loot_locker.tscn",
-              "safe": "res://scenes/loot_safe.tscn", "ladder": "res://scenes/ladder.tscn"}
+              "safe": "res://scenes/loot_safe.tscn", "ladder": "res://scenes/ladder.tscn",
+              "door": "res://scenes/key_door.tscn"}
     out = ["[gd_scene format=3]", "",
            '[ext_resource type="Script" path="res://scripts/box_map.gd" id="1_boxmap"]',
            '[ext_resource type="PackedScene" path="res://scenes/extract_zone.tscn" id="2_extract"]',
@@ -2317,9 +2367,10 @@ def write_scene():
             "terrain_heights = PackedFloat32Array(" + ", ".join(fmt(h) for h in hs) + ")",
             f"water_colour = {C['water']}",
             ""] + sea
-    for name, sid, text, x, y, z in switches:
+    for name, sid, text, x, y, z, *delay in switches:
         out += [f'[node name="{name}" type="StaticBody3D" parent="Level"]', f"transform = {xform(x, y, z)}",
-                'script = ExtResource("9_switch")', f'switch_id = "{sid}"', f'prompt_text = "{text}"', ""]
+                'script = ExtResource("9_switch")', f'switch_id = "{sid}"', f'prompt_text = "{text}"']
+        out += ([f"open_delay = {fmt(delay[0])}"] if delay else []) + [""]
     if shown:
         out += ['[node name="Models" type="Node3D" parent="Level"]', ""]
     for m in shown:
@@ -2333,7 +2384,13 @@ def write_scene():
     for name, kind, x, y, z, yaw, table, place in loot:
         out += [f'[node name="{name}" parent="Loot" instance=ExtResource("{ids[kind]}")]',
                 f"transform = {xform(x, y, z, yaw)}", f'metadata/place = "{place}"']
-        out += ([f'loot_table = "{table}"'] if table != kind else []) + [""]
+        out += ([f'loot_table = "{table}"'] if table != kind else [])
+        out += (["metadata/locked = true"] if place in LOCKED_PLACES else []) + [""]   # (behind a key door: the AI leave it)
+    out += ['[node name="KeyDoors" type="Node3D" parent="."]', ""]
+    for name, x, y, z, yaw, key, place in key_doors:     # (a door leaf filling the doorway, a bit wider than it)
+        out += [f'[node name="{name}" parent="KeyDoors" instance=ExtResource("{ids["door"]}")]',
+                f"transform = {xform(x, y, z, yaw)}", f'key = "{key}"',
+                f"size = Vector3({fmt(DOOR_W + 0.2)}, {fmt(DOOR_H + 0.05)}, 0.12)", f'metadata/place = "{place}"', ""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, y, z, *power in extracts:
         out += [f'[node name="{name}" parent="Extracts" instance=ExtResource("2_extract")]',

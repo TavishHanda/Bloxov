@@ -40,10 +40,13 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Mauler Shells (`shells`) | Ammo | Common | 1×1 | 30 | $30 | full stack $900 | Buckshot for the Mauler. Loaded one at a time. |
 | Lancer Rounds (`sniper_ammo`) | Ammo | Uncommon | 1×1 | 30 | $75 | full stack $2,250 | Long rounds for the Lancer. Loaded when you reload. |
 | Bandage (`bandage`) | Healing | Common | 1×1 | 5 | $500 | heals 25 over 2 s | Stops the bleeding. Quick to use. |
+| Painkillers (`painkillers`) | Healing | Uncommon | 1×1 | 6 | $900 | heals 15 over 1 s | A few pills. Takes the edge off, fast. |
 | Medkit (`medkit`) | Healing | Uncommon | 2×1 | 3 | $2,000 | heals 70 over 4 s | Field kit. Heals a lot, takes a while. |
+| Trauma Kit (`trauma_kit`) | Healing | Rare | 2×2 | 1 | $5,500 | heals 100 over 7 s | Everything a field medic carries. Patches you right up, but it takes time. |
 | Energy Drink (`energy_drink`) | Drink | Common | 1×1 | 1 | $1,200 |  | Fills your stamina, then sprinting costs none for 10 s. |
 | Frag Grenade (`grenade`) | Throwable | Uncommon | 1×1 | 3 | $3,000 |  | Pull, throw, take cover. Goes off 3 seconds after it leaves your hand. |
 | Bank Vault Key (`bank_vault_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens BankVaultDoor | Opens the vault in the bank. |
+| Impound Key (`impound_key`) | Key | Rare | 1×1 | 1 | $3,500 | opens ImpoundDoor | Opens the impound room in Harbor Tower, off the harbourmaster's office. |
 | Bunker Key (`bunker_key`) | Key | Epic | 1×1 | 1 | $6,000 | opens BunkerDoor | Opens the bunker under the town hall. Bon keeps one on him. |
 | Bolts (`bolts`) | Valuable | Common | 1×1 | 10 | $120 |  | A handful of nuts and bolts. Small, but always needed. |
 | Canned Beans (`beans`) | Valuable | Common | 1×1 | 1 | $150 |  | Somebody's lunch. Traders pay for food out here. |
@@ -252,12 +255,14 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Railyard | Bolts 15 |
 | Junkyard | Bolts 20, Wires 15, Fuel Can 6 |
 | School | Medical Supplies 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
-| ShipBridge | Gold Watch 15, Cash Bundle 15, Exion Orders 10, Diamond Ring 3, rare valuable 8 |
+| ShipBridge | Gold Watch 15, Cash Bundle 15, Exion Orders 10, Diamond Ring 3, rare valuable 8, Impound Key 2 |
 | ShipArmory | Hound 12, Hound Rounds 25, Wasp 8, Mauler 8, Mauler Shells 15, Wasp Rounds 15, Light Armor 10, Heavy Armor 5, Old Helmet 8, Combat Helmet 4, Frag Grenade 10, Foregrip 5, Red Dot 5, Viper 1, Hornet 1, Brawler 1 |
-| SickBay | Medical Supplies 25, Bandage 45, Medkit 25 |
+| SickBay | Medical Supplies 25, Bandage 45, Medkit 25, Painkillers 25, Trauma Kit 6 |
+| Clinic | Medical Supplies 20, Bandage 40, Medkit 25, Painkillers 30, Trauma Kit 6 |
+| Impound | Hound 10, Wasp 8, Mauler 8, Lancer 3, Hound Rounds 20, Wasp Rounds 10, Mauler Shells 10, Suppressor 3, Extended Mag 4, Cash Bundle 15, Gold Watch 8, rare valuable 10, epic valuable 6, Viper 1, Hornet 1, Brawler 1 |
 | Galley | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | EngineRoom | Bolts 15, Wires 10, Fuel Can 12 |
-| Workshop | Bolts 15, Wires 10, Powder Tin 6 |
+| Workshop | Bolts 15, Wires 10, Powder Tin 6, Impound Key 1 |
 | LabWing | Medical Supplies 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
 | LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Talon 1 |
 
