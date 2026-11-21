@@ -815,17 +815,20 @@ func _grenade(from: Vector3, vel: Vector3) -> void:
 
 ## A player dropped items, or died (their body holds what they carried): a bag where they are.
 @rpc("any_peer", "call_remote", "reliable")
-func _drop_items(data: Array, is_body: bool) -> void:
+func _drop_items(data: Array, is_body: bool, pack: Array) -> void:
 	var peer := _sender("drop")
 	var world := _world_of(peer)
-	if world == null or not _player_states.has(peer) or data.size() > 200:
+	if world == null or not _player_states.has(peer) or data.size() + pack.size() > 200:
 		return
 	var me: Array = _player_states[peer]
 	# Only what they carry (0.25.1): anything else is left out.
 	var taken := NetGuard.take_entries(_carried.get_or_add(peer, {}), data)
 	data = taken[0]
-	if taken[1] > 0:
-		_caught(peer, "item", "dropped %d things they don't carry" % taken[1])
+	# (a body: what was in its backpack stays in it, 0.38.9)
+	var pack_taken := NetGuard.take_entries(_carried.get_or_add(peer, {}), pack if is_body else [])
+	pack = pack_taken[0]
+	if taken[1] + pack_taken[1] > 0:
+		_caught(peer, "item", "dropped %d things they don't carry" % (taken[1] + pack_taken[1]))
 	var title: String = ("%s's Body" % matchmaker.players[peer]["name"]) if is_body else "Dropped Items"
 	if is_body and _killed_by_player(peer):
 		# Killed by another player (0.15.28, owner): "Name's Dog Tag" on the body, in its own slot.
@@ -834,7 +837,7 @@ func _drop_items(data: Array, is_body: bool) -> void:
 		tag.found = true
 		data.append(GridInventory.stack_data(tag))
 	var forward := Vector3(-sin(me[1]), 0, -cos(me[1]))
-	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body)
+	world.drop_bag(me[0] + (Vector3.ZERO if is_body else forward * 0.8), title, data, is_body, pack)
 
 
 ## A player's kit as their raid starts (every stack they carry, GridInventory.stack_data): what the server counts as
@@ -1197,7 +1200,7 @@ func _send_raid_start(id: int) -> void:
 		_health.erase(peer)
 		guard.reset_moves(peer)
 	_log("raid %d started: %s" % [id, ", ".join(raid_names.values())])
-	# (0.38.9) the AI keeps away from where the squads start: it comes in before any of them is in the raid world
+	# (0.38.10) the AI keeps away from where the squads start: it comes in before any of them is in the raid world
 	world.set_player_starts(raid["spawns"].values().map(func(spawn: Array) -> int: return int(spawn[0])), int(raid["seed"]))
 	# AI PMCs (0.36.2; Matchmaker.bots is 0 unless the map has bots on): at the spawn points the real squads didn't take.
 	if int(raid.get("bots", 0)) > 0:
@@ -1444,9 +1447,9 @@ func send_kit(data: Array) -> void:
 
 
 ## Items we dropped (`body` = we died: everything we carried).
-func drop_items(data: Array, body := false) -> void:
+func drop_items(data: Array, body := false, pack := []) -> void:
 	if in_online_raid():
-		_drop_items.rpc_id(1, data, body)
+		_drop_items.rpc_id(1, data, body, pack)
 
 
 ## We started/stopped holding F on a downed teammate (peer id).
