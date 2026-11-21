@@ -6677,8 +6677,8 @@ func _section_riptide() -> void:
 	_check(world.raid.find_child("SternLadder", true, false) == null, "the stern ladder is no longer an extract (the lifeboat is)")
 	# 0.38.7 (owner): Harbor Tower's impound room, behind a key door the Impound Key opens; its loot is out of the AI's reach
 	var impound := world.raid.get_node_or_null("KeyDoors/ImpoundDoor") as KeyDoor
-	_check(impound != null and impound.key == "impound_key" and ItemDB.item("impound_key")["door"] == "ImpoundDoor",
-		"the impound room's door takes the Impound Key")
+	_check(impound != null and impound.key == "impound_key" and ItemDB.item("impound_key")["door"] == "ImpoundDoor"
+		and impound.look == "plain", "the impound room's steel door (no vault door on Riptide) takes the Impound Key")
 	var impound_loot := RaidScope.nodes(world.raid, &"loot_containers").filter(func(c: Node) -> bool:
 		return String(c.get_meta("place", "")) == "Impound")
 	_check(impound_loot.size() == 2 and impound_loot.all(func(c: Node) -> bool: return c.has_meta("locked")),

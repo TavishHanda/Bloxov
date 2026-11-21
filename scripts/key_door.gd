@@ -19,6 +19,9 @@ const SWING := 100.0
 ## The key that opens it (an ItemDB id of kind "key" whose "door" is this node's name).
 @export var key := "bunker_key"
 @export var size := Vector3(2.2, 2.4, 0.12)
+## (0.39.2, owner: "idk if we want a vault door on riptide") "vault": the round bank-vault door (Frontlines' bunker
+## and bank); "plain": a steel door leaf on a hinge (Riptide's impound room).
+@export var look := "vault"
 ## Seconds of holding F to unlock it.
 @export var unlock_time := 1.5
 
@@ -34,7 +37,8 @@ var _open_leaf: CollisionShape3D
 
 func _ready() -> void:
 	if Engine.is_editor_hint():   # (owner: show the vault doors in the editor) the models only, shut
-		_add_models()
+		if look == "vault":
+			_add_models()
 		return
 	add_to_group(GROUP)
 	add_to_group(&"nav_source")
@@ -50,13 +54,13 @@ func _ready() -> void:
 	# (an oval opening in it) and the round door on a hinge arm, both on the side you walk up from (-z), drawn for a
 	# 2.4 m doorway and stretched to this one. It swings out towards you. The collision box above is unchanged; a
 	# second one keeps people out of the door's thickness while it's shut.
-	if DisplayServer.get_name() != "headless" and _add_models():
+	if look == "vault" and DisplayServer.get_name() != "headless" and _add_models():
 		_swing = SWING
 	else:
 		_build_slab()
 	_face = CollisionShape3D.new()
 	var face_box := BoxShape3D.new()
-	face_box.size = Vector3(size.x, size.y, 0.4)
+	face_box.size = Vector3(size.x, size.y, 0.4) if look == "vault" else Vector3(0.1, 0.1, 0.1)   # (the vault's collar)
 	_face.shape = face_box
 	_face.position = Vector3(0, size.y * 0.5, -0.26)
 	add_child(_face)
@@ -165,15 +169,29 @@ func _settle_leaf() -> void:
 		return
 	var sx := size.x / 2.4
 	var leaf := BoxShape3D.new()
-	leaf.size = Vector3(2.5 * sx, size.y, 0.3)
-	var hinge := Transform3D(Basis(Vector3.UP, deg_to_rad(SWING)), Vector3(PIN.x * sx, 0, PIN.y))
-	var at := hinge * Transform3D(Basis(), Vector3(1.35 * sx, size.y * 0.5, 0))
-	var query := PhysicsShapeQueryParameters3D.new()
-	query.shape = leaf
-	query.transform = global_transform * at
-	query.collision_mask = 2 | 4   # (players and the AI)
-	query.exclude = [get_rid()]
-	while is_inside_tree() and not get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty():
+	var swing := SWING if look == "vault" else -SWING     # (the plain door swings away from you, into the room)
+	var hinge_at := Vector3(PIN.x * sx, 0, PIN.y) if look == "vault" else Vector3(-size.x * 0.5, 0, 0)
+	var length := 2.5 * sx if look == "vault" else size.x
+	leaf.size = Vector3(length, size.y, 0.3)
+	var hinge := Transform3D(Basis(Vector3.UP, deg_to_rad(swing)), hinge_at)
+	var at := hinge * Transform3D(Basis(), Vector3(length * 0.5 + (0.1 * sx if look == "vault" else 0.0), size.y * 0.5, 0))
+	# Nobody may be in its way, nor in the corner behind it (between the open door and the wall by its hinge): a
+	# door that went solid round someone standing there could shut them in.
+	var corner := BoxShape3D.new()
+	corner.size = Vector3(length, size.y, length * 0.8)
+	var behind := Transform3D(Basis(Vector3.UP, deg_to_rad(swing * 1.4)), hinge_at) \
+			* Transform3D(Basis(), Vector3(length * 0.55, size.y * 0.5, 0))
+	var space := get_world_3d().direct_space_state
+	var queries: Array[PhysicsShapeQueryParameters3D] = []
+	for pair: Array in [[leaf, at], [corner, behind]]:
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = pair[0]
+		query.transform = global_transform * (pair[1] as Transform3D)
+		query.collision_mask = 2 | 4   # (players and the AI)
+		query.exclude = [get_rid()]
+		queries.append(query)
+	while is_inside_tree() and queries.any(func(q: PhysicsShapeQueryParameters3D) -> bool:
+			return not space.intersect_shape(q, 1).is_empty()):
 		await get_tree().create_timer(0.5).timeout
 	if not is_inside_tree():
 		return

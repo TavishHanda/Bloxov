@@ -1189,6 +1189,7 @@ metadata/place = "LabDock"
 [node name="ImpoundDoor" parent="KeyDoors" instance=ExtResource("7_door")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -95.8, 6, -25)
 key = "impound_key"
+look = "plain"
 size = Vector3(2.4, 2.45, 0.12)
 metadata/place = "Impound"
 

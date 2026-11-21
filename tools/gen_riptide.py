@@ -849,8 +849,7 @@ def impound_room(y, h):
     Impound Key opens. A weapon crate, the safe, and the seized cargo stacked by the wall."""
     x0, x1, z0, z1 = -97.0, -92.0, -30.0, -25.0
     wall("z", x0, z0, z1, y, h, "wall")
-    # (the door at the west end: open, the round door stands out into the office east of it, clear of stairwell B's
-    # door in the corner)
+    # (0.39.2, owner: no vault door on Riptide: a plain steel door, swinging in. At the west end, clear of the cargo.)
     wall("x", z1, x0, x1, y, h, "wall", [door(-95.8)])
     key_doors.append(("ImpoundDoor", -95.8, y, z1, 180.0, "impound_key", "Impound"))
     box(-93.0, y, -27.6, -92.2, y + 1.4, -26.0, "wood", kind="crates")      # the seized cargo
@@ -2416,7 +2415,7 @@ def write_scene():
     out += ['[node name="KeyDoors" type="Node3D" parent="."]', ""]
     for name, x, y, z, yaw, key, place in key_doors:     # (a door leaf filling the doorway, a bit wider than it)
         out += [f'[node name="{name}" parent="KeyDoors" instance=ExtResource("{ids["door"]}")]',
-                f"transform = {xform(x, y, z, yaw)}", f'key = "{key}"',
+                f"transform = {xform(x, y, z, yaw)}", f'key = "{key}"', 'look = "plain"',
                 f"size = Vector3({fmt(DOOR_W + 0.2)}, {fmt(DOOR_H + 0.05)}, 0.12)", f'metadata/place = "{place}"', ""]
     out += ['[node name="Extracts" type="Node3D" parent="."]', ""]
     for name, title, x, y, z, *power in extracts:
