@@ -7,6 +7,73 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.12 (Riptide: the lifeboat, the impound room, the Port Clinic, new meds)
+Owner's answers to the tester's Riptide feedback (2026-11-20, "Yea looks good" to the numbers):
+- **Lifeboat extract** replaces the Stern Ladder: a boat deck off A deck's corridor end on the bridge tower, the
+  lifeboat hung in its davits over the side. Throw the winch: the alarm blares (the AI come to look) and the boat is
+  ready 30 s later. The stern ladder and dinghy stay as a way on and off the ship.
+- **Bow Pilot Boat** now needs its engine started from the wheelhouse: the same alarm, ready in 20 s.
+  `MapSwitch.open_delay` (the prompt counts down "Wait... N s", then "Ready").
+- **Harbor Tower impound room**: off the harbourmaster's office (floor 1), behind a steel door the new
+  **Impound Key** opens (rare: ship's bridge safes, the workshops, 2% of Riptide's scavs). A weapon crate, a safe and
+  the seized cargo; its loot is out of the AI's reach.
+- **Port Clinic** (no key): the north street's middle shed. A waiting room (benches, reception) and two treatment
+  bays, a med cabinet and a crate, mostly medical loot. Signs over both doors, on the map as PORT CLINIC.
+- **Painkillers** (heal 15, 1 s, six to a stack, uncommon, $900) and the **Trauma Kit** (heal 100, 7 s, 2x2, rare,
+  $5,500): found in the clinic and the ship's sick bay. Icons, hand models, a pill-bottle sound. No real drug names;
+  the kit's cross is green (a red cross on white is a protected emblem).
+- Net version 19 (the map changed). Tests for each; the map audits updated (loot behind a key door is skipped).
+
+## 0.38.11 (Characters 2, part 2: AI PMCs are the six characters)
+Owner (2026-11-20): "AI pmc will be randomly chosen between those 6 ... with their actual stats"; level 5-15 (owner's
+pick, 2026-11-21).
+- **Who it is:** `Characters.ai_pick(seed)` picks the character, skin and level (5-15) from the AI's server id, and
+  spends its level points (2 at level 10+) on random traits, so every screen agrees without sending anything new.
+- **Looks:** a puppet AI PMC wears that character's model in that skin (`PmcAI.dress_as_character`, before it joins
+  the tree; never on the server). It no longer shows its real helmet (the skin is the whole outfit).
+- **Stats** (`PmcAI.apply_character`): its traits at its level on the AI's nearest numbers: move/sprint speed ->
+  move speed, hearing -> hearing, time to aim -> aim time, recoil and spread -> hit chances (by the same share),
+  full-auto rate -> time between shots, meds time -> heal time, search time -> container searches, steps -> how far
+  its footsteps carry (`footstep_range`, VEGA's Light Feet too). The AI has no stamina and doesn't reload, jump or
+  swap guns, so those traits (and the other passives) do nothing on it.
+- Tests: all six turn up, levels 5-15, points spent, the same pick on every screen, the stats, a dressed puppet.
+## 0.38.10 (No more AI shooting you as you spawn)
+Owner, 2026-11-21: "when i spawned in frontlines in a pvp raid ... the sniper scav was shooting at me before i even
+could move"; "my friend spawn in and he instantly got killed by an AI before being able to move".
+- The cause: online, the server makes a raid's AI before any player is in its copy of the raid, so the spawner's
+  "away from and out of sight of every player" rule had nobody to keep away from. Zone scavs could start right next to
+  a squad's spawn and snipers could take a perch looking straight down on one.
+- Now the server tells the spawner where each real squad will start (`RaidWorld.set_player_starts`, the same spots the
+  players' games use) before the AI comes in. For the first 60 s (`EnemySpawner.START_GUARD`) those spots count as
+  players: no AI starts within `min_distance_from_player` (18 m, unchanged) of one, spots one can see are only used
+  when nothing hidden is left, and snipers prefer perches that don't look down on one. Offline nothing changes (the
+  player is already standing there). No gameplay numbers changed.
+- Smoke test: the spawner keeps off a start spot, the spots stop counting after the start, and the server's raid tells
+  its spawner where its player starts.
+
+## 0.38.9 (Swap backpacks with a body)
+Owner (2026-11-21): "you should be able to drag the backpack on the looted body to replace your backpack ... see the
+contents of the backpack when looting ... your contents go to the body/bag on the ground and the backpack goes to
+you with its contents".
+- A body keeps what was in its backpack inside that backpack (before, it all went loose in the body's pockets). The
+  loot screen shows it under the body's gear, as its own grid named after the backpack.
+- Drag the body's backpack onto yours (or Shift+click it, or right-click > Equip): they swap, each with what's inside.
+  Your backpack can also be dragged onto the body's backpack slot. Either side can have no backpack. Things keep
+  their spots.
+- A body's backpack with things in it can't be pulled away from them any other way ("Drag it onto your backpack to
+  swap"); an empty one moves like before.
+- AI PMCs: what they picked up from containers is in their backpack too, like a player's.
+- Online: the body's backpack grid goes over the network; a dead player's backpack contents are sent apart from the
+  rest (`_drop_items` has a third argument), checked against what they carry like before. Net version 18.
+
+## 0.38.8 (A CRAFT button and a sharper Hound stock)
+Owner, 2026-11-21: "we need to add a crafting button on the menu to make it more accessible"; the Hound's stock
+"more triangly the back looks kinda ugly".
+- The menu's top bar has a CRAFT button next to OPTIONS: it opens the workbench from anywhere in the menu, and
+  pressing it again goes back to the stash. Phones keep their CRAFT tab.
+- The Hound's stock is a wedge now: thin where it meets the gun, deep at the butt (was an even slab sloping down).
+  Same length, same in every look; only the model changed (`make_gun.py`, `hound.glb`).
+
 ## 0.38.7 (Characters 2, part 1: the six models, and you raid as your character)
 Owner (2026-11-20): every PMC is one of the six characters, picked before the raid like an agent, each with skins;
 the first pick says clearly it's VEGA or VOSS, and what the others need is shown. This is the first part.

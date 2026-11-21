@@ -47,6 +47,9 @@ const LOOKS := {
 var grid: GridInventory
 ## Bodies only (owner, 0.11.13: loot a body's loadout): slot -> one-item GridInventory. Empty for other containers.
 var gear := {}
+## Bodies only (0.38.9, owner: see what's in a body's backpack, and swap backpacks with it): what's inside the backpack
+## in its backpack slot. Sized from that backpack (0 x 0 with none; fit_pack). Null for other containers.
+var pack: GridInventory = null
 var searched := false
 
 
@@ -151,6 +154,8 @@ func all_grids() -> Array[GridInventory]:
 			list.append(gear[slot])
 	if gear.has(TAG_SLOT):
 		list.append(gear[TAG_SLOT])
+	if pack != null:
+		list.append(pack)
 	list.append(grid)
 	return list
 
@@ -166,13 +171,41 @@ func add_gear_slots(with_tag := false) -> void:
 			var slot_grid := GridInventory.new(slot.capitalize(), 1, 1)
 			slot_grid.slot = slot
 			gear[slot] = slot_grid
+		pack = GridInventory.new("Backpack", 0, 0)
 	if with_tag and not gear.has(TAG_SLOT):
 		var tag_grid := GridInventory.new("Dog Tag", 1, 1)
 		tag_grid.slot = TAG_SLOT
 		gear[TAG_SLOT] = tag_grid
 
 
-## Everything in it, for the network: the pockets' GridInventory.to_data(), plus (bodies) each gear slot's.
+## The backpack in a body's backpack slot, or null.
+func worn_pack() -> ItemStack:
+	if not gear.has("backpack") or gear["backpack"].is_empty():
+		return null
+	return gear["backpack"].stacks[0]
+
+
+## Sizes `pack` to the backpack in the backpack slot (0 x 0 with none). Anything that no longer fits goes in the
+## pockets, so nothing is lost (it only happens with bad data from the network).
+func fit_pack() -> void:
+	if pack == null:
+		return
+	var worn := worn_pack()
+	var size: Array = ItemDB.item(worn.id)["grid"] if worn != null else [0, 0]
+	pack.width = int(size[0])
+	pack.height = int(size[1])
+	pack.title = ItemDB.display_name(worn.id) if worn != null else "Backpack"
+	var spill := []
+	for stack: ItemStack in pack.stacks.duplicate():
+		if not pack.fits(stack.id, stack.x, stack.y, stack.rotated, stack):
+			pack.remove(stack)
+			spill.append(stack)
+	if not spill.is_empty():
+		add_to_pile(spill)
+
+
+## Everything in it, for the network: the pockets' GridInventory.to_data(), plus (bodies) each gear slot's, then the
+## dog tag slot's (if it has one), then what's in its backpack (0.38.9).
 func net_data() -> Array:
 	return LootContainer.grids_data(all_grids())
 
@@ -190,9 +223,10 @@ static func grids_data(grids: Array[GridInventory]) -> Array:
 
 ## Replaces the contents with net_data() from the other side. Ignores anything malformed.
 func load_net_data(data: Array) -> void:
-	if data.size() == 4 and data[3] is Array and data[3].size() in [GEAR_SLOTS.size(), GEAR_SLOTS.size() + 1]:
+	var pack_data: Variant = null
+	if data.size() == 4 and data[3] is Array and data[3].size() in [GEAR_SLOTS.size() + 1, GEAR_SLOTS.size() + 2]:
 		var slots: Array[String] = GEAR_SLOTS.duplicate()
-		if data[3].size() > GEAR_SLOTS.size():
+		if data[3].size() > GEAR_SLOTS.size() + 1:
 			slots.append(TAG_SLOT)
 		add_gear_slots(slots.has(TAG_SLOT))
 		for i in slots.size():
@@ -200,8 +234,12 @@ func load_net_data(data: Array) -> void:
 			slot_grid.load_data(data[3][i] if data[3][i] is Array else [])
 			slot_grid.width = 1
 			slot_grid.height = 1
+		pack_data = data[3][-1]
 		data = data.slice(0, 3)
 	grid.load_data(data)
+	if pack != null:
+		pack.load_data(pack_data if pack_data is Array else [])
+		fit_pack()
 
 
 func prompt() -> String:
@@ -280,7 +318,9 @@ func mark_searched() -> void:
 
 ## Drops a bag in the world holding `contents` ([id, count] pairs, or ItemStacks). Bodies and dropped items.
 ## A body (`body`) gets gear slots: the first gun/armor/backpack for each slot goes there, the rest in its pockets.
-static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0, body := false) -> LootContainer:
+## `pack_contents` (ItemStacks, bodies only, 0.38.9): what was in the backpack it wore; it stays in that backpack
+## (where it was, if it still fits), and anything that doesn't fit goes in the pockets.
+static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Array, search := 0.0, body := false, pack_contents := []) -> LootContainer:
 	var scene := "res://scenes/backpack_bag.tscn" if bag_name in BACKPACK_BODIES else "res://scenes/loot_bag.tscn"
 	var bag := (load(scene) as PackedScene).instantiate() as LootContainer
 	bag.display_name = bag_name
@@ -310,6 +350,10 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 					slot_grid.add(id, entry[1])
 			else:
 				loose.append(entry)
+		bag.fit_pack()
+		for stack: ItemStack in pack_contents:
+			if not bag._put_in_pack(stack):
+				loose.append(stack)
 		contents = loose
 	# Big enough for whatever's going in: at least as big as the biggest item, plus rows until everything fits.
 	var cells := Vector2i(4, 3)
@@ -323,6 +367,19 @@ static func spawn_bag(world: Node, pos: Vector3, bag_name: String, contents: Arr
 	bag.global_position = pos
 	bag.rotation.y = randf() * TAU
 	return bag
+
+
+## Puts `stack` in the body's backpack: where it says (x, y), or the first free spot. False if there's no room.
+func _put_in_pack(stack: ItemStack) -> bool:
+	if pack == null:
+		return false
+	if not pack.fits(stack.id, stack.x, stack.y, stack.rotated):
+		var spot := pack.find_spot(stack.id)
+		if spot.is_empty():
+			return false
+		stack.set_spot(Vector2i(spot[0], spot[1]), spot[2])
+	pack.place(stack)
+	return true
 
 
 ## Dropped items go on the pile already at your feet, not a new bag each time (owner, 0.15.16: "really

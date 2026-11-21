@@ -462,7 +462,8 @@ func _on_died() -> void:
 		drops.append([id, ItemDB.roll_count(id)])
 	if kit == "pmc":
 		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
-		drops.append_array(carried_loot)   # (0.36.7: what it took from containers)
+	# (0.36.7: what an AI PMC took from containers; 0.38.9: it's in the backpack it wears, like a player's)
+	var in_pack: Array = carried_loot.duplicate() if kit == "pmc" else []
 	var title := body_name
 	if bot_name != "":
 		# (an AI PMC, 0.36.2: a player's body, dog tag and all)
@@ -470,12 +471,12 @@ func _on_died() -> void:
 		var tag := ItemStack.new("player_tag")
 		tag.label = bot_name.left(ItemStack.LABEL_MAX)
 		drops.append(tag)
-	for drop: Variant in drops:
+	for drop: Variant in drops + in_pack:
 		if drop is ItemStack:
 			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)
 	# Into the raid it died in (on the server, that's one of several raids, and there's no current scene).
 	# (Scavs and snipers: their body shows as the backpack they wore, LootContainer.BACKPACK_BODIES, 0.17.12.)
-	LootContainer.spawn_bag(get_parent(), global_position, title, drops, 1.0, true)
+	LootContainer.spawn_bag(get_parent(), global_position, title, drops, 1.0, true, in_pack)
 	queue_free()
 
 

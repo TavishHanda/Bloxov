@@ -1749,6 +1749,7 @@ func _section_loot_ui() -> void:
 	_check(corpse.gear["secondary"].stacks == [my_pistol], "shift+click a pistol into a body: it fills the empty Secondary slot first")
 	loot_ui.close()
 	corpse.queue_free()
+	await _check_backpack_swap(main, player, loot_ui, inv)
 	expected_value = inv.total_value()
 	# Pressing F to close the loot screen doesn't reopen it (F has to be let go first).
 	var it := player.interactor
@@ -5097,6 +5098,12 @@ func _section_crafting() -> void:
 	for entry in [["med_supplies", 1], ["duct_tape", 1], ["bolts", 10], ["wires", 3], ["scrap", 3]]:
 		Profile.stash.add(entry[0], entry[1])
 	var bandages := Profile.stash.count_of("bandage")
+	var craft_menu := hideout.find_child("CraftMenuButton", true, false) as Button
+	_check(craft_menu != null and craft_menu.visible == not GameSettings.is_phone(), "the menu's top bar has a CRAFT button (0.38.8)")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "craft", "the CRAFT button opens crafting")
+	craft_menu.pressed.emit()
+	_check(hideout.current_screen() == "gear", "pressing CRAFT again goes back to the stash")
 	hideout.open_craft()
 	_check(hideout.current_screen() == "craft", "the workbench opens the crafting screen")
 	var row: Control = hideout.craft_screen._rows.get_node("bandage")
@@ -5393,7 +5400,7 @@ func _net_peer(branch_name: String) -> Network:
 ## player says it brought plenty (every gun, rounds, grenades and the items the tests drop).
 func _send_test_kit(c: Network) -> void:
 	var kit := []
-	for id in ["ak", "pistol", "smg", "shotgun", "sniper", "phone", "gold_watch", "bunker_key"]:
+	for id in ["ak", "pistol", "smg", "shotgun", "sniper", "phone", "gold_watch", "bunker_key", "backpack_medium"]:
 		kit.append([id, 1, 0, 0, false, 0])
 	for id in ["rifle_ammo", "pistol_ammo", "smg_ammo", "shells", "sniper_ammo", "grenade", "bandage"]:
 		for i in 4:
@@ -5596,6 +5603,11 @@ func _section_online_ai() -> void:
 		await _frames(3)
 	var scavs1 := RaidScope.nodes(w1.raid, &"enemies")
 	_check(scavs1.size() == 3 and RaidScope.nodes(w2.raid, &"enemies").size() == 3, "each online raid spawns its own 3 scavs on the server")
+	var w1_spawner := w1.raid.get_node("EnemySpawner") as EnemySpawner
+	_check(w1_spawner.player_starts.size() == 1 and w1_spawner.player_starts[0].distance_to(Raid.spawn_position(
+		w1.raid.get_node("PlayerSpawns").get_children(), int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["spawns"][c1_id][0]), 0,
+		int(server.matchmaker.raids[server.matchmaker.players[c1_id]["raid"]]["seed"]))) < 0.1,
+		"the server's AI is told where the raid's players will start (0.38.10)")
 	_check(scavs1.all(func(e: Node) -> bool: return RaidScope.nodes(e, &"player") == [w1.proxies.get(c1_id)]),
 		"a raid's scavs only see that raid's players (one proxy each)")
 	await _until(func() -> bool: return c1.enemies.size() == 3)
@@ -6293,6 +6305,14 @@ func _section_online_loot() -> void:
 	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
 	c1.close_container()
 	await _frames(2)
+	# (0.38.9) A dead player's backpack keeps what was in it on their body.
+	var packed_before: int = got[c1]["bags"].size()
+	c2.drop_items([["backpack_medium", 1, 0, 0, false, 0]], true, [["phone", 1, 1, 1, false, 0], ["not_an_item", 1, 0, 0, false, 0]])
+	await _until(func() -> bool: return got[c1]["bags"].size() > packed_before)
+	var packed := world.container(got[c1]["bags"].keys()[-1])
+	_check(packed != null and packed.worn_pack() != null and packed.pack.width == 5 and packed.pack.stacks.size() == 1
+		and packed.pack.stacks[0].id == "phone" and packed.pack.stacks[0].x == 1 and packed.grid.is_empty(),
+		"online, a dead player's backpack keeps its contents on their body (fake items left out)")
 	# PMC dog tag (0.15.28, owner): only on a player killed by another player, named, in its own slot.
 	_check(not rival_body.gear.has(LootContainer.TAG_SLOT), "a player who wasn't killed by a player leaves no dog tag")
 	var c1_peer: int = c1.multiplayer.get_unique_id()
@@ -7236,9 +7256,13 @@ func _section_pmc_ai() -> void:
 	ref.free()
 	var spread_ok := true
 	for bot: Scav in [a, b]:
-		var skill := bot.accuracy_near / 0.7
-		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_far, 0.35 * skill) \
-			and is_equal_approx(bot.accuracy_long, 0.2 * skill)
+		# (its character's recoil and spread change its hit chances too, 0.38.8: taken out here, checked below)
+		var m := Characters.multipliers((bot as PmcAI).character["state"], (bot as PmcAI).character["id"])
+		var near := 0.7 / (float(m.get("recoil", 1.0)) * float(m.get("hip_spread", 1.0)))
+		var aimed := 1.0 / (float(m.get("recoil", 1.0)) * float(m.get("aim_spread", 1.0)))
+		var skill := bot.accuracy_far / (0.35 * aimed)
+		spread_ok = spread_ok and skill >= 0.899 and skill <= 1.101 and is_equal_approx(bot.accuracy_near, minf(minf(near, 1.0) * skill, 1.0)) \
+			and is_equal_approx(bot.accuracy_long, 0.2 * aimed * skill)
 	_check(spread_ok, "each AI PMC rolls one skill for all its hit chances (%.3f, %.3f)" % [a.accuracy_near, b.accuracy_near])
 	_check(String(a.faction).begins_with("pmc_") and a.faction != b.faction, "every AI PMC is its own side (always alone)")
 	_check(not scav.loner and scav.uses_fight_budget and not scav.silent and not scav.operator_look and scav.skill_spread == 0.0
@@ -7256,9 +7280,10 @@ func _section_pmc_ai() -> void:
 	puppet.pick_look(-3)
 	var puppet_look: Dictionary = (puppet.model as PixelModel).outfit
 	puppet.pick_look(-3)
-	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look and puppet.accuracy_near == 0.7
+	_check(looks.has(puppet_look) and (puppet.model as PixelModel).outfit == puppet_look
 		and puppet.faction == &"pmc_%d" % puppet.get_instance_id(), "a puppet AI PMC takes its outfit from the id")
 	puppet.queue_free()
+	await _pmc_character_checks()
 	await _pmc_kit_checks()
 	# Silent: no callouts, no chatter.
 	var said := []
@@ -7286,6 +7311,55 @@ func _section_pmc_ai() -> void:
 	FightBudget.reset(a)
 	for node: Node in [a, b, scav]:
 		node.queue_free()
+	await physics_frame
+
+
+## AI PMCs are the six characters (0.38.8, owner 2026-11-20; levels 5-15, owner's pick 2026-11-21).
+func _pmc_character_checks() -> void:
+	var seen := {}
+	var levels_ok := true
+	var points_ok := true
+	for seed_value in 300:
+		var pick := Characters.ai_pick(seed_value * 7919 + 13)
+		seen[pick["id"]] = true
+		var lv: int = pick["level"]
+		levels_ok = levels_ok and lv >= 5 and lv <= 15 and Characters.level(pick["state"], pick["id"]) == lv \
+			and (Characters.SKINS[pick["id"]] as Array).has(pick["skin"])
+		points_ok = points_ok and Characters.points_earned(pick["state"]) == (2 if lv >= 10 else 0) \
+			and Characters.points_left(pick["state"]) == 0
+	_check(seen.size() == 6, "AI PMCs come as all six characters (%s)" % str(seen.keys()))
+	_check(levels_ok, "an AI PMC is level 5-15, in one of its character's skins")
+	_check(points_ok, "an AI PMC at level 10+ has spent its 2 level points, below 10 it has none")
+	_check(Characters.ai_pick(4242) == Characters.ai_pick(4242), "the same id gives the same character, skin and level on every screen")
+	# Its traits on the AI's numbers.
+	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
+	var bot := _spawn(PMC_AI_SCENE, Vector3(40, 0.1, -40)) as PmcAI
+	await physics_frame
+	var m := Characters.multipliers(bot.character["state"], bot.character["id"])
+	var f := func(stat: String) -> float: return float(m.get(stat, 1.0))
+	_check(bot.character_seed == bot.get_instance_id() and is_equal_approx(bot.move_speed, ref.move_speed * f.call("move") * f.call("sprint"))
+		and is_equal_approx(bot.hearing_mult, ref.hearing_mult * f.call("hearing")) and is_equal_approx(bot.heal_time, ref.heal_time * f.call("heal_time"))
+		and is_equal_approx(bot.aim_time, ref.aim_time * f.call("ads")) and is_equal_approx(bot.search_mult, f.call("search"))
+		and is_equal_approx(bot.footstep_range, Scav.STEP_HEAR_RANGE * f.call("steps")),
+		"an AI PMC moves, hears, heals, aims, searches and makes noise as its character (%s level %d)" % [bot.character["id"], bot.character["level"]])
+	# A KORR searches faster, a VEGA's steps carry less far, a SABLE hears further (a character's real numbers).
+	var korr := ref.duplicate() as PmcAI
+	korr.apply_character(Characters.multipliers({"chars": {"korr": {"xp": 0, "lvl_points": 0, "exp_points": 0, "spent": {}}}}, "korr"))
+	_check(korr.search_mult < 1.0 and korr.accuracy_far < ref.accuracy_far and korr.accuracy_near > ref.accuracy_near, "KORR: faster searches and hip-fire, worse aimed shots")
+	korr.free()
+	bot.queue_free()
+	# A puppet wears the server AI's character: its model, all in that skin, and no operator outfit on top.
+	var who := Characters.ai_pick(-3)
+	var puppet := ref
+	puppet.puppet = true
+	puppet.dress_as_character(-3)
+	main.add_child(puppet)
+	puppet.pick_look(-3)
+	var outfit: Dictionary = (puppet.model as PixelModel).outfit
+	_check(puppet.character["id"] == who["id"] and not outfit.is_empty() and outfit.values().all(func(v: Variant) -> bool: return v == who["skin"])
+		and puppet.model.get_node_or_null("Gun/Muzzle") != null and puppet.muzzle != null,
+		"a puppet AI PMC is the server AI's character (%s, %s)" % [who["id"], who["skin"]])
+	puppet.queue_free()
 	await physics_frame
 
 
@@ -9278,6 +9352,32 @@ func _section_spawn_budget() -> void:
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()
 	crowded.queue_free()
+	await _frames(2)
+	# 0.38.10 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
+	# the raid world, so it's told where the squads start; no AI starts near one, and none after the start guard ends
+	# is kept off that spot any more (the real players count then).
+	var start := player.global_position + Vector3(-90, 0, -90)
+	var guarded := EnemySpawner.new()
+	guarded.enemy_scene = load(SCAV_SCENE)
+	guarded.set_physics_process(false)
+	guarded.initial_count = 2
+	guarded.player_starts = [start]
+	for spot: Vector3 in [start + Vector3(8, 0, 0), start + Vector3(-70, 0, -70)]:
+		var m := Marker3D.new()
+		m.position = spot
+		guarded.add_child(m)
+	main.add_child(guarded)
+	await _frames(2)
+	var near_start := get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
+		return Vector2((e as Node3D).global_position.x - start.x, (e as Node3D).global_position.z - start.z).length() < guarded.min_distance_from_player)
+	_check(guarded.scavs_spawned >= 1 and near_start.is_empty(),
+		"no AI starts beside where a player will spawn (%d spawned, %d near the start)" % [guarded.scavs_spawned, near_start.size()])
+	guarded._elapsed = EnemySpawner.START_GUARD + 1.0
+	_check(guarded._starts().is_empty(), "the start spots stop counting once the start is over")
+	for enemy in get_nodes_in_group("enemies"):
+		enemy.remove_from_group("enemies")
+		enemy.queue_free()
+	guarded.queue_free()
 	await _frames(2)
 	# 0.12.31 (owner: a Raider's partner spawned stuck in a roof): a partner/guard spot that would be inside
 	# something moves to a clear spot next to the leader instead.
@@ -11421,3 +11521,58 @@ func _section_raid_prep() -> void:
 	RaidPrep.release()
 	_check(not RaidPrep.ready_for(MAP), "and lets go when told")
 	RaidPrep.always = false
+
+
+## Swapping backpacks with a body (0.38.9, owner): you see what's in a body's backpack, and dragging its backpack onto
+## yours swaps them, each with what's inside.
+func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Inventory) -> void:
+	var gold := ItemStack.new("gold_watch", 1, 2, 1)
+	var corpse := LootContainer.spawn_bag(main, player.global_position, "Rival's Body",
+		[ItemStack.new("backpack_large"), ["bandage", 1]], 0.0, true, [gold])
+	_check(corpse.pack != null and corpse.pack.width == 6 and corpse.pack.height == 5 and corpse.pack.stacks == [gold]
+		and gold.x == 2 and gold.y == 1 and corpse.grid.count_of("bandage") == 1,
+		"a body's backpack keeps what was in it (in its own 6x5 grid, where it was); the rest is in its pockets")
+	var copy := LootContainer.new()
+	copy.grid = GridInventory.new("Pockets", 4, 3)
+	copy.load_net_data(corpse.net_data())
+	_check(copy.worn_pack() != null and copy.pack.width == 6 and copy.pack.count_of("gold_watch") == 1, "a body's backpack contents go over the network")
+	var bad := corpse.net_data()
+	bad[3][0] = [1, 1, [["ak", 1, 0, 0, false, 0]]]   # (a backpack slot can't hold a gun: no backpack, so no backpack grid)
+	bad[3][4] = [1, 1, []]
+	copy.load_net_data(bad)
+	_check(copy.worn_pack() == null and copy.pack.width == 0 and copy.grid.count_of("gold_watch") == 1,
+		"no backpack in the slot: its contents fall into the pockets, nothing is lost")
+	copy.free()
+	var had_bag := inv.equipped("backpack") != null
+	if not had_bag:
+		inv.equip("backpack", ItemStack.new("backpack_small"))
+	var my_bag := inv.equipped("backpack")
+	var spot := inv.backpack.find_spot("phone")
+	var my_stuff := ItemStack.new("phone", 1, spot[0], spot[1], spot[2])
+	inv.backpack.place(my_stuff)
+	var my_count := inv.backpack.stacks.size()
+	var their_bag: ItemStack = corpse.gear["backpack"].stacks[0]
+	loot_ui.open_for(corpse)
+	await process_frame
+	_check(loot_ui._views.any(func(v: Control) -> bool: return v is GridView and (v as GridView).grid == corpse.pack),
+		"the loot screen shows what's in a body's backpack")
+	_check(not loot_ui.move_stack(their_bag, corpse.gear["backpack"], corpse.grid, Vector2i(0, 0), false)
+		and corpse.gear["backpack"].stacks == [their_bag], "a body's full backpack can't be pulled off its contents")
+	loot_ui.drag_stack = their_bag
+	loot_ui.drag_from = corpse.gear["backpack"]
+	_check(loot_ui.can_drop_on_slot("backpack"), "its backpack can be dropped on yours even though yours has things in it")
+	loot_ui.drag_stack = null
+	loot_ui.drag_from = null
+	_check(loot_ui.equip_from_grid(corpse.gear["backpack"], their_bag, "backpack") and inv.equipped("backpack") == their_bag
+		and inv.backpack.width == 6 and inv.backpack.stacks == [gold] and gold.x == 2 and gold.y == 1,
+		"drag the body's backpack onto yours: it comes to you with what's in it")
+	_check(corpse.gear["backpack"].stacks == [my_bag] and corpse.pack.stacks.has(my_stuff) and corpse.pack.stacks.size() == my_count
+		and corpse.pack.width == int(ItemDB.item(my_bag.id)["grid"][0]), "and yours goes on the body with what was in it")
+	loot_ui.quick_move(corpse.gear["backpack"], my_bag)
+	_check(inv.equipped("backpack") == my_bag and inv.backpack.stacks.has(my_stuff) and inv.backpack.stacks.size() == my_count and corpse.gear["backpack"].stacks == [their_bag]
+		and corpse.pack.stacks == [gold], "shift+click it back: they swap again")
+	loot_ui.close()
+	corpse.queue_free()
+	inv.backpack.remove(my_stuff)   # (the rest of the test expects the kit as it was)
+	if not had_bag:
+		inv.unequip("backpack")

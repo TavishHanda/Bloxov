@@ -260,11 +260,14 @@ func _drop_body() -> void:
 		var stack := player.inventory.equipped(slot)
 		if stack != null:
 			data.append(GridInventory.stack_data(stack))
-	for grid in [player.inventory.pockets, player.inventory.backpack]:
-		if grid != null:
-			for stack in grid.stacks:
-				data.append(GridInventory.stack_data(stack))
-	Network.main.drop_items(data, true)
+	for stack in player.inventory.pockets.stacks:
+		data.append(GridInventory.stack_data(stack))
+	# (what's in our backpack stays in it on the body, 0.38.9: whoever loots us can take it, contents and all)
+	var pack := []
+	if player.inventory.backpack != null:
+		for stack in player.inventory.backpack.stacks:
+			pack.append(GridInventory.stack_data(stack))
+	Network.main.drop_items(data, true, pack)
 
 
 func _show_message(text: String) -> void:
@@ -287,6 +290,8 @@ func sync_enemies(list: Array) -> void:
 			var gun: int = entry[3] if entry.size() > 3 else -1
 			puppet.loadout = AILoadouts.NET_GUNS[gun] if gun >= 0 and gun < AILoadouts.NET_GUNS.size() else ""
 			puppet.name = "Enemy%d" % id
+			if puppet is PmcAI:
+				(puppet as PmcAI).dress_as_character(id)   # (one of the six characters, the same on every screen)
 			get_parent().add_child(puppet)
 			# Same outfit on every player's screen.
 			puppet.pick_look(id)
