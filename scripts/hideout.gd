@@ -2009,10 +2009,8 @@ func online_status() -> String:
 	var net := Network.main
 	if not net.is_client():
 		return "ONLINE"
-	if net.queued and net.queue_countdown >= 0.0:
-		return "RAID IN %ds" % ceili(net.queue_countdown)
-	if net.queued:
-		return "IN QUEUE (%d/%d)" % [net.queue_waiting, Matchmaker.MIN_PLAYERS]
+	if net.queued:   # (0.38.13, owner: it just says IN QUEUE while it looks for players, no countdown)
+		return "IN QUEUE (%d/%d)" % [net.queue_waiting, Matchmaker.MAX_PLAYERS]
 	return "ONLINE ●"
 
 
@@ -2049,8 +2047,6 @@ func _refresh_online() -> void:
 		_queue_since_msec = Time.get_ticks_msec()
 	if not net.is_leader:
 		_queue_info.text = "Your party leader starts the queue." + (" Queued..." if net.queued else "")
-	elif net.queued and net.queue_countdown >= 0.0:
-		_queue_info.text = "Raid starts in %d s" % ceili(net.queue_countdown)
 	elif net.queued:
 		# Honest wording (0.36.3): no promise of other players; the raid may be filled with AI PMCs.
 		var waited := int((Time.get_ticks_msec() - _queue_since_msec) / 1000.0)
