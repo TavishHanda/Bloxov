@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.38.11 (The materials locker)
+## 0.38.12 (The materials locker)
 Owner (2026-11-21): "a place in the hideout where you can store all your craftable items like the nuts and bolts
 ... so it's not cluttering your main inventory. You can buy it and it's really expensive." Price and size picked by
 the owner: $150,000, up to 50 of each.
@@ -22,6 +22,19 @@ the owner: $150,000, up to 50 of each.
   workbench. The server's PvP hideout check counts what's in it with the stash (so moving things in and out is
   free), charges $150,000 when it appears and refuses it disappearing or being over-filled
   (`MaterialLocker.clean/changes`, `OnlineProfile.entries/audit`). **Net version 19** (the profile's shape).
+## 0.38.11 (Characters 2, part 2: AI PMCs are the six characters)
+Owner (2026-11-20): "AI pmc will be randomly chosen between those 6 ... with their actual stats"; level 5-15 (owner's
+pick, 2026-11-21).
+- **Who it is:** `Characters.ai_pick(seed)` picks the character, skin and level (5-15) from the AI's server id, and
+  spends its level points (2 at level 10+) on random traits, so every screen agrees without sending anything new.
+- **Looks:** a puppet AI PMC wears that character's model in that skin (`PmcAI.dress_as_character`, before it joins
+  the tree; never on the server). It no longer shows its real helmet (the skin is the whole outfit).
+- **Stats** (`PmcAI.apply_character`): its traits at its level on the AI's nearest numbers: move/sprint speed ->
+  move speed, hearing -> hearing, time to aim -> aim time, recoil and spread -> hit chances (by the same share),
+  full-auto rate -> time between shots, meds time -> heal time, search time -> container searches, steps -> how far
+  its footsteps carry (`footstep_range`, VEGA's Light Feet too). The AI has no stamina and doesn't reload, jump or
+  swap guns, so those traits (and the other passives) do nothing on it.
+- Tests: all six turn up, levels 5-15, points spent, the same pick on every screen, the stats, a dressed puppet.
 ## 0.38.10 (No more AI shooting you as you spawn)
 Owner, 2026-11-21: "when i spawned in frontlines in a pvp raid ... the sniper scav was shooting at me before i even
 could move"; "my friend spawn in and he instantly got killed by an AI before being able to move".

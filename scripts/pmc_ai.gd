@@ -135,6 +135,16 @@ var _indoors := false
 var _apart_left := 0.0
 var _route_check_left := 0.0
 var _fought := false
+## Which of the six characters it is (0.38.8, owner 2026-11-20/21): Characters.ai_pick(character_seed), which gives
+## its character, skin and level (5-15). Its own id (the server's AI), unless it is a puppet given the server's id
+## (`dress_as_character`) so it wears the same character. `character` is that pick.
+var character_seed := 0
+var character := {}
+## Its character's search time (KORR searches faster).
+var search_mult := 1.0
+var _dressed := false
+var _seeded := false
+
 var turned_away := 0
 var _last_gap := INF
 var _flee_wait_left := 0.0
@@ -171,7 +181,45 @@ var drops := 0   # (0.36.12 place drops: always 0 since 0.36.14, kept for the ra
 var breaks := 0
 
 
+## Its character's traits on the AI's own numbers (a player's stat -> the AI's nearest one). The AI has no stamina,
+## doesn't reload, jump or swap guns, so those traits do nothing on it; passives other than VEGA's Light Feet (in
+## "steps") and PATCH's rank-3 med speed (in "heal_time") don't either.
+func apply_character(mult: Dictionary) -> void:
+	var m := func(stat: String) -> float: return float(mult.get(stat, 1.0))
+	move_speed *= m.call("move") * m.call("sprint")   # (its move speed is its run; walking and patrol are shares of it)
+	hearing_mult *= m.call("hearing")
+	aim_time *= m.call("ads")
+	# More recoil / spread = fewer hits: its hit chance goes down by the same share (and up for less).
+	accuracy_near = minf(accuracy_near / (m.call("recoil") * m.call("hip_spread")), 1.0)
+	accuracy_far /= m.call("recoil") * m.call("aim_spread")
+	accuracy_long /= m.call("recoil") * m.call("aim_spread")
+	burst_interval /= m.call("auto_rate")
+	heal_time *= m.call("heal_time")
+	search_mult *= m.call("search")
+	footstep_range *= m.call("steps")
+
+
+## Puppets (looks only, never on the server): wear the character the server's AI with id `seed_value` is. Call before
+## it joins the tree (its model is swapped for that character's).
+func dress_as_character(seed_value: int) -> void:
+	character_seed = seed_value
+	_seeded = true
+	var pick := Characters.ai_pick(seed_value)
+	PlayableModels.replace(self, pick["id"], pick["skin"])
+	_dressed = true
+
+
+## Dressed as its character: that model's skin is its whole look (no operator outfit on top).
+func pick_look(seed_value: int) -> void:
+	if not _dressed:
+		super(seed_value)
+
+
 func _ready() -> void:
+	if not _seeded:
+		character_seed = get_instance_id()
+	character = Characters.ai_pick(character_seed)
+	apply_character(Characters.multipliers(character["state"], character["id"]))
 	super()
 	if puppet:
 		return
@@ -380,7 +428,7 @@ func _wander(delta: float) -> Vector3:
 				and _patrol_time <= 90.0:
 			plan = Plan.SEARCH
 			_wander_dir = Vector3.ZERO
-			_looting_left = randf_range(SEARCH_TIME_MIN, SEARCH_TIME_MAX)
+			_looting_left = randf_range(SEARCH_TIME_MIN, SEARCH_TIME_MAX) * search_mult
 		else:
 			if is_instance_valid(_place_container):
 				_bad[_place_container.get_instance_id()] = true
