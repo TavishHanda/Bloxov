@@ -18,6 +18,7 @@ const ACTIONS: Array = [
 	["", "Fighting"],
 	["shoot", "Shoot"], ["aim", "Aim"], ["reload", "Reload"], ["melee", "Knife"],
 	["weapon_1", "Primary gun"], ["weapon_2", "Sidearm"], ["hotbar_3", "Meds slot"], ["hotbar_4", "Quick slot"],
+	["hotbar_5", "Quick slot 2"],
 	["heal", "Heal"],
 	["", "Other"],
 	["interact", "Use / search"], ["inventory", "Inventory"], ["map", "Map"], ["extracts", "Extracts"],
@@ -197,7 +198,7 @@ const TOUCH_NAMES := {
 	"move_forward": "the stick", "move_back": "", "move_left": "", "move_right": "", "sprint": "the stick pushed to the edge",
 	"jump": "JUMP", "crouch": "CROUCH", "prone": "holding CROUCH", "lean_left": "LEAN", "lean_right": "LEAN",
 	"shoot": "FIRE", "aim": "AIM", "reload": "RELOAD", "melee": "KNIFE", "weapon_1": "1", "weapon_2": "2",
-	"hotbar_3": "3", "hotbar_4": "4", "heal": "ITEM", "interact": "USE", "inventory": "BAG", "map": "MAP",
+	"hotbar_3": "3", "hotbar_4": "4", "hotbar_5": "5", "heal": "ITEM", "interact": "USE", "inventory": "BAG", "map": "MAP",
 	"extracts": "MAP",
 	"hide_hud": "HIDE HUD (pause menu)", "free_cam": "CAM", "cam_time": "SLOW",
 }

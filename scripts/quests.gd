@@ -50,7 +50,7 @@ const LIST := {
 		"kind": "hand_in", "item": "gunpowder", "count": 3, "reward": 3000, "items": [["grenade", 2]]},
 	"close_quarters": {"trader": "guns", "level": 0, "name": "Close Quarters", "text": "Kill 2 Raiders with a Mauler, then extract.",
 		"kind": "kill", "target": "raider", "weapon": "shotgun", "count": 2, "reward": 7000},
-	"restock": {"trader": "meds", "level": 0, "name": "Restock", "text": "Hand in 4 Medical Supplies found in raid.",
+	"restock": {"trader": "meds", "level": 0, "name": "Restock", "text": "Hand in 4 Med Parts found in raid.",
 		"kind": "hand_in", "item": "med_supplies", "count": 4, "reward": 0, "items": [["medkit", 2]]},
 	"pharmacy_run": {"trader": "meds", "level": 0, "name": "Pharmacy Run", "text": "Search something in the Pharmacy, then extract.",
 		"kind": "visit", "place": "Pharmacy", "count": 1, "reward": 3000},

@@ -23,6 +23,23 @@ Owner (2026-11-21): "how hard is it to make it so people can join each other's h
 - Looks only: the server just passes positions and these few events along (no hideout runs there, nothing is saved
   or counts for anything), so it costs no extra hosting. No chat or player-written text (store rules); names come
   from the server, already filtered. **Net version 20** (new messages).
+## 0.38.13 (Looser shots on the move, less war far off, key 5, Med Parts, no breath woosh)
+Owner, 2026-11-21 (all four proposed and OK'd): "when jumping and shooting and moving and shooting u need to get way
+more bullet spread"; PvP shooting "sounds like a straight up war"; "lets add a key 5"; the "meds" item confuses
+playtesters.
+- Spread: moving spread doubled on every gun (Hound hip while moving 1.6 -> 2.3 degrees, aimed while moving 0.8 ->
+  1.35); in the air +4 -> +7 degrees. Standing, crouching, prone and the AI's aim are unchanged.
+- Far gunfire (`Hearing.shot_heard`): someone else's shots past 150 m aren't heard, at most 4 far shots (past 45 m)
+  sound at once and the rest are skipped, and the far boom is 4 dB softer. Shots that come at you, close shots and
+  your own gun are unchanged. (PvE too: the same scav and AI shots.)
+- Key 5: a second quick slot on the hotbar (1, 2, 3, 4, 5, V), rebindable in OPTIONS, tappable on touch screens.
+  Energy drinks go on it by themselves when it's free; anything else binds there with right-click > Bind once key 4
+  is taken. Its empty slot shows a faint can. Old saves keep their bindings.
+- "Medical Supplies" (short "Meds") is now **Med Parts**, its description says it's a crafting part (same item id,
+  same uses and price).
+- No more out-of-breath "woosh" at low stamina, on any map (owner, 2026-11-21: "remove the wooshing noise at low
+  stamina completely"; it was already off on Riptide). The heartbeat when badly hurt stays.
+- Net lock re-recorded (no net version change: the hotbar list grew by one at the end, old games read the first three).
 
 ## 0.38.12 (The materials locker)
 Owner (2026-11-21): "a place in the hideout where you can store all your craftable items like the nuts and bolts

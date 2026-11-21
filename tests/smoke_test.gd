@@ -321,7 +321,9 @@ func _section_accuracy() -> void:
 	_check(rates["hip crouched"] > 0.85 and rates["hip crouched"] < 0.95, "hip fire crouched hits ~90%% (%.0f%%)" % (rates["hip crouched"] * 100))
 	_check(rates["hip walking"] < 0.3, "hip fire while walking is hard (%.0f%%)" % (rates["hip walking"] * 100))
 	_check(rates["aimed standing"] > 0.99 and rates["aimed crouched"] > 0.99, "aimed shots standing/crouched hit 100%")
-	_check(rates["aimed walking"] > 0.85 and rates["aimed walking"] < 0.97, "aimed while walking hits ~90%% (%.0f%%)" % (rates["aimed walking"] * 100))
+	# 0.38.13 (owner: "way more bullet spread" moving and jumping): moving spread doubled, so aimed walking is loose too.
+	_check(rates["aimed walking"] > 0.2 and rates["aimed walking"] < 0.4, "aimed while walking hits ~30%% (%.0f%%)" % (rates["aimed walking"] * 100))
+	_check(gun.spread_for(1.0, false, false, true) > 7.0, "shooting in the air spreads by over 7 degrees")
 
 
 func _section_recoil() -> void:
@@ -1180,6 +1182,11 @@ func _section_items() -> void:
 	inv.unbind(inv.hotbar[1]) if inv.hotbar[1] != "" else null
 	inv.add("grenade", 2)
 	_check(inv.hotbar[1] == "grenade", "a grenade goes on key 4 by itself")
+	inv.unbind(inv.hotbar[Inventory.FLEX_KEY]) if inv.hotbar[Inventory.FLEX_KEY] != "" else null
+	inv.add("energy_drink", 1)
+	_check(inv.hotbar[Inventory.FLEX_KEY] == "energy_drink" and inv.hotbar[1] == "grenade", "an energy drink goes on key 5 by itself (0.38.13)")
+	inv.take("energy_drink", 1)
+	inv.unbind("energy_drink")
 	var probe := Grenade.new()
 	_check(probe.damage == 80 and probe.damage_at(0.0) == 80 and probe.damage_at(3.5) == 40 and probe.damage_at(7.5) == 0,
 		"blast damage (0.14.18): 80 on a direct hit, half at 3.5 m, none past 7 m")
@@ -4119,9 +4126,11 @@ func _section_keybinds() -> void:
 	_check(Keybinds.name_of("jump") == "Space" and Keybinds.name_of("map") == "M" and Keybinds.name_of("extracts") == "O"
 		and Keybinds.name_of("sprint") == "Shift", "bad or doubled saved keys fall back to the defaults")
 	# Key caps fit any key; the hotbar shows the keys its slots are on.
+	_check(Hearing.SHOT_MAX_RANGE == 150.0 and Hearing.FAR_AT_ONCE == 4, "far shots: none past 150 m, 4 at once (0.38.13)")
 	_check(HudStyle.keycap_width("F", 22) == 22.0 and HudStyle.keycap_width("TAB", 22) > 22.0, "key caps widen for longer names")
 	_check(HotbarHUD.slot_action(0) == "weapon_1" and HotbarHUD.slot_action(2) == "hotbar_3"
-		and HotbarHUD.slot_action(2 + Inventory.KNIFE_KEY) == "melee", "hotbar slots map to their actions")
+		and HotbarHUD.slot_action(3) == "hotbar_4" and HotbarHUD.slot_action(4) == "hotbar_5" and HotbarHUD.slot_action(5) == "melee",
+		"hotbar slots map to their actions: 1, 2, 3, 4, 5, V")
 	# OPTIONS: a row per action; click its button, press a key.
 	Keybinds.reset_all()
 	var body := VBoxContainer.new()
@@ -8543,11 +8552,11 @@ func _section_owner_rules() -> void:
 	var old_save := Profile.capture_inventory(inv)
 	old_save["hotbar"] = ["bandage", "medkit", "", ""]
 	Profile.apply_inventory(inv, old_save)
-	_check(inv.hotbar == ["", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
+	_check(inv.hotbar == ["", "", "", ""], "old saves with heals on the hotbar load with them on key 3 instead")
 	var bar := HotbarHUD.new(player)
 	root.add_child(bar)
 	var meds := bar.slot_info(2)
-	var knife := bar.slot_info(4)
+	var knife := bar.slot_info(5)
 	# The meds slot shows what key 3 would use now: at full health a bandage (the closest fit), badly hurt the medkit.
 	if not player.controls_locked():
 		player.health.heal(100)
@@ -8558,8 +8567,8 @@ func _section_owner_rules() -> void:
 		_check(bar.slot_info(2).get("item") == "medkit" and bar.slot_info(2)["icon"] == HudStyle.MED, "meds slot: badly hurt, it shows the medkit")
 		player.health.heal(100)
 	meds["count"] = "x3"
-	_check(meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty",
-		"the hotbar shows meds on key 3, 4 empty, and the knife (V) last (%s %s)" % [meds["count"], knife["state"]])
+	_check(meds["count"] == "x3" and knife["icon"] == HudStyle.KNIFE and bar.slot_info(3)["state"] == "empty" and bar.slot_info(4)["state"] == "empty",
+		"the hotbar shows meds on key 3, 4 and 5 empty, and the knife (V) last (%s %s)" % [meds["count"], knife["state"]])
 	inv.take("bandage", 2)
 	inv.take("medkit", 1)
 	_check(bar.slot_info(2)["state"] == "out", "no heals left: the meds slot is crossed out")
@@ -10688,6 +10697,21 @@ func _face_player(node: Node3D) -> void:
 
 
 func _section_sound() -> void:
+	# Less war (0.38.13, owner): far shots past 150 m are silent, at most 4 far ones at once; ones at you always play.
+	var ear_cam := Hearing.listener(main)
+	if ear_cam != null:
+		var ear := ear_cam.global_position
+		Hearing._far_ends.clear()
+		var away := Vector3(1, 0, 0)
+		_check(not Hearing.shot_heard(main, ear + away * 200.0, ear + away * 260.0, 1.0), "a shot 200 m off, away from you, isn't heard")
+		_check(Hearing.shot_heard(main, ear + away * 200.0, ear, 1.0), "a shot 200 m off that comes at you is heard")
+		_check(Hearing.shot_heard(main, ear + away * 20.0, ear + away * 60.0, 1.0), "a shot 20 m off is heard")
+		var played := 0
+		for k in 6:
+			if Hearing.shot_heard(main, ear + away * 100.0, ear + away * 140.0, 1.0):
+				played += 1
+		_check(played == Hearing.FAR_AT_ONCE, "only %d far shots sound at once (%d)" % [Hearing.FAR_AT_ONCE, played])
+		Hearing._far_ends.clear()
 	# The Sound update (0.20, owner: only ADD sounds, today's stay). 0.20.0: footsteps by surface. A box's colour
 	# says what it sounds like; plain floors and the ground inside a building sound like the building's floor.
 	var map := BoxMap.new()
