@@ -7759,6 +7759,17 @@ func _section_pmc_apart() -> void:
 	bot._plan_wait = 0.0
 	bot._wander(0.1)
 	_check(bot.place.is_empty(), "and doesn't walk to one (%s)" % bot.place.get("name", "-"))
+	# (0.39.5) Boxed in like that for HOLD_GIVE_UP s it goes anyway: it stops steering round AI for a while.
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
+	bot._held_for = PmcAI.HOLD_GIVE_UP + 0.5
+	bot._wander(0.1)
+	_check(bot._commit_left > 0.0 and bot._others_at().is_empty() and not bot.place.is_empty(),
+		"held up %d s with every place busy: it walks to one anyway (0.39.5)" % int(PmcAI.HOLD_GIVE_UP))
+	bot._commit_left = 0.0
+	bot.place = {}
+	bot.visited.clear()
+	bot._places_left = 4
+	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
 	# On the move: a scav coming within 30 m turns it away (it runs for a moment), unless it is in a fight.
 	clear_crowd.call()
 	bot._set_plan(PmcAI.Plan.HOLD, 99.0)
