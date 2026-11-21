@@ -298,6 +298,16 @@ func _section_ads() -> void:
 	var want_sleeve := "sleeve-%s.png" % PlayableModels.hands_look(Profile.characters)["Top"]   # (your character's, 0.39)
 	var want_glove := "glove-%s.png" % PlayableModels.hands_look(Profile.characters)["Gloves"]
 	_check(sleeve_paths.has(want_sleeve) and sleeve_paths.has(want_glove), "the hands wear your character's jacket and gloves %s" % str(sleeve_paths))
+	# 0.38.14 (owner): every character and skin has its own sleeves and gloves (make_hand_skins.py).
+	var missing: Array[String] = []
+	for id: String in Characters.ORDER:
+		for skin: String in Characters.SKINS[id]:
+			for kind in ["sleeve", "glove"]:
+				var path := "res://assets/models/hands/outfit/%s-%s-%s.png" % [kind, id, skin]
+				if not ResourceLoader.exists(path):
+					missing.append(path.get_file())
+	_check(missing.is_empty() and want_sleeve.begins_with("sleeve-" + str(Profile.characters.get("selected", "vega")) + "-"),
+		"every character's skins have their own first-person sleeves and gloves (missing %s)" % str(missing))
 	var ak_data := ItemDB.item("ak")
 	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
 	player.teleport_to(START_SPOT)

@@ -23,6 +23,15 @@ Owner (2026-11-21): "how hard is it to make it so people can join each other's h
 - Looks only: the server just passes positions and these few events along (no hideout runs there, nothing is saved
   or counts for anything), so it costs no extra hosting. No chat or player-written text (store rules); names come
   from the server, already filtered. **Net version 20** (new messages).
+## 0.38.14 (Your hands match your character)
+Owner (2026-11-21): the first-person hands should match the character you're playing.
+- Every character's skin has its own first-person sleeves and gloves, painted from that skin's jacket and gloves
+  (`art_source/scripts/make_hand_skins.py` -> `assets/models/hands/outfit/<sleeve|glove>-<id>-<skin>.png`), so VOSS
+  in his officer's uniform has slate sleeves and white gloves, KORR's quartermaster coat is teal, and so on (36 new
+  textures). `PlayableModels.hands_look` names them; `GunViewModels.wear` uses them as they are (the old mapping onto
+  the four wardrobe colours is gone). Climbing hands too.
+- `tools/hands_view.gd` takes `char=<id>/<skin>` and `keys=` for pictures. Test: every character and skin has both.
+
 ## 0.38.13 (Looser shots on the move, less war far off, key 5, Med Parts, no breath woosh)
 Owner, 2026-11-21 (all four proposed and OK'd): "when jumping and shooting and moving and shooting u need to get way
 more bullet spread"; PvP shooting "sounds like a straight up war"; "lets add a key 5"; the "meds" item confuses

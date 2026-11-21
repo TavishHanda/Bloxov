@@ -6,16 +6,6 @@ class_name PlayableModels
 
 const PIXEL_MODEL_SCRIPT := preload("res://scripts/pixel_model.gd")
 
-## First-person sleeves and gloves for each character's skins (GunViewModels.wear takes the PMC's options).
-const HANDS := {
-	"vega": {"nova": ["tan", "black"], "dusk": ["tan", "tan"], "night": ["black", "black"]},
-	"voss": {"officer": ["black", "tan"], "parade": ["tan", "tan"], "field": ["green", "tan"]},
-	"sable": {"woodland": ["green", "green"], "desert": ["tan", "tan"], "snow": ["tan", "tan"]},
-	"patch": {"field": ["green", "black"], "city": ["black", "black"], "winter": ["tan", "black"]},
-	"nine": {"subject": ["tan", "tan"], "escaped": ["black", "black"], "lab": ["tan", "tan"]},
-	"korr": {"quartermaster": ["green", "tan"], "scrounger": ["multicam", "tan"], "frost": ["black", "tan"]},
-}
-
 static var _scenes := {}
 
 
@@ -63,8 +53,12 @@ static func replace(owner: Node, id: String, skin: String) -> PixelModel:
 	return model
 
 
-## The sleeves and gloves for this device's first-person hands (GunViewModels.wear).
+## The sleeves and gloves for this device's first-person hands (GunViewModels.wear): the character's own, per skin
+## (0.38.14, owner: the hands match your character; assets/models/hands/outfit/<sleeve|glove>-<id>-<skin>.png,
+## art_source/scripts/make_hand_skins.py).
 static func hands_look(state: Dictionary) -> Dictionary:
 	var id := str(state.get("selected", "vega"))
-	var pair: Array = HANDS.get(id, HANDS["vega"]).get(Characters.skin_of(state, id), ["tan", "black"])
-	return {"Top": pair[0], "Gloves": pair[1]}
+	if not Characters.LIST.has(id):
+		id = "vega"
+	var tag := "%s-%s" % [id, Characters.skin_of(state, id)]
+	return {"Top": tag, "Gloves": tag, "character": true}
