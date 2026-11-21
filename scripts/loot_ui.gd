@@ -393,7 +393,7 @@ func quick_move(grid: GridInventory, stack: ItemStack) -> void:
 	if others.is_empty():
 		return
 	if _body_pack_full(grid):
-		# (a body's full backpack: it comes to you contents and all, swapping with yours, 0.38.7)
+		# (a body's full backpack: it comes to you contents and all, swapping with yours, 0.38.8)
 		equip_from_grid(grid, stack, "backpack")
 		return
 	# Shift+clicking something in the container/stash sends it to you, and vice versa.
@@ -497,7 +497,7 @@ func _pack_blocks(stack: ItemStack, from: GridInventory, to: GridInventory) -> b
 	return _is_body_pack_slot(from) and to == container.pack
 
 
-## Swaps backpacks with the body that's open (0.38.7, owner): yours goes into its backpack slot with everything in it,
+## Swaps backpacks with the body that's open (0.38.8, owner): yours goes into its backpack slot with everything in it,
 ## and its backpack comes to you with everything in it. Either side can have no backpack (then it's a straight move).
 ## Things keep their spots (both sides are the same size as the backpack they're in); anything that doesn't fit goes
 ## wherever there's room.
@@ -622,7 +622,7 @@ func can_drop_on_slot(slot: String) -> bool:
 func _after_move() -> void:
 	Effects.sound(get_tree().current_scene, PICKUP_SOUND, -10.0)
 	if _has_container() and container.pack != null:
-		# (a backpack went into or out of a body's backpack slot: its contents grid grows or goes, 0.38.7)
+		# (a backpack went into or out of a body's backpack slot: its contents grid grows or goes, 0.38.8)
 		var size := Vector2i(container.pack.width, container.pack.height)
 		container.fit_pack()
 		if size != Vector2i(container.pack.width, container.pack.height):
@@ -1356,7 +1356,7 @@ func _build_other_column() -> void:
 			_add_slot_view(_other_box, LootContainer.TAG_SLOT, Vector2i(2, 1))
 		_add_slot_rows(_other_box, _add_slot_view)
 		if container.worn_pack() != null:
-			# What's in the backpack it wears (0.38.7, owner): drag that backpack onto yours to swap, contents and all.
+			# What's in the backpack it wears (0.38.8, owner): drag that backpack onto yours to swap, contents and all.
 			_other_box.add_child(_section(container.pack.title))
 			_add_view(_other_box, container.pack)
 		_other_box.add_child(_section("Pockets"))

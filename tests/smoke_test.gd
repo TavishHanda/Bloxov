@@ -6284,7 +6284,7 @@ func _section_online_loot() -> void:
 	_check(rival_body.gear["armor"].is_empty(), "a body's armor slot only takes armor")
 	c1.close_container()
 	await _frames(2)
-	# (0.38.7) A dead player's backpack keeps what was in it on their body.
+	# (0.38.8) A dead player's backpack keeps what was in it on their body.
 	var packed_before: int = got[c1]["bags"].size()
 	c2.drop_items([["backpack_medium", 1, 0, 0, false, 0]], true, [["phone", 1, 1, 1, false, 0], ["not_an_item", 1, 0, 0, false, 0]])
 	await _until(func() -> bool: return got[c1]["bags"].size() > packed_before)
@@ -11394,7 +11394,7 @@ func _section_raid_prep() -> void:
 	RaidPrep.always = false
 
 
-## Swapping backpacks with a body (0.38.7, owner): you see what's in a body's backpack, and dragging its backpack onto
+## Swapping backpacks with a body (0.38.8, owner): you see what's in a body's backpack, and dragging its backpack onto
 ## yours swaps them, each with what's inside.
 func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Inventory) -> void:
 	var gold := ItemStack.new("gold_watch", 1, 2, 1)
@@ -11414,13 +11414,14 @@ func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Invent
 	_check(copy.worn_pack() == null and copy.pack.width == 0 and copy.grid.count_of("gold_watch") == 1,
 		"no backpack in the slot: its contents fall into the pockets, nothing is lost")
 	copy.free()
-	if inv.equipped("backpack") == null:
+	var had_bag := inv.equipped("backpack") != null
+	if not had_bag:
 		inv.equip("backpack", ItemStack.new("backpack_small"))
 	var my_bag := inv.equipped("backpack")
-	var my_stuff := ItemStack.new("phone", 1, 0, 0)
-	if not inv.backpack.fits("phone", 0, 0, false):
-		inv.backpack.clear()
+	var spot := inv.backpack.find_spot("phone")
+	var my_stuff := ItemStack.new("phone", 1, spot[0], spot[1], spot[2])
 	inv.backpack.place(my_stuff)
+	var my_count := inv.backpack.stacks.size()
 	var their_bag: ItemStack = corpse.gear["backpack"].stacks[0]
 	loot_ui.open_for(corpse)
 	await process_frame
@@ -11436,10 +11437,13 @@ func _check_backpack_swap(main: Node, player: Node, loot_ui: LootUI, inv: Invent
 	_check(loot_ui.equip_from_grid(corpse.gear["backpack"], their_bag, "backpack") and inv.equipped("backpack") == their_bag
 		and inv.backpack.width == 6 and inv.backpack.stacks == [gold] and gold.x == 2 and gold.y == 1,
 		"drag the body's backpack onto yours: it comes to you with what's in it")
-	_check(corpse.gear["backpack"].stacks == [my_bag] and corpse.pack.stacks == [my_stuff]
+	_check(corpse.gear["backpack"].stacks == [my_bag] and corpse.pack.stacks.has(my_stuff) and corpse.pack.stacks.size() == my_count
 		and corpse.pack.width == int(ItemDB.item(my_bag.id)["grid"][0]), "and yours goes on the body with what was in it")
 	loot_ui.quick_move(corpse.gear["backpack"], my_bag)
-	_check(inv.equipped("backpack") == my_bag and inv.backpack.stacks == [my_stuff] and corpse.gear["backpack"].stacks == [their_bag]
+	_check(inv.equipped("backpack") == my_bag and inv.backpack.stacks.has(my_stuff) and inv.backpack.stacks.size() == my_count and corpse.gear["backpack"].stacks == [their_bag]
 		and corpse.pack.stacks == [gold], "shift+click it back: they swap again")
 	loot_ui.close()
 	corpse.queue_free()
+	inv.backpack.remove(my_stuff)   # (the rest of the test expects the kit as it was)
+	if not had_bag:
+		inv.unequip("backpack")

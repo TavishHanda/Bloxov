@@ -824,7 +824,7 @@ func _drop_items(data: Array, is_body: bool, pack: Array) -> void:
 	# Only what they carry (0.25.1): anything else is left out.
 	var taken := NetGuard.take_entries(_carried.get_or_add(peer, {}), data)
 	data = taken[0]
-	# (a body: what was in its backpack stays in it, 0.38.7)
+	# (a body: what was in its backpack stays in it, 0.38.8)
 	var pack_taken := NetGuard.take_entries(_carried.get_or_add(peer, {}), pack if is_body else [])
 	pack = pack_taken[0]
 	if taken[1] + pack_taken[1] > 0:
