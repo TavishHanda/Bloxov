@@ -5606,6 +5606,7 @@ func _section_pvp() -> void:
 	server.start_server(19082)
 	server.guard.check_moves = false   # (this section puts players wherever it needs them; "anticheat" checks moves)
 	server.matchmaker.queue_countdown = 0.2
+	server.matchmaker.bot_maps = []   # (0.39.4: raids now fill to 6 PMCs; this section checks player-vs-player only, so no AI PMCs)
 	var got := {"hits": [], "confirmed": [], "kills": 0, "heard": [], "feed": []}
 	c2.player_fired.connect(func(_peer: int, _from: Vector3, _end: Vector3, weapon: String, _quiet: bool) -> void: got["heard"].append(weapon))
 	# (The target's game reports what each hit did after its armor; here, armor that takes 25% off.)

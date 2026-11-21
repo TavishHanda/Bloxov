@@ -36,6 +36,7 @@ var eyes_open: Node3D
 var eyes_shut: Node3D
 var _left := 2.0                # seconds left of what it's doing
 var _coming := false            # walking over to you
+var _came_from := Vector3.INF   # where its last walk started: a way out it knows is clear
 var _phase := 0.0
 var _time := 0.0
 var _floor := 0.0
@@ -163,7 +164,18 @@ func _wander() -> bool:
 			reach = minf(reach * 1.5, position.distance_to(home))
 		if _go_to(position + dir * reach, false):
 			return true
+	# Boxed in (every straight line out grazes something): back the way it came, which it just walked.
+	if _came_from != Vector3.INF and _flat_distance(position, _came_from) > 0.4:
+		var back_to := _came_from
+		target = back_to
+		_coming = false
+		_start("walk", _flat_distance(position, back_to) / WALK_SPEED + 3.0)
+		return true
 	return false
+
+
+static func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Starts walking to `spot` (hideout coordinates) if it can get there in a straight line; false if it can't.
@@ -185,6 +197,7 @@ func _go_to(spot: Vector3, coming: bool) -> bool:
 	if not _clear(position, end):
 		return false
 	target = end
+	_came_from = position
 	_coming = coming
 	_start("walk", flat.length() / (TROT_SPEED if coming else WALK_SPEED) + 3.0)
 	return true
