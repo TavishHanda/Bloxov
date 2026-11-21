@@ -291,10 +291,16 @@ static func tally(profile: Dictionary) -> Dictionary:
 		if entry.get("found") == true:
 			found[id] = int(found.get(id, 0)) + n
 		var parts = entry.get("att", {})
+		# (an attachment found in raid keeps its mark on the gun, "fatt": it counts as found there too, 0.38.13, so
+		# taking it off in the hideout isn't a made-up found mark; that sent the PvP stash back as it was)
+		var found_parts = entry.get("fatt", [])
 		if parts is Dictionary:
-			for part: Variant in parts.values():
-				if ItemDB.ITEMS.has(str(part)):
-					all[str(part)] = int(all.get(str(part), 0)) + 1
+			for slot: Variant in parts:
+				var part := str(parts[slot])
+				if ItemDB.ITEMS.has(part):
+					all[part] = int(all.get(part, 0)) + 1
+					if found_parts is Array and found_parts.has(slot):
+						found[part] = int(found.get(part, 0)) + 1
 		var ammo := String(ItemDB.item(id).get("ammo", ""))
 		if int(entry.get("loaded", 0)) > 0 and ammo != "":
 			all[ammo] = int(all.get(ammo, 0)) + int(entry["loaded"])

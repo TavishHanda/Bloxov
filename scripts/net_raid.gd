@@ -51,6 +51,7 @@ func _ready() -> void:
 			player.take_bash(amount, from, shove, block))
 	Network.main.enemy_event.connect(on_enemy_event)
 	Network.main.container_opened.connect(on_container_opened)
+	Network.main.items_leaving.connect(_send_container_change)
 	Network.main.container_busy.connect(func(_id: String) -> void: _show_message("Someone else is looting that."))
 	Network.main.bag_spawned.connect(on_bag_spawned)
 	Network.main.bag_removed.connect(on_bag_removed)
@@ -213,15 +214,22 @@ func _mark_dirty() -> void:
 	_dirty = true
 
 
+## Sends what we changed in the open container, if anything. Also right before we drop, throw or use something
+## (0.38.13): taking a gold bar out of a body and dropping it in the same frame used to reach the server as the drop
+## first, which it refused (not carried yet), so the bar vanished.
+func _send_container_change() -> void:
+	if _dirty and not _open_grids.is_empty():
+		_dirty = false
+		Network.main.update_container(_open_id, LootContainer.grids_data(_open_grids))
+
+
 ## Sends our changes to the open container, and lets it go once the screen closes (or we walk off, or it's gone).
 func _update_open_container() -> void:
 	if _open_grids.is_empty():
 		return
 	var hud := get_parent().get_node_or_null("HUD")
 	var still_open: bool = hud != null and is_instance_valid(_open) and hud.loot_ui.visible and hud.loot_ui.container == _open
-	if _dirty:
-		_dirty = false
-		Network.main.update_container(_open_id, LootContainer.grids_data(_open_grids))
+	_send_container_change()
 	if not still_open:
 		for grid in _open_grids:
 			grid.changed.disconnect(_mark_dirty)

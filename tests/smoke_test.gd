@@ -1733,6 +1733,32 @@ func _section_loot_ui() -> void:
 	_check(loot_ui.equip_from_grid(corpse.gear["primary"], body_ak, "primary") and inv.equipped("primary") == body_ak
 		and corpse.gear["primary"].stacks == [my_ak], "drag the body's AK onto your Primary: yours swaps into its slot")
 	_check(loot_ui.equip_from_grid(corpse.gear["primary"], my_ak, "primary") and inv.equipped("primary") == my_ak, "and back")
+	# A body's gun shows its attachments (0.38.13, owner): click one to take it off, the gun stays on the body.
+	var sight_slot := ItemDB.attachment_slot_for(body_ak.id, "red_dot")
+	body_ak.attachments[sight_slot] = "red_dot"
+	body_ak.found_parts.append(sight_slot)
+	corpse.gear["primary"].changed.emit()
+	await process_frame
+	var bars: Array = []
+	for v: Control in loot_ui._views:
+		if v is SlotGridView and (v as SlotGridView).grid == corpse.gear["primary"]:
+			bars = v.get_children().filter(func(c: Node) -> bool: return c is GunPartsBar)
+	var parts_seen := bars.size() == 1 and (bars[0] as GunPartsBar).part_rects().size() == ItemDB.attachment_slots(body_ak.id).size()
+	_check(parts_seen, "a body's gun shows its attachment slots")
+	if parts_seen:
+		var bar := bars[0] as GunPartsBar
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		for entry: Array in bar.part_rects():
+			if entry[0] == sight_slot:
+				click.position = (entry[1] as Rect2).get_center()
+		bar._gui_input(click)
+		var got_sight := _find_stack(inv.all_stacks(), "red_dot")
+		_check(body_ak.attachments.is_empty() and corpse.gear["primary"].stacks == [body_ak] and got_sight != null and got_sight.found,
+			"click it: the attachment comes to you (still found in raid), the gun stays on the body")
+		if got_sight != null:
+			inv.take("red_dot", 1)
 	var body_pistol: ItemStack = corpse.gear["secondary"].stacks[0]
 	loot_ui.quick_move(corpse.gear["secondary"], body_pistol)
 	_check(corpse.gear["secondary"].is_empty() and inv.equipped("secondary") == body_pistol, "shift+click a body's pistol: straight into your empty Secondary slot")
@@ -5415,6 +5441,21 @@ func _section_pvp_hideout() -> void:
 	_check(OnlineProfile.audit(no_locker, OnlineProfile.clean(locked)) != "", "the PvP hideout check refuses a free materials locker")
 	locked["money"] = int(no_locker["money"]) - MaterialLocker.PRICE
 	_check(OnlineProfile.audit(no_locker, OnlineProfile.clean(locked)) == "", "and takes one paid for")
+	# A part found in raid, taken off its gun in the hideout (0.38.13): it was found on the gun ("fatt"), so it's still
+	# found off it. This used to be refused ("found mark on red_dot"), sending the PvP stash back as it was.
+	var on_gun: Dictionary = JSON.parse_string(JSON.stringify(base))
+	on_gun["stash"].append({"id": "ak", "count": 1, "x": 0, "y": 0, "att": {"scope": "red_dot"}, "fatt": ["scope"]})
+	on_gun = OnlineProfile.clean(on_gun)
+	var part_off: Dictionary = JSON.parse_string(JSON.stringify(on_gun))
+	part_off["stash"][-1] = {"id": "ak", "count": 1, "x": 0, "y": 0}
+	part_off["stash"].append({"id": "red_dot", "count": 1, "x": 4, "y": 0, "found": true})
+	part_off = OnlineProfile.clean(part_off)
+	var off_why := OnlineProfile.audit(on_gun, part_off.duplicate(true))
+	var on_why := OnlineProfile.audit(part_off, on_gun.duplicate(true))
+	_check(off_why == "" and on_why == "", "a found-in-raid attachment comes off its gun and goes back on in the PvP hideout (%s, %s)" % [off_why, on_why])
+	var plain_gun: Dictionary = JSON.parse_string(JSON.stringify(on_gun))
+	plain_gun["stash"][-1].erase("fatt")
+	_check(OnlineProfile.audit(OnlineProfile.clean(plain_gun), on_gun.duplicate(true)) != "", "but a found mark made up on a gun's attachment is refused")
 	refused.call("a craft count going down", func(p: Dictionary) -> void: p["crafted"] = {})
 	refused.call("a found-in-raid mark", func(p: Dictionary) -> void: p["stash"][0]["found"] = true)
 	var worn_base: Dictionary = JSON.parse_string(JSON.stringify(base))
@@ -6446,10 +6487,31 @@ func _section_online_loot() -> void:
 		"the loot screen opens with the server's contents")
 	local_crate.grid.add("bandage")
 	_check(net_raid._dirty, "changes are noted to send to the server")
+	net_raid._send_container_change()   # (what Network.items_leaving runs before a drop, 0.38.13)
+	_check(not net_raid._dirty and net_raid._open == local_crate, "a loot move can be sent at once, the container stays open")
 	net_raid._update_open_container()
 	loot_ui.close()
 	net_raid._update_open_container()
 	_check(net_raid._open == null and not net_raid._dirty, "closing the screen lets the container go")
+
+	# Take something out and drop it at once (0.38.13: a gold watch vanished while swapping backpacks): the game sends
+	# the loot move before the drop, so the server knows it's carried and the drop isn't refused.
+	var leaving := [0]
+	c1.items_leaving.connect(func() -> void: leaving[0] += 1)
+	crate.grid.load_data([4, 3, [["cpu", 1, 0, 0, false, 0]]])
+	got[c1]["opened"].erase("Crate0")
+	c1.open_container("Crate0")
+	await _until(func() -> bool: return got[c1]["opened"].has("Crate0"))
+	var bags_seen: Array = got[c1]["bags"].keys()
+	c1.update_container("Crate0", [4, 3, []])
+	c1.drop_items([["cpu", 1, 0, 0, false, 0]])
+	await _until(func() -> bool: return got[c1]["bags"].size() > bags_seen.size())
+	var cpu_bag: Variant = got[c1]["bags"].keys().filter(func(id: String) -> bool: return not bags_seen.has(id)).front()
+	var cpu_box := world.container(str(cpu_bag)) if cpu_bag != null else null
+	_check(leaving[0] == 1 and cpu_box != null and cpu_box.grid.count_of("cpu") == 1,
+		"taken out of a crate and dropped at once: it lands on the ground (%d, %s)" % [leaving[0], cpu_bag])
+	c1.close_container()
+	await _frames(2)
 
 	# Leaving lets go of anything open.
 	c1.open_container(body_id)

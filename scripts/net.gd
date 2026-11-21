@@ -77,6 +77,9 @@ signal account_result(action: String, ok: bool, data: Dictionary)
 signal profile_synced
 ## One of Ming's boxes opened on the server (PvP): the item id that came out ("" = it couldn't: money or room).
 signal box_opened(box: String, id: String)
+## About to tell the server we dropped, threw or used something (0.38.13): the raid sends any change to the
+## container we have open first, so the server knows we carry what we took out of it a moment ago.
+signal items_leaving
 ## Expeditions (0.38.0, PvP): the server answered a leave (true = the PvP stash started over; profile_synced follows).
 signal expedition_left(ok: bool)
 
@@ -1413,6 +1416,7 @@ func close_container() -> void:
 ## We threw a grenade.
 func send_grenade(from: Vector3, vel: Vector3) -> void:
 	if in_online_raid():
+		items_leaving.emit()
 		_grenade.rpc_id(1, from, vel)
 
 
@@ -1437,6 +1441,7 @@ func use_door(id: String, state: int) -> void:
 ## We finished using a heal item (0.25.2).
 func report_heal(item: String) -> void:
 	if in_online_raid():
+		items_leaving.emit()
 		_healed.rpc_id(1, item)
 
 
@@ -1449,6 +1454,7 @@ func send_kit(data: Array) -> void:
 ## Items we dropped (`body` = we died: everything we carried).
 func drop_items(data: Array, body := false, pack := []) -> void:
 	if in_online_raid():
+		items_leaving.emit()
 		_drop_items.rpc_id(1, data, body, pack)
 
 
