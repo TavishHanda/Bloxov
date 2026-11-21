@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.14 (Full lobbies after a minute)
+Owner (2026-11-21): "make sure it says in queue for like the first minute, and if after a minute the players dont
+find 6 people total to start a raid, the players in q are q'd up with the real players in q + AI bots".
+- **One minute in the queue:** the button says IN QUEUE (n/6) the whole time (real players only, no countdown). The
+  minute starts with the first player who queued; anyone who joins later doesn't restart it (`Matchmaker.BOT_WAIT`
+  and `queue_countdown`, both 60 s; were 90 s alone and 30 s for a group). 6 real players start the raid at once.
+- **Bots fill the lobby to 6 PMCs** (`Matchmaker.bots_fill`, on Frontlines and Riptide): a solo player gets 5 AI
+  PMCs, a duo 4, and so on; was 3 PMCs in all (4 in 1 raid in 4), which `bots_fill = 0` still gives.
+- Load check (4 raids at once, sandbox, full project): 2 bots a raid 17.2 ms a frame, 5 bots 20.0 ms, no bots 15.1 ms.
+
 ## 0.38.13 (Looser shots on the move, less war far off, key 5, Med Parts, no breath woosh)
 Owner, 2026-11-21 (all four proposed and OK'd): "when jumping and shooting and moving and shooting u need to get way
 more bullet spread"; PvP shooting "sounds like a straight up war"; "lets add a key 5"; the "meds" item confuses

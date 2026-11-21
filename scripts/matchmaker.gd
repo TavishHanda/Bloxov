@@ -4,15 +4,15 @@ extends RefCounted
 ## sends the results, and the smoke test drives it directly).
 ##
 ## Owner rules (0.7.3): parties are duos at most and join each other with a party code. Solos and duos queue into
-## the same raids. Once MIN_PLAYERS are waiting, a countdown (queue_countdown, 30 s) gives others time to join;
+## the same raids. Once MIN_PLAYERS are waiting, a countdown (queue_countdown, 60 s since 0.38.13) gives others time to join;
 ## then everyone waiting goes into one raid (up to MAX_PLAYERS, parties never split; it starts at once when full).
 ## No joining a raid that's running. "Start now" puts a party in a raid of its own (testing, playing alone).
 ## Every player is always in a party: alone, their party is just them (with its own code to share).
 ##
 ## AI PMCs (0.36.0 piece 1, owner's rules 2026-11-13; only on the maps in `bot_maps`, or every map with `bots_on`):
-## a lone player waits BOT_WAIT (90 s) and then gets a raid; a raid always has BOTS_PER_RAID PMCs in all, real players
-## counted (4 in about 1 raid in 4, BOTS_FOUR_IN), so a lone player meets 2 bots, not a crowd. Raids with that many real
-## players get none. Bots are always alone (never paired); the raid only records how many (`bots`), the AI itself is
+## a lone player waits BOT_WAIT (60 s) and then gets a raid. Since 0.38.13 (owner 2026-11-21) AI PMCs fill the raid to
+## bots_fill PMCs in all, real players counted (MAX_PLAYERS: a full lobby); bots_fill 0 is the 0.36 rule (BOTS_PER_RAID,
+## 4 in about 1 raid in 4). A raid already full of real players gets none. Bots are always alone (never paired); the raid only records how many (`bots`), the AI itself is
 ## spawned by the raid (later pieces).
 
 const MAX_PARTY := 2
@@ -24,19 +24,24 @@ const MAX_PLAYERS := 6
 const MAX_RAIDS := 4
 ## A raid is closed this long after its clock runs out, even if a player never said they left.
 const RAID_GRACE := 120.0
-## Seconds a lone player waits in the queue before AI PMCs fill the raid (owner: 90).
-const BOT_WAIT := 90.0
+## Seconds a lone player waits in the queue before AI PMCs fill the raid (owner 2026-11-21: one minute, was 90).
+const BOT_WAIT := 60.0
 ## PMCs in a raid, real players included (owner: 3, and 4 in 1 raid in BOTS_FOUR_IN).
 const BOTS_PER_RAID := 3
 const BOTS_FOUR_IN := 4
 const CODE_LETTERS := "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
-var queue_countdown := 30.0
+## The wait once 2+ players are queued (owner 2026-11-21: the same minute as a lone player, was 30 s). It runs from the
+## first player who queued; a 6th real player starts the raid at once.
+var queue_countdown := 60.0
 ## The AI PMC fill rule on every map (the server's --bots, for testing).
 var bots_on := false
 ## Maps whose raids get AI PMCs (0.36.26, owner 2026-11-19: Frontlines; Riptide too since 0.36.35, owner 2026-11-19).
 var bot_maps: Array[int] = [0, 1]
 var bot_wait := BOT_WAIT
+## PMCs a raid is filled to, real players counted (0.38.13, owner 2026-11-21: fill the lobby to MAX_PLAYERS).
+## 0 = the old rule (BOTS_PER_RAID, 4 in 1 raid in BOTS_FOUR_IN).
+var bots_fill := MAX_PLAYERS
 var raid_time := 600.0
 ## Maps a raid can be on (0.33.8: 0 Frontlines, 1 Riptide; the same order as RaidMap.MAPS, which this script can't
 ## name because Network is an autoload) and the ones whose raids run longer (owner: Riptide 15 minutes).
@@ -280,7 +285,9 @@ func bots_for_map(map: int) -> bool:
 
 ## How many AI PMCs a raid with `real` players gets (0 with the rule off): BOTS_PER_RAID PMCs in all, or one more in
 ## 1 raid in BOTS_FOUR_IN, picked by the raid's seed. Real players count, so a full raid has none.
-static func bots_for(real: int, seed_value: int) -> int:
+static func bots_for(real: int, seed_value: int, fill := 0) -> int:
+	if fill > 0:
+		return maxi(0, fill - real)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var total := BOTS_PER_RAID + (1 if rng.randi() % BOTS_FOUR_IN == 0 else 0)
@@ -304,7 +311,7 @@ func _start_raid(codes: Array, with_bots := false) -> int:
 			players[peer]["raid"] = id
 	raid["spawns"] = spawn_slots(teams, raid["seed"])
 	# AI PMCs (piece 1 only counts them; each is its own team, never a pair).
-	raid["bots"] = bots_for(raid["players"].size(), raid["seed"]) if with_bots else 0
+	raid["bots"] = bots_for(raid["players"].size(), raid["seed"], bots_fill) if with_bots else 0
 	raids[id] = raid
 	stats_raids += 1
 	return id

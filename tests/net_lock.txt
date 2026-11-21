@@ -4,7 +4,7 @@ scripts/item_db.gd 8e5861b7cd6e
 scripts/online_profile.gd ac59400d7ddb
 scripts/net_guard.gd 346b32036407
 scripts/net_accounts.gd 258aaabe6e07
-scripts/matchmaker.gd e35a6013c288
+scripts/matchmaker.gd ddcf2a34ea91
 scripts/traders.gd 097bf3da1ca0
 scripts/quests.gd 388b92931b84
 scripts/crafting.gd f85c74305b6b

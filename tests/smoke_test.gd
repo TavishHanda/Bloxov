@@ -4260,7 +4260,7 @@ func _section_matchmaking() -> void:
 	mm.tick(28.5)
 	var started := mm.tick(1.0)
 	_check(started.size() == 1 and mm.raids[started[0]]["players"].size() == 3, "when the countdown ends, everyone waiting gets one raid (3)")
-	# AI PMC fill rule (0.36.0): off by default; on, a lone player waits 90 s and PMCs make the raid 3 in all.
+	# AI PMC fill rule (0.36.0; 0.38.13 owner: a minute's wait, then bots fill the lobby to 6 PMCs).
 	var bm := Matchmaker.new()
 	_check(bm.bots_for_map(0) and bm.bots_for_map(1), "AI PMCs are on for Frontlines and Riptide (owner, 0.36.26 and 0.36.35)")
 	var rm := Matchmaker.new()
@@ -4275,7 +4275,7 @@ func _section_matchmaking() -> void:
 	for id in rm_started:
 		if int(rm.raids[id]["bots"]) > 0: rm_maps[int(rm.raids[id]["map"])] = rm.raids[id]["players"]
 	_check(rm_started.size() == 2 and rm_maps.get(0, []) == [32] and rm_maps.get(1, []) == [31],
-		"a lone player on either map gets bots after 90 s (%s)" % rm_maps)
+		"a lone player on either map gets bots after a minute (%s)" % rm_maps)
 	rm.bot_maps = [0]
 	rm.raids.clear()
 	rm.add_player(33, "R33")
@@ -4292,20 +4292,21 @@ func _section_matchmaking() -> void:
 	_check(bm.raids.is_empty() and bm.countdown_left < 0.0, "bots off: a lone player waits for company, no raid")
 	bm.bot_maps = [0]
 	bm.tick(1.0)
-	_check(bm.countdown_left > 88.0 and bm.countdown_left <= 90.0 and bm.raids.is_empty(), "bots on: a lone player's wait is 90 s (%.1f)" % bm.countdown_left)
-	bm.tick(87.0)
-	_check(bm.raids.is_empty(), "no raid before the 90 s are up")
+	_check(bm.countdown_left > 58.0 and bm.countdown_left <= 60.0 and bm.raids.is_empty(), "bots on: a lone player's wait is 60 s (%.1f)" % bm.countdown_left)
+	bm.tick(57.0)
+	_check(bm.raids.is_empty(), "no raid before the minute is up")
 	var lone_started := bm.tick(3.0)
 	_check(lone_started.size() == 1 and bm.raids[lone_started[0]]["players"] == [21]
-		and int(bm.raids[lone_started[0]]["bots"]) in [2, 3], "after 90 s the lone player gets a raid with 2 PMCs (3 in about 1 in 4: %s)" % str(bm.raids.get(lone_started[0], {}).get("bots")))
+		and int(bm.raids[lone_started[0]]["bots"]) == 5, "after a minute the lone player gets a raid filled to 6 PMCs with 5 bots (0.38.13: %s)" % str(bm.raids.get(lone_started[0], {}).get("bots")))
 	bm.leave_raid(21)
 	bm.set_queued(22, true)
 	bm.tick(5.0)
 	bm.set_queued(23, true)
 	bm.tick(1.0)
-	_check(bm.countdown_left > 27.0 and bm.countdown_left <= 30.0, "a second player cuts the wait to the 30 s group countdown (%.1f)" % bm.countdown_left)
-	var duo_started := bm.tick(30.0)
-	_check(duo_started.size() == 1 and int(bm.raids[duo_started[0]]["bots"]) in [1, 2], "2 real players: 1 PMC (2 in about 1 in 4)")
+	_check(bm.countdown_left > 53.0 and bm.countdown_left <= 54.5, "a second player doesn't restart the minute that began with the first (%.1f)" % bm.countdown_left)
+	var duo_started := bm.tick(55.0)
+	_check(duo_started.size() == 1 and int(bm.raids[duo_started[0]]["bots"]) == 4, "2 real players: 4 bots fill the lobby to 6")
+	_check(Matchmaker.bots_for(1, 7, 6) == 5 and Matchmaker.bots_for(5, 7, 6) == 1 and Matchmaker.bots_for(6, 7, 6) == 0, "filling to 6: bots make up whatever real players don't")
 	var counts := {0: 0, 1: 0, 2: 0, 3: 0, 4: 0}
 	var four := 0
 	for seed_value in 2000:
@@ -6088,7 +6089,7 @@ func _section_online_bots() -> void:
 	var raid: Dictionary = server.matchmaker.raids[raid_id]
 	var world: RaidWorld = server._worlds[raid_id]
 	var bots := RaidScope.nodes(world.raid, &"enemies").filter(func(e: Node) -> bool: return e.get("bot_name") != "")
-	_check(raid["bots"] == Matchmaker.bots_for(1, raid["seed"]) and bots.size() == raid["bots"] and world.bots.size() == bots.size()
+	_check(raid["bots"] == Matchmaker.bots_for(1, raid["seed"], server.matchmaker.bots_fill) and bots.size() == raid["bots"] and world.bots.size() == bots.size()
 		and bots.all(func(b: Node) -> bool: return b.net_kind == 6 and b.loner),
 		"a lone player's raid gets its %d AI PMCs on the server" % bots.size())
 	var bot_names: Array = bots.map(func(b: Node) -> String: return b.bot_name)
@@ -6136,11 +6137,23 @@ func _section_online_bots() -> void:
 		bot_dist.append(Vector2(b.global_position.x - me.x, b.global_position.z - me.z).length())
 	bot_dist.sort()
 	bot_dist.reverse()
+	# (0.38.13: a full lobby can need more points than the test map has; the extra bots share one, as squads do, so
+	# each free point's distance must match one bot's)
 	var farthest := true
-	for i in bot_dist.size():
-		farthest = farthest and absf(bot_dist[i] - spots[i]) < 1.0
+	var unmatched := bot_dist.duplicate()
+	for spot_d in spots:
+		if spot_d < 0.0:
+			continue
+		var hit := -1
+		for j in unmatched.size():
+			if absf(unmatched[j] - spot_d) < 1.0:
+				hit = j
+				break
+		farthest = farthest and hit >= 0
+		if hit >= 0:
+			unmatched.remove_at(hit)
 	_check(farthest and bots.all(func(b: Node) -> bool: return b.state == Scav.State.IDLE),
-		"the bots start at the calmest free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist))
+		"the bots start at the calmest free spawn points farthest from the player, not told where they are (%s m)" % str(bot_dist) + " vs " + str(spots))
 	await _until(func() -> bool: return c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size())
 	_check(c1.enemies.filter(func(e: Array) -> bool: return e[1] == 6).size() == bots.size(), "the player's game gets them as AI PMC puppets")
 
