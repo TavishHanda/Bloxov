@@ -86,7 +86,7 @@ func _build_bench() -> Control:
 	title.text = "WORKBENCH"
 	HudStyle.style_label(title, 40)
 	box.add_child(title)
-	box.add_child(_small("Turn what you bring home into gear. Parts come from your stash (not the free kit). Crafted things aren't found in raid, so they can't be handed in for jobs."))
+	box.add_child(_small("Turn what you bring home into gear. Parts come from your stash and materials locker (not the free kit). Crafted things aren't found in raid, so they can't be handed in for jobs."))
 	_pips = HBoxContainer.new()
 	_pips.add_theme_constant_override("separation", 4)
 	box.add_child(_pips)
@@ -105,6 +105,11 @@ func _build_bench() -> Control:
 	var spacer := Control.new()
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(spacer)
+	# (0.38.7) the materials locker.
+	box.add_child(_small("Keep crafting materials out of your stash."))
+	var locker := _button("MATERIALS LOCKER", 0, func() -> void: hideout.open_locker())
+	locker.name = "LockerButton"
+	box.add_child(locker)
 	box.add_child(_small("Your way out: build the truck and leave on an expedition."))
 	var truck := _button("THE TRUCK", 0, func() -> void: hideout.open_expedition())
 	truck.name = "TruckButton"
@@ -181,7 +186,7 @@ func _build_row(recipe: String) -> Control:
 	line.add_child(count)
 	var plus := _button("+", 48, func() -> void: _set_times(recipe, int(times[recipe]) + 1))
 	line.add_child(plus)
-	var most := _button("MAX", 70, func() -> void: _set_times(recipe, maxi(Crafting.times_possible(Profile.stash, recipe), 1)))
+	var most := _button("MAX", 70, func() -> void: _set_times(recipe, maxi(Crafting.times_possible(Profile.stash, recipe, Profile.locker), 1)))
 	line.add_child(most)
 	var craft := _button("CRAFT", 130, func() -> void:
 		if hideout.craft(recipe, int(times[recipe])):
@@ -225,7 +230,7 @@ func refresh() -> void:
 		var money_ok := Profile.money >= int(cost["money"])
 		_next.add_child(_small(ItemDB.money(int(cost["money"])), Color.WHITE if money_ok else HudStyle.BLOOD))
 		var ready := money_ok
-		for part: Array in Crafting.parts_text(Profile.stash, cost["needs"]):
+		for part: Array in Crafting.parts_text(Profile.stash, cost["needs"], 1, Profile.locker):
 			var ok: bool = part[1] >= part[2]
 			ready = ready and ok
 			_next.add_child(_small("%s  %d/%d" % [part[0], mini(part[1], part[2]), part[2]], Color.WHITE if ok else HudStyle.BLOOD))
@@ -255,7 +260,7 @@ func _fill_row(recipe: String) -> void:
 		flow.remove_child(child)
 		child.queue_free()
 	var ready := not locked
-	for part: Array in Crafting.parts_text(Profile.stash, info["needs"], n):
+	for part: Array in Crafting.parts_text(Profile.stash, info["needs"], n, Profile.locker):
 		var ok: bool = part[1] >= part[2]
 		ready = ready and ok
 		var label := _small("%s %d/%d" % [part[0], mini(part[1], part[2]), part[2]], Color(1, 1, 1, 0.8) if ok else HudStyle.BLOOD)

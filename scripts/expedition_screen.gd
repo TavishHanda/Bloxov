@@ -104,7 +104,7 @@ func _build_side() -> Control:
 	inner.add_child(_status)
 	_haven = _small()
 	inner.add_child(_haven)
-	inner.add_child(_small("Leaving starts this stash over: stash, money, loadouts, traders, jobs and the workbench, and the character who goes is back to level 1. You keep your settings, looks, hideout, record, unlocked characters and upgrade points, and the character who goes earns %d more to spend on any character (up to %d per character from expeditions)." % [Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS], Color(1, 1, 1, 0.8)))
+	inner.add_child(_small("Leaving starts this stash over: stash, materials locker, money, loadouts, traders, jobs and the workbench, and the character who goes is back to level 1. You keep your settings, looks, hideout, record, unlocked characters and upgrade points, and the character who goes earns %d more to spend on any character (up to %d per character from expeditions)." % [Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS], Color(1, 1, 1, 0.8)))
 	_leave = _button("LEAVE ON EXPEDITION", 0, _ask_leave)
 	_leave.name = "LeaveButton"
 	inner.add_child(_leave)
@@ -246,7 +246,7 @@ func _fill_row(part: String) -> void:
 	var cost := _small(ItemDB.money(int(info["money"])), Color.WHITE if money_ok else HudStyle.BLOOD)
 	cost.autowrap_mode = TextServer.AUTOWRAP_OFF
 	flow.add_child(cost)
-	for need: Array in Crafting.parts_text(Profile.stash, info["needs"]):
+	for need: Array in Crafting.parts_text(Profile.stash, info["needs"], 1, Profile.locker):
 		var ok: bool = need[1] >= need[2]
 		ready = ready and ok
 		var label := _small("%s %d/%d" % [need[0], mini(need[1], need[2]), need[2]], Color(1, 1, 1, 0.8) if ok else HudStyle.BLOOD)

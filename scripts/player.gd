@@ -802,35 +802,17 @@ func spares_hit(amount: int, head: bool, burst: int, roll := -1.0) -> bool:
 	return maxi(roundi(amount * multiplier), 1) >= health.current
 
 
-## Your own body (0.31.14, owner): out of breath once your stamina runs low, and a soft heartbeat when you're badly
-## hurt. Quiet, so other people's steps and shots still come through.
-const BREATH_BELOW := 0.25        # of max stamina (or worn out)
-const BREATH_EVERY := 1.3         # seconds
+## Your own body (0.31.14, owner): a soft heartbeat when you're badly hurt. Quiet, so other people's steps and shots
+## still come through. (The out-of-breath sound at low stamina is gone everywhere since 0.38.13, owner: "remove the
+## wooshing noise at low stamina completely"; it was already off on Riptide via the map's `no_breath`, 0.35.26.)
 const HEARTBEAT_BELOW := 0.3      # of max health
 const HEARTBEAT_EVERY := 0.95
-var _breath_wait := 0.0
 var _heart_wait := 0.0
-## 0.35.26 (owner: "woosh woosh" when running long on Riptide): a map with `no_breath` metadata has no breath sound.
-## -1 = not looked up yet, 0 = breath on, 1 = off.
-var _no_breath := -1
 
 func _body_sounds(delta: float) -> void:
-	_breath_wait -= delta
 	_heart_wait -= delta
 	if health == null or health.is_dead or extracted or get_tree().paused:
 		return
-	var low_stamina := is_exhausted or stamina < max_stamina * BREATH_BELOW
-	if _no_breath < 0:
-		_no_breath = 0
-		var above := get_parent()
-		while above != null:
-			if above.has_meta(&"no_breath"):
-				_no_breath = 1 if above.get_meta(&"no_breath") else 0
-				break
-			above = above.get_parent()
-	if low_stamina and not downed and _no_breath == 0 and _breath_wait <= 0.0:
-		_breath_wait = BREATH_EVERY * WorldSounds.rng.randf_range(0.9, 1.1)
-		WorldSounds.own_soft(self, WorldSounds.BREATH, WorldSounds.BREATH_DB + (2.0 if is_exhausted else 0.0), 0.08)
 	if health.current < health.max_health * HEARTBEAT_BELOW and _heart_wait <= 0.0:
 		_heart_wait = HEARTBEAT_EVERY
 		WorldSounds.own_soft(self, WorldSounds.HEARTBEAT, WorldSounds.HEARTBEAT_DB, 0.0)
