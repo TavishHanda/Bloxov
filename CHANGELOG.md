@@ -7,6 +7,31 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.7 (Riptide: the lifeboat, the impound room, the Port Clinic, new meds)
+Owner's answers to the tester's Riptide feedback (2026-11-20, "Yea looks good" to the numbers):
+- **Lifeboat extract** replaces the Stern Ladder: a boat deck off A deck's corridor end on the bridge tower, the
+  lifeboat hung in its davits over the side. Throw the winch: the alarm blares (the AI come to look) and the boat is
+  ready 30 s later. The stern ladder and dinghy stay as a way on and off the ship.
+- **Bow Pilot Boat** now needs its engine started from the wheelhouse: the same alarm, ready in 20 s.
+  `MapSwitch.open_delay` (the prompt counts down "Wait... N s", then "Ready").
+- **Harbor Tower impound room**: off the harbourmaster's office (floor 1), behind a steel door the new
+  **Impound Key** opens (rare: ship's bridge safes, the workshops, 2% of Riptide's scavs). A weapon crate, a safe and
+  the seized cargo; its loot is out of the AI's reach.
+- **Port Clinic** (no key): the north street's middle shed. A waiting room (benches, reception) and two treatment
+  bays, a med cabinet and a crate, mostly medical loot. Signs over both doors, on the map as PORT CLINIC.
+- **Painkillers** (heal 15, 1 s, six to a stack, uncommon, $900) and the **Trauma Kit** (heal 100, 7 s, 2x2, rare,
+  $5,500): found in the clinic and the ship's sick bay. Icons, hand models, a pill-bottle sound. No real drug names;
+  the kit's cross is green (a red cross on white is a protected emblem).
+- Owner's notes (2026-11-21): **no more flickering strips**. A wall, the hull's side or the wall under a stairwell's
+  doorway had its top face level with the floor or roof it ran into, and the two fought over every pixel (the strip
+  across a stairwell doorway). Every such top now stops 2 cm short, map-wide (`settle_tops`).
+- **No spy slot beside the stairs**: every stairwell flight is now its lane's full width (3.8 m). It used to leave a 10 cm
+  gap down each side that looked onto the flight below.
+- **An open vault door is solid** where it stands (Frontlines' bunker and bank). Its hitbox only appears once it has
+  swung and nobody is in its way or in the corner behind it, so nobody is ever shut in. Riptide has no vault door (owner):
+  the impound room has a plain steel door that swings into the room (`KeyDoor.look`) and is solid the same way.
+- Net version 21 (the map changed). Tests for each; the map audits now skip loot behind a key door.
+
 ## 0.39.6 (Relentless Raijin)
 Owner (2026-11-21): a friend shot Raijin down "while he was just moving / repositioning but there wasnt enough cover
 ... he needs to be more aggro for sure and more decisive". Raijin was a copy of Bon's fight style: 3-5 s of chasing,

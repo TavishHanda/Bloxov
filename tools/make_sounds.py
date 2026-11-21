@@ -1434,6 +1434,27 @@ def main_riptide():
     write("ambience/rain.wav", rain())
 
 
+def pills():
+    """(0.38.7) Painkillers: the bottle shaken (a dry rattle of pills), the cap popped, two tipped out."""
+    random.seed(1900)
+    out = silence(1.0)
+    for k in range(7):                                   # the rattle: short bright ticks in two shakes
+        at = (0.04 if k < 4 else 0.3) + 0.045 * (k % 4) + 0.01 * random.random()
+        tick = [x * math.exp(-i / RATE * 180) for i, x in enumerate(_highpass(noise(length(0.03), 0.05), 0.8))]
+        out = _mix(out, tick, at, 0.5 + 0.2 * random.random())
+    pop = [x * math.exp(-i / RATE * 90) for i, x in enumerate(_highpass(noise(length(0.05), 0.2), 0.6))]
+    out = _mix(out, pop, 0.58, 0.9)
+    for at in (0.72, 0.8):
+        tick = [x * math.exp(-i / RATE * 220) for i, x in enumerate(_highpass(noise(length(0.02), 0.05), 0.85))]
+        out = _mix(out, tick, at, 0.45)
+    return out
+
+
+def main_meds():
+    (OUT / "items").mkdir(exist_ok=True)
+    write("items/pills.wav", pills())
+
+
 if __name__ == "__main__":
     main()
     main_sound_update()
@@ -1444,3 +1465,4 @@ if __name__ == "__main__":
     main_more()
     main_lively()
     main_riptide()
+    main_meds()

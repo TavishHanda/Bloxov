@@ -2300,6 +2300,28 @@ def tower_slab(m, row):
     m.box(c, s, style)
 
 
+def lifeboat(m, row):
+    """(0.38.7) the boat deck's lifeboat, hung in its davits over the side: an orange enclosed boat, a white canopy
+    with a band of windows, the davit arms and the falls up to them. Long axis along z, the deck to the west."""
+    c, s = row["pos"], row["size"]
+    cx, cy, cz = c
+    w, h, L = s
+    y0 = cy - h / 2
+    orange, white, iron = mat("rip_orange"), mat("rip_white"), mat("rip_iron")
+    m.box((cx, y0 + 0.25, cz), (w * 0.62, 0.5, L * 0.86), orange)             # the keel, narrower
+    m.box((cx, y0 + 0.85, cz), (w, 0.7, L * 0.96), orange)                     # the hull
+    m.box((cx, y0 + 1.25, cz), (w + 0.06, 0.1, L * 0.97), white)               # the rubbing strake
+    m.box((cx, y0 + 1.7, cz), (w * 0.86, 0.8, L * 0.78), white)                # the canopy
+    m.box((cx, y0 + 1.75, cz), (w * 0.88, 0.22, L * 0.7), mat("rip_glass"))    # its windows
+    m.box((cx, y0 + 2.2, cz + L * 0.3), (w * 0.5, 0.3, 1.0), orange)           # the helm hatch
+    for z in (cz - L * 0.42, cz + L * 0.42):                                    # bow and stern, tapered
+        m.box((cx, y0 + 0.75, z), (w * 0.7, 0.6, L * 0.1), orange)
+    for z in (cz - L * 0.4, cz + L * 0.4):                                      # the davits and the falls
+        m.box((cx - w / 2 + 0.55, y0 + 3.1, z), (1.6, 0.16, 0.16), iron)
+        m.box((cx - w / 2 - 0.05, y0 + 1.85, z), (0.14, 2.6, 0.14), iron)
+        m.box((cx, y0 + 2.6, z), (0.04, 1.0, 0.04), iron)
+
+
 def build_tower(name="bridge_tower"):
     mb.BUILDING_NAME[0] = name
     with open(os.path.join(ROOT, "art_source", "buildings", name + ".json")) as f:
@@ -2317,7 +2339,9 @@ def build_tower(name="bridge_tower"):
     skirts = []
     for row in data["boxes"]:
         col = row["colour"]
-        if row.get("kind"):
+        if row.get("kind") == "lifeboat":
+            lifeboat(m, row)
+        elif row.get("kind"):
             t_prop(m, row)
         elif row["pitch"]:
             m.box(row["pos"], row["size"], ramp_style, yaw=row["yaw"], pitch=row["pitch"])

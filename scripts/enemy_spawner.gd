@@ -53,6 +53,8 @@ extends Node3D
 ## The map's own look for its AI (0.35.34, owner: Riptide's scavs are Deckhands and its Raiders Exion Troopers):
 ## {"scav": scene path, "raider": scene path}. Same AI, other clothes and names.
 @export var looks := {}
+## Keys this map's scavs sometimes carry (0.38.7, Riptide's Impound Key): {item id: chance per scav}.
+@export var scav_keys := {}
 
 ## Where the raid's players start (0.38.10, owner: online a sniper scav and a zone's scavs shot players before they could
 ## move). The server makes its AI before any player is in the raid world, so it never knew where they'd stand:
@@ -317,6 +319,9 @@ func _spawn(scene: PackedScene, zone: Dictionary = {}, duo := true) -> bool:
 			raiders_spawned += 1
 	else:
 		scavs_spawned += 1
+		for id in scav_keys:
+			if randf() < float(scav_keys[id]):
+				enemy.extra_drops = enemy.extra_drops + PackedStringArray([id])
 	return true
 
 

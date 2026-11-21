@@ -119,7 +119,7 @@ def north_decals(rng):
         a = R.tower_decals(rng)            # (the furniture's drawers, screens and the NO SMOKING sign)
     finally:
         R.Atlas = real
-    for name in ("CANNERY", "COLD STORE", "LOCKERS", "OFFICE", "FUEL DEPOT"):
+    for name in ("CANNERY", "COLD STORE", "LOCKERS", "OFFICE", "FUEL DEPOT", "PORT CLINIC"):
         w, h, p = R._sign(name, "rw_white", "rx_black", 3 if name in ("CANNERY", "FUEL DEPOT") else 2)
         a.add("n_" + name, w, h, p)
     return a
@@ -275,6 +275,8 @@ def details(m):
     sign(m, "n_OFFICE", (0, 0, -1), -140.0 - 0.15, -138.0, DECK + 2.5, 0.9)
     sign(m, "n_FUEL DEPOT", (0, 0, 1), -128.0 + 0.15, -86.0, SHORE + 0.15, 2.2)
     sign(m, "no_smoking", (0, 0, 1), -128.0 + 0.15, -74.0, SHORE + 0.2, 0.9)
+    sign(m, "n_PORT CLINIC", (0, 0, -1), -122.0 - 0.15, -108.0, SHORE + 2.75, 2.2)      # (0.38.7: over both doors)
+    sign(m, "n_PORT CLINIC", (0, 0, 1), -112.0 + 0.15, -113.0, SHORE + 2.75, 2.2)
 
 
 def build_north(name="north_point"):
@@ -303,7 +305,7 @@ def build_north(name="north_point"):
         kind = row.get("kind") or ""
         if kind == "pallets":
             R.t_prop(m, dict(row, kind="crates"))
-        elif kind in P.PROP_KINDS or kind in ("tool_cab", "drums") or kind.startswith("chair_"):
+        elif kind in P.PROP_KINDS or kind in ("tool_cab", "drums", "sick_bed", "med_cab") or kind.startswith("chair_"):
             R.t_prop(m, row)
         elif kind == "rock":
             rock(m, row)

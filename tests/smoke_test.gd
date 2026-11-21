@@ -1411,6 +1411,13 @@ func _section_items() -> void:
 	await physics_frame
 	await physics_frame
 	_check(space.intersect_ray(through).is_empty(), "the open door lets you through")
+	# (0.38.14, owner) swung open, the round door is solid where it stands; the doorway stays clear
+	await create_timer(1.8).timeout
+	await physics_frame
+	var leaf_at := door.global_transform * door._open_leaf.transform.origin if door._open_leaf != null else Vector3.INF
+	var into_leaf := PhysicsRayQueryParameters3D.create(leaf_at + door.global_basis.x * 1.5, leaf_at - door.global_basis.x * 1.5, 1)
+	_check(door._open_leaf != null and space.intersect_ray(into_leaf).get("collider") == door and space.intersect_ray(through).is_empty()
+		and door.collision_layer == 1, "the open vault door has its own hitbox, out of the doorway")
 	inv.take("bank_vault_key", 1)
 	door.queue_free()
 	var boss := (load("res://scenes/boss.tscn") as PackedScene).instantiate()
@@ -2206,6 +2213,16 @@ func _section_meds() -> void:
 	_check(player.is_healing() and inv.count_of("medkit") == 0 and inv.count_of("bandage") == 1, "tapping the meds slot uses the picked medkit")
 	player.heal_time_left = 0.0
 	_check(inv.find_meds(10)[1].id == "bandage" and meds_bar.slot_info(2)["auto"], "out of the picked med: back to Auto (bandage)")
+	# 0.38.7 (owner): painkillers (a quick small heal) and the trauma kit (heals everything, slowly)
+	var pills := ItemDB.item("painkillers")
+	var trauma := ItemDB.item("trauma_kit")
+	_check(pills["kind"] == "heal" and pills["heal"] == 15 and is_equal_approx(pills["use_time"], 1.0) and pills["stack"] == 6
+		and pills["value"] == 900 and WorldSounds.ITEMS.has("painkillers"), "painkillers heal 15 in 1 s, six to a stack, $900")
+	_check(trauma["kind"] == "heal" and trauma["heal"] == 100 and is_equal_approx(trauma["use_time"], 7.0)
+		and ItemDB.size("trauma_kit") == Vector2i(2, 2) and trauma["value"] == 5500, "the trauma kit heals 100 in 7 s, 2x2, $5,500")
+	inv.add("painkillers", 1)
+	_check(inv.find_meds(14)[1].id == "painkillers" and inv.med_types()[0] == "painkillers", "a scratch takes the painkillers (Auto)")
+	inv.take("painkillers", 1)
 	inv.meds_choice = ""
 	meds_bar.queue_free()
 	Profile.apply_inventory(inv, saved)
@@ -6743,6 +6760,34 @@ func _section_riptide() -> void:
 		sub.set_open(false)
 		power.use(Vector3.ZERO)
 		_check(sub.is_open and power.used and power.prompt() == "Power on", "throwing the switch opens the sub bay")
+	# 0.38.7 (owner): the lifeboat (30 s) and the bow pilot boat (20 s) open a while after their switches, alarm and all
+	var boats := {"Lifeboat": ["LifeboatWinch", 30.0], "BowBoat": ["PilotBoatEngine", 20.0]}
+	for zone_name: String in boats:
+		var boat: ExtractZone = world.raid.find_child(zone_name, true, false)
+		var winch: MapSwitch = world.raid.find_child(boats[zone_name][0], true, false)
+		_check(boat != null and winch != null and boat.needs_power == winch.switch_id and not boat.is_open
+			and is_equal_approx(winch.open_delay, boats[zone_name][1]), "%s waits %d s on its switch" % [zone_name, boats[zone_name][1]])
+		if boat != null and winch != null:
+			winch.open_delay = 0.25
+			winch.use(Vector3.ZERO)
+			await physics_frame
+			_check(winch.used and not boat.is_open and winch.prompt().begins_with("Wait"), "%s: not ready at once" % zone_name)
+			await create_timer(0.45).timeout
+			_check(boat.is_open and winch.prompt() == "Ready", "%s: ready once its time is up" % zone_name)
+	_check(world.raid.find_child("SternLadder", true, false) == null, "the stern ladder is no longer an extract (the lifeboat is)")
+	# 0.38.7 (owner): Harbor Tower's impound room, behind a key door the Impound Key opens; its loot is out of the AI's reach
+	var impound := world.raid.get_node_or_null("KeyDoors/ImpoundDoor") as KeyDoor
+	_check(impound != null and impound.key == "impound_key" and ItemDB.item("impound_key")["door"] == "ImpoundDoor"
+		and impound.look == "plain", "the impound room's steel door (no vault door on Riptide) takes the Impound Key")
+	var impound_loot := RaidScope.nodes(world.raid, &"loot_containers").filter(func(c: Node) -> bool:
+		return String(c.get_meta("place", "")) == "Impound")
+	_check(impound_loot.size() == 2 and impound_loot.all(func(c: Node) -> bool: return c.has_meta("locked")),
+		"the impound room holds a crate and a safe, left alone by the AI")
+	var clinic_loot := RaidScope.nodes(world.raid, &"loot_containers").filter(func(c: Node) -> bool:
+		return String(c.get_meta("place", "")) == "Clinic")
+	_check(clinic_loot.size() == 2 and ItemDB.PLACE_LOOT["Clinic"].has("painkillers") and ItemDB.PLACE_LOOT["SickBay"].has("trauma_kit"),
+		"the Port Clinic has its med cabinet and crate; painkillers and trauma kits turn up there and in the sick bay")
+	_check(spawner.scav_keys.has("impound_key"), "Riptide's scavs sometimes carry the Impound Key")
 	# The storm (0.33.5): the map names its look and asks for rain; rain is looks only, so never on a headless run
 	var storm_map := (load(MAP) as PackedScene).instantiate()
 	var storm := load(String(storm_map.get_meta("look", ""))) as Look
@@ -6886,7 +6931,7 @@ func _section_riptide() -> void:
 	await _until(func() -> bool: return c1.in_raid)
 	var rip: RaidWorld = server._worlds.values()[0]
 	var sub_zone := rip.raid.get_node("Extracts/SubBay") as Node3D
-	var rip_switch := rip.switches()[0] as Node3D
+	var rip_switch := rip.switches().filter(func(n: Node) -> bool: return n.get("switch_id") == "sub_bay")[0] as Node3D
 	_check(c1.raid_map == 1 and RaidMap.scene_path == MAP and rip.raid.get_node("Extracts").get_child_count() == 6
 		and is_equal_approx(c1.raid_time_left, Network.PLAYTEST_RAID_TIME if Network.PLAYTEST_RAID_TIME > 0.0 else 900.0), "the server runs the raid on Riptide, for 15 minutes, and tells the players")
 	RaidMap.scene_path = ""

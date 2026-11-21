@@ -125,10 +125,17 @@ const ITEMS := {
 		"kind": "drink", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 1200, "use_time": 1.5, "boost_time": 10.0},
 	"bandage": {"name": "Bandage", "desc": "Stops the bleeding. Quick to use.", "kind": "heal", "rarity": "common", "w": 1, "h": 1, "stack": 5, "value": 500, "heal": 25, "use_time": 2.0},
 	"medkit": {"name": "Medkit", "desc": "Field kit. Heals a lot, takes a while.", "kind": "heal", "rarity": "uncommon", "w": 2, "h": 1, "stack": 3, "value": 2000, "heal": 70, "use_time": 4.0},
+	# (0.38.7, owner: painkillers yes, a trauma kit yes; no real drug names, docs/STORE_RULES.md) found in the
+	# Port Clinic and the ship's sick bay
+	"painkillers": {"name": "Painkillers", "short": "Pills", "desc": "A few pills. Takes the edge off, fast.", "kind": "heal", "rarity": "uncommon", "w": 1, "h": 1, "stack": 6, "value": 900, "heal": 15, "use_time": 1.0},
+	"trauma_kit": {"name": "Trauma Kit", "short": "Trauma", "desc": "Everything a field medic carries. Patches you right up, but it takes time.", "kind": "heal", "rarity": "rare", "w": 2, "h": 2, "stack": 1, "value": 5500, "heal": 100, "use_time": 7.0},
 	"bunker_key": {"name": "Bunker Key", "short": "Bunker", "desc": "Opens the bunker under the town hall. Bon keeps one on him.",
 		"kind": "key", "door": "BunkerDoor", "rarity": "epic", "w": 1, "h": 1, "stack": 1, "value": 6000, "durability": 3},
 	"bank_vault_key": {"name": "Bank Vault Key", "short": "Vault", "desc": "Opens the vault in the bank.",
 		"kind": "key", "door": "BankVaultDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500, "durability": 5},
+	# (0.38.7, owner: Harbor Tower's key room) rare loot on Riptide, and now and then on its scavs
+	"impound_key": {"name": "Impound Key", "short": "Impound", "desc": "Opens the impound room in Harbor Tower, off the harbourmaster's office.",
+		"kind": "key", "door": "ImpoundDoor", "rarity": "rare", "w": 1, "h": 1, "stack": 1, "value": 3500, "durability": 5},
 	"beans": {"name": "Canned Beans", "desc": "Somebody's lunch. Traders pay for food out here.", "short": "Beans", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 150},
 	"water": {"name": "Water Bottle", "short": "Water", "desc": "Clean water is rare out here. Traders pay for it.", "kind": "valuable", "rarity": "common", "w": 1, "h": 1, "stack": 1, "value": 200},
 	"ration": {"name": "Ration Pack", "short": "Ration", "desc": "Novarran army meal. Tastes like cardboard, sells like gold.", "kind": "valuable", "rarity": "uncommon", "w": 1, "h": 1, "stack": 1, "value": 700},
@@ -235,13 +242,17 @@ const PLACE_LOOT := {
 	"Junkyard": {"bolts": 20, "wires": 15, "fuel_can": 6},
 	"School": {"med_supplies": 5, "backpack_small": 15, "backpack_medium": 10, "backpack_large": 3, "armor_light": 5, "helmet_basic": 5},
 	# Riptide (map 2): the Leviathan and Site Zero
-	"ShipBridge": {"gold_watch": 15, "cash": 15, "intel_exion": 10, "diamond_ring": 3, "rare": 8},
+	"ShipBridge": {"gold_watch": 15, "cash": 15, "intel_exion": 10, "diamond_ring": 3, "rare": 8, "impound_key": 2},
 	"ShipArmory": {"ak": 12, "rifle_ammo": 25, "smg": 8, "shotgun": 8, "shells": 15, "smg_ammo": 15, "armor_light": 10, "armor_heavy": 5, "helmet_basic": 8, "helmet_good": 4, "grenade": 10, "foregrip": 5, "red_dot": 5,
 		"viper": 1, "hornet": 1, "brawler": 1},   # (0.38.1, owner: new guns found only on Riptide, about 1 raid in 10 here)
-	"SickBay": {"med_supplies": 25, "bandage": 45, "medkit": 25},
+	"SickBay": {"med_supplies": 25, "bandage": 45, "medkit": 25, "painkillers": 25, "trauma_kit": 6},
+	"Clinic": {"med_supplies": 20, "bandage": 40, "medkit": 25, "painkillers": 30, "trauma_kit": 6},   # (0.38.7, the Port Clinic)
+	# (0.38.7) Harbor Tower's impound room: seized guns and ammo in the crate, seized valuables in the safe
+	"Impound": {"ak": 10, "smg": 8, "shotgun": 8, "sniper": 3, "rifle_ammo": 20, "smg_ammo": 10, "shells": 10, "suppressor": 3,
+		"ext_mag": 4, "cash": 15, "gold_watch": 8, "rare": 10, "epic": 6, "viper": 1, "hornet": 1, "brawler": 1},
 	"Galley": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"EngineRoom": {"bolts": 15, "wires": 10, "fuel_can": 12},
-	"Workshop": {"bolts": 15, "wires": 10, "gunpowder": 6},
+	"Workshop": {"bolts": 15, "wires": 10, "gunpowder": 6, "impound_key": 1},
 	"LabWing": {"med_supplies": 15, "medkit": 10, "intel_exion": 12, "mil_chip": 8, "hard_drive": 8, "gpu": 4, "cpu": 6, "epic": 10},
 	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5,
 		"talon": 1},   # (0.38.1, owner: the only place a Talon turns up in a raid, about 1 raid in 20)
