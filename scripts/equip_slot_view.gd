@@ -132,7 +132,7 @@ func _draw_parts() -> void:
 		if part != "":
 			var color := ItemDB.color(part)
 			draw_rect(rect.grow(-1), color.darkened(0.7))
-			_draw_part_picture(part, rect)
+			draw_part_picture(self, part, rect)
 			draw_rect(rect.grow(-1), color, false, 1.0)
 		else:
 			draw_string(font, Vector2(rect.position.x, rect.get_center().y + 3), SLOT_NAMES.get(part_slot, ""),
@@ -143,37 +143,38 @@ func _draw_parts() -> void:
 			draw_rect(rect, Color(1, 1, 1, 0.12))
 
 
-## A little picture of attachment `part` in `rect` (placeholder blocks, like the gun's: GunViewModels.LOOKS).
-func _draw_part_picture(part: String, rect: Rect2) -> void:
+## A little picture of attachment `part` in `rect` on `canvas` (placeholder blocks, like the gun's: GunViewModels.LOOKS).
+## Also used by GunPartsBar (a body's gun, 0.38.13).
+static func draw_part_picture(canvas: CanvasItem, part: String, rect: Rect2) -> void:
 	var icon := ItemIcons.get_icon(part)
 	if icon != null:
-		draw_texture_rect(icon, ItemIcons.fit(icon, rect.grow(-2)), false)
+		canvas.draw_texture_rect(icon, ItemIcons.fit(icon, rect.grow(-2)), false)
 		return
 	var c := rect.get_center()
 	var ink := HudStyle.INK
 	match part:
 		"red_dot":
-			draw_rect(Rect2(c + Vector2(-6, -4), Vector2(12, 9)), ink)
-			draw_rect(Rect2(c + Vector2(-2, -2), Vector2(4, 4)), HudStyle.BLOOD)
+			canvas.draw_rect(Rect2(c + Vector2(-6, -4), Vector2(12, 9)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-2, -2), Vector2(4, 4)), HudStyle.BLOOD)
 		"scope_4x", "scope_8x":
 			var length := 16.0 if part == "scope_4x" else 20.0
-			draw_rect(Rect2(c + Vector2(-length / 2, -3), Vector2(length, 6)), ink)
-			draw_rect(Rect2(c + Vector2(-length / 2 - 1, -5), Vector2(4, 10)), ink)
-			draw_rect(Rect2(c + Vector2(length / 2 - 3, -5), Vector2(4, 10)), ink)
-			draw_string(ThemeDB.fallback_font, Vector2(rect.position.x, rect.end.y - 2), "4x" if part == "scope_4x" else "8x",
+			canvas.draw_rect(Rect2(c + Vector2(-length / 2, -3), Vector2(length, 6)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-length / 2 - 1, -5), Vector2(4, 10)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(length / 2 - 3, -5), Vector2(4, 10)), ink)
+			canvas.draw_string(ThemeDB.fallback_font, Vector2(rect.position.x, rect.end.y - 2), "4x" if part == "scope_4x" else "8x",
 				HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 8, HudStyle.BRASS)
 		"suppressor":
-			draw_rect(Rect2(c + Vector2(-10, -3), Vector2(20, 6)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-10, -3), Vector2(20, 6)), ink)
 		"choke":
-			draw_rect(Rect2(c + Vector2(-5, -5), Vector2(10, 10)), HudStyle.COPPER)
-			draw_rect(Rect2(c + Vector2(-2, -2), Vector2(4, 4)), HudStyle.DEEP)
+			canvas.draw_rect(Rect2(c + Vector2(-5, -5), Vector2(10, 10)), HudStyle.COPPER)
+			canvas.draw_rect(Rect2(c + Vector2(-2, -2), Vector2(4, 4)), HudStyle.DEEP)
 		"foregrip":
-			draw_rect(Rect2(c + Vector2(-8, -7), Vector2(16, 3)), ink)
-			draw_rect(Rect2(c + Vector2(-2, -4), Vector2(5, 11)), HudStyle.COPPER)
+			canvas.draw_rect(Rect2(c + Vector2(-8, -7), Vector2(16, 3)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-2, -4), Vector2(5, 11)), HudStyle.COPPER)
 		"ext_mag":
-			draw_rect(Rect2(c + Vector2(-3, -9), Vector2(7, 18)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-3, -9), Vector2(7, 18)), ink)
 		_:
-			draw_rect(Rect2(c + Vector2(-5, -5), Vector2(10, 10)), ink)
+			canvas.draw_rect(Rect2(c + Vector2(-5, -5), Vector2(10, 10)), ink)
 
 
 func _draw() -> void:
