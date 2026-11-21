@@ -198,6 +198,9 @@ var guard := NetGuard.new()
 var kick_cheaters := true
 ## Peers being kicked (their requests are ignored until they're gone) -> true.
 var _kicked := {}
+## Server: the slowest frame and how many frames took over 50 ms since the last stats line (0.38.13, logged with it).
+var _frame_worst := 0.0
+var _frames_slow := 0
 ## What each player in a raid carries (NetGuard.count_stacks: item id -> how many), from their kit as the raid
 ## starts plus what they took, minus what they put down, fired and threw (0.25.1).
 var _carried := {}
@@ -1252,6 +1255,10 @@ func _process(delta: float) -> void:
 			go_online(_address, _player_name)
 	if mode != Mode.SERVER:
 		return
+	# (0.38.13) how the server keeps up: slow frames make everyone's raid stutter at once.
+	_frame_worst = maxf(_frame_worst, delta)
+	if delta > 0.05:
+		_frames_slow += 1
 	for id in matchmaker.tick(delta):
 		_send_raid_start(id)
 	if not _away.is_empty():
@@ -1273,7 +1280,11 @@ func _process(delta: float) -> void:
 		var line := matchmaker.stats_line()
 		if not matchmaker.players.is_empty() or line != _last_stats:
 			_log(line)
+			if not matchmaker.raids.is_empty():
+				_log("server frames (last %d min): slowest %d ms, %d slower than 50 ms" % [int(STATS_EVERY / 60.0), roundi(_frame_worst * 1000.0), _frames_slow])
 		_last_stats = line
+		_frame_worst = 0.0
+		_frames_slow = 0
 		_send_stats()
 	_queue_send_left -= delta
 	if _queue_send_left <= 0.0:

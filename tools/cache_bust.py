@@ -37,6 +37,14 @@ window.BLOXOV_PACKS = %s;
 window.BLOXOV_LATE_PACKS = %s;
 window.BLOXOV_FILES = %s;
 (function () {
+  // (0.38.13) Ask the browser to keep the downloaded game (and the save) instead of clearing it when space runs low
+  // or the site wasn't visited for a while. Chrome, Edge, Brave and Safari decide quietly; Firefox would show a
+  // prompt, so not there.
+  try {
+    if (navigator.storage && navigator.storage.persist && !/firefox/i.test(navigator.userAgent)) {
+      navigator.storage.persisted().then(function (kept) { if (!kept) return navigator.storage.persist(); }).catch(function () {});
+    }
+  } catch (e) {}
   var files = window.BLOXOV_FILES, NAME = "bloxov-files";
   if (!window.caches || !window.fetch || !window.URL) return;
   var plain = window.fetch.bind(window);
