@@ -89,6 +89,7 @@ func use(id: String) -> bool:
 		"bag":
 			if bag != null:
 				bag.punch(walker.camera.global_position - Vector3.UP * 0.3)
+				Network.main.send_hideout_act("punch", walker.camera.global_position - Vector3.UP * 0.3)   # (party mates see it, 0.39.0)
 		_:
 			return false
 	return true
