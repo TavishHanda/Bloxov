@@ -43,9 +43,10 @@ static func bench_cost(level: int) -> Dictionary:
 	return BENCH[level - 2]
 
 
-## How many of `id` the stash has to craft with: free-kit stacks don't count (they can't be sold either).
-static func have(stash: GridInventory, id: String) -> int:
-	var total := 0
+## How many of `id` the stash (and the materials locker, 0.38.7, when given) has to craft with: free-kit stacks
+## don't count (they can't be sold either).
+static func have(stash: GridInventory, id: String, locker: MaterialLocker = null) -> int:
+	var total := locker.count(id) if locker != null else 0
 	for stack in stash.stacks:
 		if stack.id == id and not stack.free:
 			total += stack.count
@@ -53,24 +54,24 @@ static func have(stash: GridInventory, id: String) -> int:
 
 
 ## How many times `recipe` can be made from the stash (parts only; room is checked when crafting).
-static func times_possible(stash: GridInventory, recipe: String) -> int:
+static func times_possible(stash: GridInventory, recipe: String, locker: MaterialLocker = null) -> int:
 	var most := MAX_TIMES
 	for id: String in RECIPES[recipe]["needs"]:
-		most = mini(most, have(stash, id) / int(RECIPES[recipe]["needs"][id]))
+		most = mini(most, have(stash, id, locker) / int(RECIPES[recipe]["needs"][id]))
 	return most
 
 
 ## Whether you have every part in `needs` (item id -> count) `times` over.
-static func has_parts(stash: GridInventory, needs: Dictionary, times := 1) -> bool:
+static func has_parts(stash: GridInventory, needs: Dictionary, times := 1, locker: MaterialLocker = null) -> bool:
 	for id: String in needs:
-		if have(stash, id) < int(needs[id]) * times:
+		if have(stash, id, locker) < int(needs[id]) * times:
 			return false
 	return true
 
 
 ## Crafts `recipe` `times` over into `stash` at bench level `level`. Returns "" if it worked (the parts are gone and
-## the items are in the stash), else why not (and nothing changed).
-static func craft(stash: GridInventory, recipe: String, times: int, level: int) -> String:
+## the items are in the stash), else why not (and nothing changed). Parts come from the stash first, then `locker`.
+static func craft(stash: GridInventory, recipe: String, times: int, level: int, locker: MaterialLocker = null) -> String:
 	if not RECIPES.has(recipe):
 		return "No such recipe"
 	var info: Dictionary = RECIPES[recipe]
@@ -78,35 +79,35 @@ static func craft(stash: GridInventory, recipe: String, times: int, level: int) 
 		return "Pick how many to make"
 	if int(info["level"]) > level:
 		return "Needs workbench level %d" % int(info["level"])
-	if not has_parts(stash, info["needs"], times):
+	if not has_parts(stash, info["needs"], times, locker):
 		return "Not enough parts"
 	# Try it on a copy first, so a full stash changes nothing.
 	var copy := _copy(stash)
-	_use(copy, info["needs"], times)
+	_use(copy, info["needs"], times, locker.copy() if locker != null else null)
 	if not _make(copy, info["makes"], int(info["amount"]) * times):
 		return "No room in your stash"
-	_use(stash, info["needs"], times)
+	_use(stash, info["needs"], times, locker)
 	_make(stash, info["makes"], int(info["amount"]) * times)
 	return ""
 
 
 ## Takes the parts for one bench level from the stash ("" if done; the caller takes the money).
-static func use_bench_parts(stash: GridInventory, level: int) -> String:
+static func use_bench_parts(stash: GridInventory, level: int, locker: MaterialLocker = null) -> String:
 	var cost := bench_cost(level)
 	if cost.is_empty():
 		return "The workbench is as good as it gets"
-	if not has_parts(stash, cost["needs"]):
+	if not has_parts(stash, cost["needs"], 1, locker):
 		return "Not enough parts"
-	_use(stash, cost["needs"], 1)
+	_use(stash, cost["needs"], 1, locker)
 	return ""
 
 
 ## What a recipe's parts line reads: "Medical Supplies 1/1 · Duct Tape 0/1", for `times` crafts.
-static func parts_text(stash: GridInventory, needs: Dictionary, times := 1) -> Array:
+static func parts_text(stash: GridInventory, needs: Dictionary, times := 1, locker: MaterialLocker = null) -> Array:
 	var parts := []
 	for id: String in needs:
 		var need := int(needs[id]) * maxi(times, 1)
-		parts.append([ItemDB.display_name(id), have(stash, id), need])
+		parts.append([ItemDB.display_name(id), have(stash, id, locker), need])
 	return parts
 
 
@@ -117,26 +118,27 @@ static func _copy(stash: GridInventory) -> GridInventory:
 	return copy
 
 
-## Takes the parts: never free-kit stacks; plain ones before found-in-raid ones (so quest items go last), smallest first.
-static func _use(stash: GridInventory, needs: Dictionary, times: int) -> void:
+## Takes the parts: never free-kit stacks; plain ones before found-in-raid ones (so quest items go last), the stash's
+## smallest stacks first, then the locker's.
+static func _use(stash: GridInventory, needs: Dictionary, times: int, locker: MaterialLocker = null) -> void:
 	for id: String in needs:
 		var left := int(needs[id]) * times
-		var matching: Array[ItemStack] = []
-		for stack in stash.stacks:
-			if stack.id == id and not stack.free:
-				matching.append(stack)
-		matching.sort_custom(func(a: ItemStack, b: ItemStack) -> bool:
-			if a.found != b.found:
-				return not a.found
-			return a.count < b.count)
-		for stack in matching:
-			if left <= 0:
-				break
-			var moved := mini(left, stack.count)
-			stack.count -= moved
-			left -= moved
-			if stack.count <= 0:
-				stash.stacks.erase(stack)
+		for found in [false, true]:
+			var matching: Array[ItemStack] = []
+			for stack in stash.stacks:
+				if stack.id == id and not stack.free and stack.found == found:
+					matching.append(stack)
+			matching.sort_custom(func(a: ItemStack, b: ItemStack) -> bool: return a.count < b.count)
+			for stack in matching:
+				if left <= 0:
+					break
+				var moved := mini(left, stack.count)
+				stack.count -= moved
+				left -= moved
+				if stack.count <= 0:
+					stash.stacks.erase(stack)
+			if locker != null:
+				left -= locker.use(id, left, found)
 	stash.changed.emit()
 
 

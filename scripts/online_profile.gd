@@ -14,7 +14,7 @@ const STASH_ROWS: Array[int] = [20, 30, 40, 50]
 const MAX_STACKS := 500
 const MAX_MONEY := 1_000_000_000
 const KEYS: Array[String] = ["version", "money", "stash_size", "stash", "loadout", "stats", "trader_spent",
-	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "characters", "truck", "expeditions"]
+	"free_kit_raid", "quests_done", "quest_progress", "rewards_taken", "trader_levels", "presets", "bench_level", "crafted", "characters", "truck", "expeditions", "locker"]
 const STATS: Array[String] = ["raids", "extracts", "deaths", "earned"]
 
 
@@ -91,6 +91,7 @@ static func clean(data: Variant) -> Dictionary:
 		stats[key] = maxi(int(given.get(key, 0)), 0) if given is Dictionary and (given.get(key) is int or given.get(key) is float) else 0
 	out["stats"] = stats
 	out["characters"] = Characters.clean(data.get("characters"))
+	out["locker"] = MaterialLocker.clean(data.get("locker"))
 	return out
 
 
@@ -183,9 +184,9 @@ static func death_loadout(loadout: Dictionary) -> Dictionary:
 const FREE_KIT := {"pistol": 1, "backpack_small": 1, "pistol_ammo": 42, "bandage": 1}
 
 
-## Every stack in a profile (stash and loadout), as saved.
+## Every stack in a profile (stash, loadout and the materials locker), as saved.
 static func entries(profile: Dictionary) -> Array:
-	var out: Array = []
+	var out: Array = MaterialLocker.entries_of(profile)
 	var stash = profile.get("stash", [])
 	if stash is Array:
 		out.append_array(stash)
@@ -382,6 +383,11 @@ static func audit(old: Dictionary, new: Dictionary) -> String:
 	if chars["error"] != "":
 		return chars["error"]
 	cost += int(chars["money"])
+	# The materials locker (0.38.7): bought once; what's in it counts with the stash, so moving things in and out is free.
+	var locker := MaterialLocker.changes(old, new)
+	if locker["error"] != "":
+		return locker["error"]
+	cost += int(locker["money"])
 	var ids := _keys(a["all"], b["all"])
 	for id: Variant in _keys(crafts["used"], crafts["made"]):
 		if not ids.has(id):
