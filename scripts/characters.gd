@@ -402,6 +402,39 @@ static func multipliers(state: Dictionary, id: String) -> Dictionary:
 	return out
 
 
+## AI PMCs are characters too (owner 2026-11-20: "AI pmc will be randomly chosen between those 6 ... with their actual
+## stats"; level AI_LEVEL_MIN-AI_LEVEL_MAX, owner's pick 2026-11-21). Everything comes from `seed_value` (the server's
+## id for the AI, which puppets get too), so every screen agrees without sending more: the character, its skin, its
+## level, and where its level points went (each on a random trait it can still take, as a player might).
+## Returns {"id", "skin", "level", "state"} (`state` works with multipliers / passive_rank like a player's).
+const AI_LEVEL_MIN := 5
+const AI_LEVEL_MAX := 15
+
+
+static func ai_pick(seed_value: int) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(seed_value)
+	var id: String = ORDER[rng.randi_range(0, ORDER.size() - 1)]
+	var skins: Array = SKINS[id]
+	var skin: String = skins[rng.randi_range(0, skins.size() - 1)]
+	var lv := rng.randi_range(AI_LEVEL_MIN, AI_LEVEL_MAX)
+	var xp := 0
+	for l in range(1, lv):
+		xp += xp_to_next(l)
+	var points := 0
+	for at: int in LEVEL_POINTS:
+		if lv >= at:
+			points += int(LEVEL_POINTS[at])
+	var state := {"selected": id, "chars": {id: {"xp": xp, "lvl_points": points, "exp_points": 0, "spent": {}}}}
+	var c := char_of(state, id)
+	while points_left(state) > 0:
+		var options := SPEND_KEYS.filter(func(key: String) -> bool: return can_spend(state, c, key))
+		if options.is_empty():
+			break
+		spend(state, id, options[rng.randi_range(0, options.size() - 1)])
+	return {"id": id, "skin": skin, "level": lv, "state": state}
+
+
 ## This device's player is spawning as the picked character (from Profile's state).
 static func begin(state: Dictionary) -> void:
 	var id := str(state.get("selected", "vega"))

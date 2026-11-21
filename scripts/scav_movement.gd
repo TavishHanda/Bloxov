@@ -6,6 +6,8 @@ extends "res://scripts/scav_senses.gd"
 ## walking, "like 30 crunching steps"). Gunshots still carry across the map. 0.22.2 (owner: AI footsteps too quiet,
 ## playtesters couldn't find enemies): 40 m, and louder (STEP_DB, STEP_UNIT_SIZE) so they carry out to it.
 const STEP_HEAR_RANGE := 40.0
+## How far its footsteps carry (an AI PMC's character can change it, PmcAI.apply_character).
+var footstep_range := STEP_HEAR_RANGE
 ## How loud each AI step is (dB; was -6 before 0.22.2), and how far before it starts fading (m; was 2.5).
 const STEP_DB := 0.0
 const STEP_UNIT_SIZE := 4.0
@@ -116,7 +118,7 @@ func _update_footsteps(delta: float) -> void:
 		_stride_left = 1.4
 		if _sneaking() or _net_flags & NET_SNEAK:
 			return  # sneaking up: no footstep sounds
-		Surfaces.step(self, STEP_DB, true, 0.9, STEP_UNIT_SIZE, STEP_HEAR_RANGE)
+		Surfaces.step(self, STEP_DB, true, 0.9, STEP_UNIT_SIZE, footstep_range)
 
 
 ## Lost you mid-fight: start hunting around where it last saw you.
