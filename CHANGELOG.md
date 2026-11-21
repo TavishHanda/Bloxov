@@ -7,6 +7,22 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.38.15 (Looting fixes: dropped items, found attachments, a body's gun parts)
+Owner's playtest (2026-11-21).
+- **Things taken out of a body and dropped at once no longer vanish online** ("my friend was swapping out backpacks
+  and he dropped a golden item, and then it disappeared"): the game sent the drop before the loot move, so the server
+  thought the item wasn't carried yet and threw the drop away. Now any change to the open container goes first
+  whenever you drop, throw or use something (`Network.items_leaving`, `NetRaid._send_container_change`).
+- **Taking a found-in-raid attachment off a gun in the PvP hideout works** ("The server didn't accept that change, so
+  your PvP stash is back as it was"): the server's hideout check didn't count an attachment's found mark while it
+  sat on the gun, so taking it off looked like a made-up found mark (`OnlineProfile.tally` counts `fatt`).
+- **A body's gun shows its attachments** (owner: "you should be able to see the attachments on the gun in the body so
+  u can take them off the gun easily without having to take the whole gun"): the same attachment slots as your own
+  gun along the bottom of the body's Primary / Secondary slot; click or tap one to take it off into your inventory
+  (`scripts/gun_parts_bar.gd`). Right-click "Remove ..." still works on any gun.
+- **Frontlines: the half-buried dumpster by the school is gone** (it stood on a slope at map (48, 82)). Removed in the
+  generator, the map's boxes and the outdoor model (`outdoor_00`); navigation re-baked. (Re-running the whole
+  generator today changes other scattered pieces too, so only this dumpster was taken out of the scene.)
 ## 0.38.14 (Your hands match your character)
 Owner (2026-11-21): the first-person hands should match the character you're playing.
 - Every character's skin has its own first-person sleeves and gloves, painted from that skin's jacket and gloves
