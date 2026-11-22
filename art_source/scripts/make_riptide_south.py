@@ -31,20 +31,20 @@ SHORE = 2.5
 
 # name: (footprints [(x0, x1, z0, z1)], outside, walls inside, floor, ceiling, ground floor overlay)
 BUILDINGS = {
-    "grainstore": ([(-112.0, -72.0, 64.0, 92.0)], "rs_block_buff", "rq_conc", "rq_conc", "rip_steel_in", None),
+    "grainstore": ([(-112.0, -72.0, 64.0, 92.0)], "rs_block_buff", "rq_conc", "rq_conc", "rip_steel_in", "rq_conc"),
     "headhouse": ([(-46.0, -38.0, 42.0, 56.0)], "rq_conc", "rq_conc", "rq_conc", "rq_conc", None),
-    "fabshed": ([(-152.0, -120.0, 104.0, 128.0)], "rs_clad", "rq_corr", "rq_conc", "rip_steel_in", None),
-    "workshop": ([(-104.0, -84.0, 106.0, 124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", None),
+    "fabshed": ([(-152.0, -120.0, 104.0, 128.0)], "rs_clad", "rq_corr", "rq_conc", "rip_steel_in", "rq_conc"),
+    "workshop": ([(-104.0, -84.0, 106.0, 124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", "rq_conc"),
     "tshed1": ([(-60.0, -42.0, -112.0, -72.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
     "tshed2": ([(-60.0, -42.0, -64.0, -24.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
     "tshed3": ([(-62.0, -44.0, 64.0, 104.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
     # (art pass 4) the small buildings along the rail corridor and the south streets, the breakwater's huts
     "weighbridge": ([(-152.0, -138.0, -44.0, -34.0)], "rs_block_buff", "rip_panel", "rip_lino", "rip_ceiling", "rip_lino"),
-    "railshed": ([(-152.0, -136.0, 36.0, 56.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "railshed": ([(-152.0, -136.0, 36.0, 56.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", "rq_conc"),
     "signalbox": ([(-150.0, -138.0, 72.0, 84.0)], "rs_block_buff", "rip_panel_g", "rip_lino", "rip_ceiling", "rip_lino"),
-    "laneshed": ([(-128.0, -114.0, 94.0, 102.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", None),
-    "sgarage": ([(-80.0, -66.0, 126.0, 136.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
-    "sshed": ([(-100.0, -86.0, 164.0, 176.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", None),
+    "laneshed": ([(-128.0, -114.0, 94.0, 102.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", "rq_conc"),
+    "sgarage": ([(-80.0, -66.0, 126.0, 136.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", "rq_conc"),
+    "sshed": ([(-100.0, -86.0, 164.0, 176.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", "rq_conc"),
     "bargeoffice": ([(-58.0, -44.0, 110.0, 122.0)], "rs_sandstone", "rip_panel", "rip_lino", "rip_ceiling", "rip_lino"),
     "signalhut": ([(-2.0, 8.0, -129.2, -124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", None),
     "wheelhouse": ([(61.5, 67.5, -123.0, -117.0)], "rip_white", "rip_panel", "rip_wood", "rip_ceiling", None),
@@ -233,7 +233,32 @@ def boat_piece(m, row):
     m.box((c[0], y0 + s[1] - 0.1, c[2]), (s[0] + 0.1, 0.12, s[2] + 0.1), lambda n, mid, q: None if abs(n[1]) > 0.7 else "rip_iron")
 
 
+def ramp_rail(m, row):
+    """(ship detail pass) A rail down a ramp's open side: its box is a 1 m slab along the slope; drawn as a yellow top
+    rail, a mid rail and a kick plate along the slope, with posts every 1.5 m."""
+    c, s, yaw, pitch = row["pos"], row["size"], row["yaw"], row["pitch"]
+    up = mb.rot((0.0, 1.0, 0.0), yaw, pitch)
+    al = mb.rot((0.0, 0.0, 1.0), yaw, pitch)
+    h = s[1]
+    for off, th, mt in ((h / 2 - 0.04, 0.07, "rip_yellow"), (0.0, 0.05, "rip_yellow"), (-h / 2 + 0.08, 0.16, "rip_iron")):
+        m.box((c[0] + up[0] * off, c[1] + up[1] * off, c[2] + up[2] * off), (0.06, th, s[2]), mat(mt), yaw=yaw, pitch=pitch,
+              cull=False)
+    n = max(2, int(s[2] // 1.5) + 1)
+    for k in range(n):
+        t = -s[2] / 2 + 0.05 + (s[2] - 0.1) * k / (n - 1)
+        p = (c[0] + al[0] * t, c[1] + al[1] * t, c[2] + al[2] * t)
+        lo = p[1] - up[1] * h / 2
+        hi = p[1] + up[1] * h / 2
+        m.box((p[0], (lo + hi) / 2, p[2]), (0.07, hi - lo, 0.07), mat("rip_yellow"), cull=False)
+
+
 def details(m):
+    for name, info in BUILDINGS.items():          # (detail pass) the floors laid over the ground inside
+        if info[5]:
+            for x0, x1, z0, z1 in info[0]:
+                p = [P.W((x0, SHORE + 0.005, z0)), P.W((x1, SHORE + 0.005, z0)), P.W((x1, SHORE + 0.005, z1)),
+                     P.W((x0, SHORE + 0.005, z1))]
+                m.b.poly([p[0], p[3], p[2], p[1]], (0, 1, 0), info[5], uv_world())
     X = lambda x: x - OX    # noqa: E731
     Z = lambda z: z - OZ    # noqa: E731
     for x in (-104.0, -92.0, -80.0):          # the grain store's high-bay lamps
@@ -323,6 +348,10 @@ def build_south(name="south_port"):
             machine(m, row)
         elif kind == "boathouse":
             boathouse(m, row)
+        elif kind in P.PROP_KINDS or kind == "tool_cab" or kind.startswith("chair_"):
+            R.t_prop(m, row)
+        elif kind == "ramp_rail":
+            ramp_rail(m, row)
         elif kind == "boxcar":
             boxcar(m, row)
         elif kind in ("ac_unit", "vent", "roof_tank"):

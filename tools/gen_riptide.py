@@ -543,6 +543,74 @@ CANNERY_CHAIRS = [("chair_n", -140.0, -164.8, 4.5), ("chair_n", -138.5, -147.4, 
                   ("chair_s", -138.0, -131.6, 4.5)]
 
 
+# (detail pass, owner 2026-11-22: "yea lets do it") the small buildings of art passes 3b-5 were bare rooms: their
+# furniture, drawn by south_port. (kind, x0, x1, z0, z1, y above the shore, h); every piece against a wall, clear of
+# the doors, gates, low windows and loot, the middle of each room left open.
+SOUTH_PROPS = [
+    # the weighbridge office: the clerk's desk, a filing cabinet, shelves of dockets
+    ("desk", -151.85, -151.05, -41.5, -39.0, 0.0, 0.76), ("files", -151.85, -151.25, -43.7, -42.3, 0.0, 1.3),
+    ("shelves", -151.5, -148.0, -34.75, -34.15, 0.0, 2.1),
+    # the rail shed: a tool cabinet and racks on the west wall, drums and crates on the east, the lane between the
+    # gates open
+    ("tool_cab", -151.85, -151.05, 39.5, 41.5, 0.0, 1.8), ("shelves", -151.85, -151.25, 43.5, 48.5, 0.0, 2.1),
+    ("drums", -137.85, -136.65, 50.0, 52.4, 0.0, 1.0), ("crates", -139.5, -137.0, 37.0, 39.0, 0.0, 1.4),
+    # the signal box: the lever frame along the north wall, the signalman's desk, shelves
+    ("console", -141.5, -138.5, 72.15, 72.85, 0.0, 1.1), ("desk", -149.85, -149.05, 74.0, 76.5, 0.0, 0.76),
+    ("shelves", -146.0, -142.0, 83.25, 83.85, 0.0, 2.1),
+    # the lane shed: a workbench, racks, drums
+    ("bench", -126.0, -123.0, 94.15, 94.85, 0.0, 0.9), ("shelves", -114.75, -114.15, 95.0, 99.0, 0.0, 2.1),
+    ("drums", -116.6, -114.4, 100.8, 101.85, 0.0, 1.0),
+    # the south street garage: a tool cabinet and a workbench on the east wall, drums
+    ("tool_cab", -66.85, -66.15, 127.0, 129.0, 0.0, 1.8), ("bench", -66.85, -66.15, 131.0, 134.0, 0.0, 0.9),
+    ("drums", -79.5, -77.0, 134.5, 135.85, 0.0, 1.0),
+    # the south edge shed: crates, racks, drums
+    ("crates", -89.0, -87.0, 165.0, 167.0, 0.0, 1.4), ("shelves", -95.0, -90.0, 175.25, 175.85, 0.0, 2.1),
+    ("drums", -99.5, -97.5, 164.15, 165.4, 0.0, 1.0),
+    # the barge office: the manager's desk, files, the counter by the south door, the chart table
+    ("desk", -44.85, -44.05, 118.0, 120.5, 0.0, 0.76), ("files", -57.85, -57.25, 115.0, 119.0, 0.0, 1.3),
+    ("counter", -56.0, -53.0, 121.15, 121.85, 0.0, 1.0), ("chart_table", -52.0, -50.0, 114.0, 115.2, 0.0, 0.9),
+    # the shipyard workshop: a workbench and a tool cabinet on the north wall, racks, drums by the gate
+    ("bench", -102.0, -98.8, 106.15, 106.85, 0.0, 0.9), ("tool_cab", -90.5, -88.5, 106.15, 106.85, 0.0, 1.8),
+    ("shelves", -103.85, -103.25, 117.0, 121.0, 0.0, 2.1), ("drums", -88.0, -85.5, 122.4, 123.7, 0.0, 1.0),
+    # the fab shed: racks of plate on the west wall, drums and crates in the east corners
+    ("shelves", -151.85, -151.25, 105.0, 109.5, 0.0, 2.1), ("drums", -123.0, -120.8, 104.3, 105.6, 0.0, 1.0),
+    ("crates", -124.0, -121.5, 125.0, 127.5, 0.0, 1.4),
+]
+SOUTH_CHAIRS = [("chair_w", -150.7, -40.5, 0.0), ("chair_w", -148.7, 75.0, 0.0), ("chair_n", -140.3, 73.2, 0.0),
+                ("chair_e", -45.6, 119.0, 0.0)]
+
+
+# (ship detail pass, owner 2026-11-22: "ramps without railings ... there needs to be more noise in that boat") a rail
+# down every open side of the ship's ramps, 1 m over the slope, as the companionways have had since 0.36.29:
+# (x, y at the top end, z there, y at the low end, z there). All the ship's ramps run along z.
+def _ship_rails():
+    rails = [(32.97, PIER, 8.0, HULL_A, 23.0),                                   # the pier platform's ramp (hold)
+             (44.12, HULL_A, 96.0, BARGE, SZ1 - 0.6), (51.88, HULL_A, 96.0, BARGE, SZ1 - 0.6),   # the stern ramp
+             (34.28, DECK, -80.0, FORECASTLE, -93.5),                            # up to the forecastle
+             (31.32, DECK, -36.0, DRILL, -14.0), (34.68, DECK, -36.0, DRILL, -14.0),   # up to the drill floor
+             (61.32, DECK, 36.0, DRILL, 14.0), (64.68, DECK, 36.0, DRILL, 14.0),
+             (51.92, LAB2, -42.0, LAB1, -27.0), (55.08, LAB2, -42.0, LAB1, -27.0),    # Site Zero's inner ramp
+             (34.38, LAB1, 10.0, LAB2, 25.0)]                                    # the dock's freight ramp
+    for z in BOAT_DOORS:     # the hull doors' ramps: the flat guard covers the first 5.5 m, the rail the rest
+        dz = 1 if z < 0 else -1
+        rails.append((63.13, BOAT + (HULL_A - BOAT) * 5.5 / 15.0, z + 8.0 * dz, HULL_A, z + 17.5 * dz))
+    return rails
+
+
+def ship_rails():
+    with modeled("south_port", -90.0, 110.0), kinded("ramp_rail"):
+        for x, ya, za, yb, zb in _ship_rails():
+            ramp((x, ya + 1.0, za), (x, yb + 1.0, zb), 0.12, "rust", t=1.0)
+
+
+def south_props():
+    with modeled("south_port", -90.0, 110.0):
+        for kind, x0, x1, z0, z1, y, h in SOUTH_PROPS:
+            box(x0, SHORE + y, z0, x1, SHORE + y + h, z1, "metal" if kind in ("drums", "tool_cab") else "wood", kind=kind)
+        for kind, x, z, y in SOUTH_CHAIRS:
+            box(x, SHORE + y, z, x + 0.55, SHORE + y + 0.9, z + 0.55, "wood", kind=kind)
+
+
 LH_TOP = SHORE + 28.0     # (0.38.5) the lighthouse's watch room floor
 
 
@@ -1533,11 +1601,23 @@ BELOW_PROPS = [
     ("shelves", 30.3, 30.9, -14.0, -9.0, HULL_A, 2.1), ("drums", 30.3, 31.1, 28.0, 31.0, HULL_A, 1.0),
     ("shelves", 30.3, 30.9, 34.0, 38.0, HULL_A, 2.1), ("crates", 30.3, 31.5, 60.0, 63.0, HULL_A, 1.4),
     ("tool_cab", 30.3, 30.9, 68.0, 70.4, HULL_A, 1.6),
+    # (ship detail pass, owner 2026-11-22: the passages were "big open hallways") stores along the bulkhead side too,
+    # never beside one across the passage (4 m to walk), clear of the doors, the companionway, the pier ramp's foot
+    ("shelves", 35.15, 35.75, -89.5, -85.5, HULL_A, 2.1), ("drums", 34.95, 35.75, -74.0, -71.0, HULL_A, 1.0),
+    ("crates", 34.55, 35.75, -66.0, -63.5, HULL_A, 1.4), ("tool_cab", 35.15, 35.75, -28.5, -26.1, HULL_A, 1.6),
+    ("shelves", 35.15, 35.75, -8.0, -4.0, HULL_A, 2.1), ("crates", 34.55, 35.75, 44.5, 47.0, HULL_A, 1.4),
+    ("shelves", 35.15, 35.75, 63.5, 67.5, HULL_A, 2.1),
+    ("crates", 30.3, 31.5, -36.0, -33.5, HULL_A, 1.4), ("drums", 30.3, 31.1, -3.0, 0.0, HULL_A, 1.0),
+    ("drums", 30.3, 31.1, 40.5, 43.5, HULL_A, 1.0),
     # the starboard (east) side passage
     ("shelves", 65.1, 65.7, -88.0, -84.0, HULL_A, 2.1), ("crates", 64.5, 65.7, -76.0, -73.0, HULL_A, 1.4),
     ("drums", 64.9, 65.7, -44.0, -41.0, HULL_A, 1.0), ("tool_cab", 65.1, 65.7, -30.0, -27.6, HULL_A, 1.6),
     ("shelves", 65.1, 65.7, -16.0, -11.0, HULL_A, 2.1), ("drums", 64.9, 65.7, 20.0, 23.0, HULL_A, 1.0),
     ("crates", 64.5, 65.7, 30.0, 33.0, HULL_A, 1.4), ("shelves", 65.1, 65.7, 36.0, 40.0, HULL_A, 2.1),
+    ("crates", 60.25, 61.45, -53.5, -51.0, HULL_A, 1.4), ("drums", 60.25, 61.05, -33.5, -30.5, HULL_A, 1.0),
+    ("tool_cab", 60.25, 60.85, -10.0, -7.6, HULL_A, 1.6), ("shelves", 60.25, 60.85, -3.0, 1.0, HULL_A, 2.1),
+    ("shelves", 60.25, 60.85, 18.5, 22.5, HULL_A, 2.1), ("drums", 60.25, 61.05, 45.5, 48.5, HULL_A, 1.0),
+    ("tool_cab", 65.1, 65.7, -50.0, -47.6, HULL_A, 1.6), ("drums", 64.9, 65.7, 3.0, 6.0, HULL_A, 1.0),
     # out in the cargo hold, between the container stacks
     ("crates", 38.2, 39.6, -70.0, -68.6, HULL_A, 1.4), ("drums", 49.5, 50.3, -55.6, -53.2, HULL_A, 1.0),
     ("reel", 47.6, 49.0, -31.5, -29.5, HULL_A, 1.4), ("forklift", 41.8, 43.1, 33.0, 35.6, HULL_A, 2.1),
@@ -2566,6 +2646,8 @@ def main():
     shipyard()
     transit_sheds()
     breakers()
+    south_props()
+    ship_rails()
     crossings()
     ship()
     moon_pool()
