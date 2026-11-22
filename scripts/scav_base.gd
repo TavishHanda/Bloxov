@@ -372,12 +372,14 @@ var puppet := false
 var _net_flags := 0
 
 
-## Within `leash` meters of its patrol area (always true without one).
+## Within `leash` meters of its patrol area (always true without one): past its edge, or above or below its height
+## band (0.39.26: the band had no slack, so Raijin gave up the moment he stepped onto the stairs after you, and his
+## crew never heard shots from just above the lab).
 func _near_home(point: Vector3) -> bool:
 	var boss := leader if leader != null and is_instance_valid(leader) else self
 	if boss._trip_point != Vector3.INF and _flat(point - boss._trip_point).length() <= leash:
 		return true   # out on a trip (a fight there doesn't send it straight home)
-	return home_radius <= 0.0 or (_flat(point - home_center).length() <= home_radius + leash and _in_height(point))
+	return home_radius <= 0.0 or (_flat(point - home_center).length() <= home_radius + leash and _in_height(point, leash))
 
 
 ## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
@@ -454,9 +456,9 @@ func _in_home(point: Vector3) -> bool:
 	return _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0) and _in_height(point)
 
 
-## Within its area's height band (always true without one).
-func _in_height(point: Vector3) -> bool:
-	return home_height <= 0.0 or absf(point.y - home_center.y) <= home_height
+## Within its area's height band, give or take `slack` meters (always true without one).
+func _in_height(point: Vector3, slack := 0.0) -> bool:
+	return home_height <= 0.0 or absf(point.y - home_center.y) <= home_height + slack
 var _hunting := false
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false
