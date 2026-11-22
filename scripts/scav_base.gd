@@ -373,7 +373,7 @@ var _net_flags := 0
 
 
 ## Within `leash` meters of its patrol area (always true without one): past its edge, or above or below its height
-## band (0.39.24: the band had no slack, so Raijin gave up the moment he stepped onto the stairs after you, and his
+## band (0.39.26: the band had no slack, so Raijin gave up the moment he stepped onto the stairs after you, and his
 ## crew never heard shots from just above the lab).
 func _near_home(point: Vector3) -> bool:
 	var boss := leader if leader != null and is_instance_valid(leader) else self

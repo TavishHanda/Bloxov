@@ -6813,7 +6813,7 @@ func _section_riptide() -> void:
 		and ace_spawned.global_position.y > -10.0 and ace_spawned.global_position.y < 0.0
 		and not ace_spawned._in_home(Vector3(48, 4.0, -60)) and ace_spawned._in_home(Vector3(48, -8.0, -60)),
 		"Ace starts and patrols in the lower hull's fore end, not the deck above")
-	# 0.39.24 (owner's friend shot Raijin's crew from the stairs and they did nothing): the height band limits where
+	# 0.39.26 (owner's friend shot Raijin's crew from the stairs and they did nothing): the height band limits where
 	# a boss patrols, not where he fights or hears: he follows you up the moon pool ramp (just above the lab's band)
 	# and hears shots from there, as he does past the edge of his area.
 	var raijin_spawned: Scav = spawner.bosses_spawned[0] if spawner.bosses_spawned.size() > 0 else null
