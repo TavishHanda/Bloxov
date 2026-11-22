@@ -2906,15 +2906,15 @@ func _section_hideout_world() -> void:
 	var nodes_ok: bool = tree.visible and (tree._nodes["u0"] as Array).size() == Characters.UPSIDE_MAX \
 		and not tree._nodes.has("d0") and (tree._nodes["p"] as Array).size() == 3 and tree._downsides.text.begins_with("DOWNSIDES")
 	_check(nodes_ok and (tree._nodes["u0"][0] as Button).get_meta("state") == "next" and (tree._nodes["u0"][1] as Button).get_meta("state") == "locked"
-		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 5 + 5 upside steps and the passive's 3 ranks; the downsides shown, not bought")
+		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 12 + 12 upside steps and the passive's 3 ranks; the downsides shown, not bought")
 	tree.buy("u0", 2)
 	_check(int(tree_c["spent"]["u0"]) == 0, "a branch is bought from the bottom up")
 	tree.buy("u0", 0)
 	tree.buy("u0", 1)
 	tree.buy("p", 1)
-	_check(int(tree_c["spent"]["u0"]) == 2 and int(tree_c["spent"]["p"]) == 1 and Characters.points_left(tree_state) == 1
+	_check(int(tree_c["spent"]["u0"]) == 2 and int(tree_c["spent"]["p"]) == 1 and Characters.points_left(tree_state, "vega") == 0
 		and (tree._nodes["u0"][1] as Button).get_meta("state") == "owned" and (tree._nodes["p"][2] as Button).get_meta("state") == "locked",
-		"clicking the next node spends points (2 on the upside, 2 on a passive rank)")
+		"clicking the next node spends points (2 on the upside, 3 on a passive rank)")
 	tree.close()
 	_check(not tree.visible and chars.visible, "BACK goes back to the CHARACTERS screen")
 	tree_c["lvl_points"] = 0
@@ -5127,30 +5127,54 @@ func _section_playables() -> void:
 		total += Characters.xp_to_next(lv)
 	Characters.add_xp(state, "vega", total)
 	_check(Characters.level(state, "vega") == 20 and is_equal_approx(Characters.trait_value("vega", c, 0), 0.08)
-		and int(c["lvl_points"]) == 5, "at level 20 traits are full size and 5 level points are earned")
+		and int(c["lvl_points"]) == 20 and Characters.char_earned(c) == 20, "at level 20 traits are full size and 20 level points are earned")
 	Characters.add_expedition_points(state, "vega")
-	_check(Characters.points_left(state) == 7, "an expedition adds 2 points (7 to spend)")
-	for i in 5:
+	_check(Characters.points_left(state, "vega") == 22, "an expedition (a prestige) adds 2 points (22 to spend)")
+	for i in Characters.UPSIDE_MAX:
 		Characters.spend(state, "vega", "u0")
-	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.18),
-		"5 points at most on an upside: +18% speed")
-	_check(not Characters.spend(state, "vega", "d0") and not Characters.spend(state, "sable", "u0") and Characters.points_left(state) == 2,
+	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.20),
+		"12 points at most on an upside at +1% each: +20% speed")
+	_check(not Characters.spend(state, "vega", "d0") and not Characters.spend(state, "sable", "u0") and Characters.points_left(state, "vega") == 10,
 		"points never go on a downside (it grows with level) or on a character you don't own (owner 2026-11-22)")
-	Characters.spend(state, "vega", "u1")
-	Characters.spend(state, "vega", "u1")
-	var refunded := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 2, "exp_points": 0, "spent": {"d0": 2}}}})
-	_check(Characters.points_left(refunded) == 2, "points an old save put on a downside come back")
-	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state) == 0, "no points left for a passive rank")
+	for i in 8:
+		Characters.spend(state, "vega", "u1")
+	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state, "vega") == 2, "a passive rank costs 3 points")
 	Characters.reset_points(state, "vega")
-	_check(Characters.points_left(state) == 7 and Characters.spend(state, "voss", "p") and Characters.passive_rank(Characters.char_of(state, "voss")) == 2
-		and Characters.points_left(state) == 5, "points are one shared pool: VEGA's points can buy VOSS a passive rank")
-	Characters.reset_points(state, "voss")
+	_check(Characters.points_left(state, "vega") == 22 and Characters.points_left(state, "voss") == 1 and not Characters.spend(state, "voss", "p"),
+		"each character's points are its own (0.39.21): VEGA's can't buy VOSS a passive rank")
+	# Saves from before 0.39.21: level points from the highest level reached, every spent point back.
+	var refunded := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 2, "exp_points": 4, "spent": {"u0": 5, "d0": 2}}}})
+	var rc := Characters.char_of(refunded, "vega")
+	_check(Characters.char_spent(rc) == 0 and Characters.points_left(refunded, "vega") == 14 and int(refunded["points_v"]) == Characters.POINTS_VERSION,
+		"an old save that reached level 10 gets 10 level points + its 4 expedition points, all free to place")
+	var lvl7_xp := 0
+	for lv in range(1, 7):
+		lvl7_xp += Characters.xp_to_next(lv)
+	var old20 := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 5, "exp_points": 0, "spent": {}},
+		"voss": {"xp": lvl7_xp, "lvl_points": 0, "exp_points": 0, "spent": {}}}})
+	_check(Characters.points_left(old20, "vega") == 20 and Characters.points_left(old20, "voss") == 7,
+		"an old level-20 character gets 20, a level-7 one gets 7")
+	var again := Characters.clean(refunded)
+	_check(Characters.char_earned(Characters.char_of(again, "vega")) == 14, "a moved-over save isn't moved again")
 	Characters.reset_level(state, "vega")
+	_check(Characters.points_left(state, "vega") == 22, "an expedition resets the level but keeps the level points")
 	Characters.add_xp(state, "vega", total)
-	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
+	_check(int(c["lvl_points"]) == 20 and Characters.points_left(state, "vega") == 22, "level points only come once")
 	for i in 4:
 		Characters.add_expedition_points(state, "vega")
-	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10 per character")
+	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS and Characters.char_earned(c) == Characters.MAX_POINTS,
+		"expedition points stop at 10 per character: 30 points at most (owner 2026-11-22)")
+	for key in ["u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "p", "p"]:
+		Characters.spend(state, "vega", key)
+	for i in Characters.UPSIDE_MAX:
+		Characters.spend(state, "vega", "u1")
+	_check(Characters.points_left(state, "vega") == 0 and Characters.passive_rank(c) == 3 and int(c["spent"]["u1"]) == Characters.UPSIDE_MAX,
+		"30 points is exactly a full tree")
+	var over := {"characters": state.duplicate(true)}
+	var over_b := {"characters": state.duplicate(true)}
+	Characters.char_of(over_b["characters"], "voss")["spent"]["u0"] = 3
+	_check(Characters.changes(over, over_b)["error"] != "", "the server refuses points a character didn't earn")
+	Characters.reset_points(state, "vega")
 	Characters.add_expedition_points(state, "voss")
 	_check(int(Characters.char_of(state, "voss")["exp_points"]) == 2, "another character still earns its own 10")
 	var old_save := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"], "exp_points": 6})
@@ -5230,7 +5254,10 @@ func _section_playables() -> void:
 	Characters.char_of(shared["characters"], "vega")["exp_points"] = 4
 	var shared_after := {"characters": shared["characters"].duplicate(true)}
 	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
-	_check(Characters.changes(shared, shared_after)["error"] == "", "online, shared points can go on any unlocked character")
+	_check(Characters.changes(shared, shared_after)["error"] != "", "online, VEGA's points can't go on VOSS (each character's own, 0.39.21)")
+	var own_after := {"characters": shared["characters"].duplicate(true)}
+	Characters.char_of(own_after["characters"], "vega")["spent"]["u0"] = 5
+	_check(Characters.changes(shared, own_after)["error"] == "", "but VEGA can spend its own")
 	Characters.char_of(shared_after["characters"], "sable")["spent"]["u0"] = 1
 	_check(Characters.changes(shared, shared_after)["error"] != "", "but not on a locked one")
 	# Online tags: steps can't be made quieter than VEGA's quietest.
@@ -7673,11 +7700,11 @@ func _pmc_character_checks() -> void:
 		var lv: int = pick["level"]
 		levels_ok = levels_ok and lv >= 5 and lv <= 15 and Characters.level(pick["state"], pick["id"]) == lv \
 			and (Characters.SKINS[pick["id"]] as Array).has(pick["skin"])
-		points_ok = points_ok and Characters.points_earned(pick["state"]) == (2 if lv >= 10 else 0) \
-			and Characters.points_left(pick["state"]) == 0
+		points_ok = points_ok and Characters.points_earned(pick["state"]) == lv \
+			and Characters.points_left(pick["state"], pick["id"]) == 0
 	_check(seen.size() == 6, "AI PMCs come as all six characters (%s)" % str(seen.keys()))
 	_check(levels_ok, "an AI PMC is level 5-15, in one of its character's skins")
-	_check(points_ok, "an AI PMC at level 10+ has spent its 2 level points, below 10 it has none")
+	_check(points_ok, "an AI PMC has spent its level points (1 per level, like a player)")
 	_check(Characters.ai_pick(4242) == Characters.ai_pick(4242), "the same id gives the same character, skin and level on every screen")
 	# Its traits on the AI's numbers.
 	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI

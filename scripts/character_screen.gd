@@ -302,7 +302,7 @@ func _fill_points(c: Dictionary, unlocked: bool) -> void:
 	for child in _spend.get_children():
 		child.queue_free()
 	var state := Profile.characters
-	_points.text = "%d points to spend (shared by all characters, %d earned)" % [Characters.points_left(state), Characters.points_earned(state)]
+	_points.text = "%d points to spend (%d of %d earned)" % [Characters.points_left(state, showing), Characters.char_earned(c), Characters.MAX_POINTS]
 	var info: Dictionary = Characters.LIST[showing]
 	for key: String in ["u0", "u1", "p"]:
 		var spent := int(c["spent"].get(key, 0))
