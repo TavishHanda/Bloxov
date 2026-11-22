@@ -58,9 +58,9 @@ func clear() -> void:
 static func scores(stats: Dictionary) -> Array:
 	var pellets := int(stats.get("pellets", 1))
 	var per_shot := float(stats["damage"]) * pellets
-	# Range: where damage starts to fall off (none: long), shortened by spread (a tighter choke reaches farther).
+	# Range: where damage has fallen off the most (none: long), shortened by spread (a tighter choke reaches farther).
 	var falloff: Array = stats.get("falloff", [])
-	var reach := float(falloff[0]) if not falloff.is_empty() else 150.0
+	var reach := float(falloff[1]) if not falloff.is_empty() else 150.0
 	reach = minf(reach, 15.0 / maxf(float(stats["spread"]), 0.01))
 	if pellets > 1:
 		reach /= maxf(float(stats.get("pellet_spread", 3.0)) / 3.0, 0.1)
