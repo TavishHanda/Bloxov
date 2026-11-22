@@ -7,6 +7,28 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.21 (AI PMCs: sharp ears)
+The owner: AI PMCs "need to be way better at detecting if there are players around them". Plan approved 2026-11-22.
+Only the AI PMCs change, and only for noises a player makes; scavs, Raiders, snipers and Raijin hear as before, and
+bots hear other AI's noises as before.
+- **Gunshots** carry 2.5x the gun's noise to a bot (AK ~88 m, sniper 150 m; a suppressor halves it). Within 50 m
+  every bot reacts: curious ones jog over to look, cautious ones (and ones on their way out) get into cover and watch
+  that way for 8 s. Farther off, cautious bots steer round the fight as before.
+- **Footsteps** carry 2x: walking 20 m, sprinting 56 m, crouch-walking 3 m (online it was silent; now bots only),
+  prone silent.
+- **New noises** only bots hear: reloading 10 m, a heal 6 m, a door opening or shutting 15 m (the server is told about
+  reloads and heals: new `_made_noise` call, net version 29).
+- **Walls**: a noise through a wall carries 60% as far. Its guess of where the noise was is off by ~1 m per 10 m.
+- **Reactions**: it turns to the noise in about a quarter of a second, then jogs over (not the scavs' slow walk).
+  Steps coming its way within 20 m: it stops and aims that way for 6 s, then goes to look.
+- **Eyes**: for 20 s after hearing a player it spots anyone toward that noise twice as fast.
+- **Memory**: having lost someone in a fight it hunts round where it last saw them for 45 s (was 30 s); hearing a
+  player beats its "keep away from other AI" rule while it investigates.
+- **Shot at** (owner's pick, "suppression + hide"): a player's bullet passing within 5 m (was 2.5 m) or hitting it pins
+  a bot down for 3 s: it ducks into cover first, stays down instead of peeking, and its shots land 70% as often.
+  Hit by someone it can't see, it gets into cover from them and waits 10 s watching where the shot came from,
+  instead of walking toward them in the open.
+
 ## 0.39.20 (Riptide: the ship's insides, railings and clutter)
 The owner asked for more in the ship (2026-11-22: "big open hallways. ramps without railings like there needs to be
 more noise in that boat"). Looks and a little cover only; doors, ladders, ramps and walking room stay clear.
