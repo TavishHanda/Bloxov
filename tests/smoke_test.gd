@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "pmc_ears", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables", "expedition",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -7744,6 +7744,124 @@ func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -
 	main.add_child(box)
 	box.global_position = pos
 	return box
+
+
+func _section_pmc_ears() -> void:
+	# AI PMCs' sharp ears (0.39.21, owner approved 2026-11-22): a player's noises carry farther to a bot (shots 2.5x,
+	# steps 2x, crouch 3 m, prone nothing), reloads/doors/heals only bots hear, steps coming its way make it stop and
+	# watch; other AI's noises and scavs' hearing are as before.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	Scav.lod_enabled = false
+	player.teleport_to(Vector3(0, 0.1, 0))
+	await physics_frame
+	var bot := _spawn(PMC_AI_SCENE, Vector3(0, 0.1, 18)) as PmcAI
+	var scav := _spawn(SCAV_SCENE, Vector3(18, 0.1, 0)) as Scav
+	await physics_frame
+	var at := player.global_position
+	var reset := func(b: Scav) -> void:
+		b._set_state(Scav.State.IDLE)
+		if b is PmcAI:
+			(b as PmcAI)._watch_left = 0.0
+			(b as PmcAI)._step_age = INF
+			(b as PmcAI)._step_dist = INF
+	bot.curious = true
+	bot.plan = PmcAI.Plan.HOLD
+	bot._step_trait = 1.0   # (no character trait on its ears here)
+	bot.hear_noise(at, 10.0)
+	scav.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE,
+		"a walking step 18 m off: a bot hears it (20 m), a scav doesn't (10 m, unchanged)")
+	_check(bot._alarmed and is_equal_approx(bot._look_at_sound_left, PmcAI.TURN_LOOK), "a bot turns to it at once and jogs over")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 22)
+	bot.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.IDLE, "a walking step 22 m off: not heard")
+	bot.global_position = Vector3(0, 0.1, 2.5)
+	bot.hear_noise(at, 1.5)
+	_check(bot.state == Scav.State.INVESTIGATE, "crouch-walking 2.5 m off: heard (3 m)")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 1.0)
+	bot.hear_noise(at, 0.6)
+	_check(bot.state == Scav.State.IDLE, "prone right next to it: silent")
+	bot.global_position = Vector3(0, 0.1, 8.0)
+	bot.hear_player_noise(at, Network.QUIET_NOISES[Network.NOISE_RELOAD])
+	_check(bot.state == Scav.State.INVESTIGATE, "a reload 8 m off: heard (10 m)")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 12.0)
+	bot.hear_player_noise(at, Network.QUIET_NOISES[Network.NOISE_RELOAD])
+	_check(bot.state == Scav.State.IDLE, "a reload 12 m off: not heard")
+	# (the test map is walled in at ~41 m: a suppressed AK, noise 17.5, carries ~44 m to a bot now, ~20 m before)
+	bot.global_position = at + Vector3(0, 0.1, 38.0)
+	bot.hear_noise(at, 35.0 * 0.5, true)
+	_check(bot.state == Scav.State.INVESTIGATE, "a suppressed AK 38 m off: a curious bot goes to look (was heard to ~20 m)")
+	reset.call(bot)
+	bot.hear_noise(at, 12.0, true)
+	_check(bot.state == Scav.State.IDLE, "a quieter shot (30 m reach) 38 m off: not heard")
+	reset.call(bot)
+	bot.curious = false
+	bot.global_position = Vector3(0, 0.1, 40.0)
+	bot.hear_noise(at, 35.0, true)
+	_check(bot._watch_left > 0.0 and bot.state in [Scav.State.INVESTIGATE, Scav.State.SEARCH],
+		"an AK shot 40 m off: a cautious bot takes cover and watches that way")
+	reset.call(bot)
+	bot.curious = true
+	bot.global_position = Vector3(0, 0.1, 18.0)
+	bot.hear_noise(at, 10.0)
+	reset.call(bot)
+	bot._step_age = 0.5
+	bot._step_dist = 18.0
+	bot.global_position = Vector3(0, 0.1, 15.0)
+	bot.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.SEARCH and bot._watch_left > 0.0 and bot._look_after,
+		"steps coming its way: it stops and watches, then goes to look")
+	# (turned away from the noise first)
+	bot.look_at(bot.global_position + Vector3(0, 0, 1), Vector3.UP)
+	for f in 30:
+		await physics_frame
+	var facing := Vector3(-bot.global_basis.z.x, 0, -bot.global_basis.z.z).normalized()
+	var to_sound := Vector3(bot._watch_at.x - bot.global_position.x, 0, bot._watch_at.z - bot.global_position.z).normalized()
+	_check(bot.state in [Scav.State.SEARCH, Scav.State.ALERT, Scav.State.ENGAGE] and (bot.state != Scav.State.SEARCH or facing.dot(to_sound) > 0.9),
+		"half a second later it's facing the noise (dot %.2f) or has spotted the player" % facing.dot(to_sound))
+	reset.call(bot)
+	# A noise with no player at it (another AI's) is heard as before: 1.5x (x its trait), so a 10 m step from 19 m isn't.
+	bot.global_position = Vector3(0, 0.1, 13.0)
+	bot.hear_noise(Vector3(0, 0.1, 32.0), 10.0)
+	_check(bot.state == Scav.State.IDLE, "another AI's step 19 m off: heard as before (not at all)")
+	# Shot at (0.39.21, owner: "suppression + hide"): a player's bullet within 5 m pins a bot down (worse aim for 3 s);
+	# a scav still only notices one within 2.5 m.
+	var aim_before := bot.hit_chance(20.0)
+	bot.notice_near_miss(at)
+	_check(bot.near_miss_radius == 5.0 and scav.near_miss_radius == 2.5 and bot._suppressed_left > 0.0
+		and is_equal_approx(bot.hit_chance(20.0), aim_before * PmcAI.SUPPRESSED_AIM),
+		"a near miss pins a bot down: its hit chance x%.1f (scavs notice misses within 2.5 m, bots 5 m)" % PmcAI.SUPPRESSED_AIM)
+	bot._suppressed_left = 0.0
+	_check(is_equal_approx(bot.hit_chance(20.0), aim_before), "not pinned: its aim is back")
+	# In a fight in the open with a wall close by, a near miss sends it into cover.
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	wall_shape.shape = BoxShape3D.new()
+	(wall_shape.shape as BoxShape3D).size = Vector3(4.0, 3.0, 0.4)
+	wall.add_child(wall_shape)
+	main.add_child(wall)
+	wall.global_position = at + Vector3(4.0, 1.5, 12.0)
+	bot.global_position = at + Vector3(0, 0.1, 12.0)
+	_face_player(bot)
+	await physics_frame
+	bot._target = player
+	bot._last_seen = at
+	bot._set_state(Scav.State.ENGAGE)
+	bot._cover_cooldown_left = 0.0
+	for f in 3:
+		await physics_frame
+	bot.notice_near_miss(at)
+	for f in 3:
+		await physics_frame
+	_check(bot._cover_phase != Scav.Cover.NONE, "a near miss mid-fight: it heads for cover (phase %d)" % bot._cover_phase)
+	wall.queue_free()
+	bot.free()
+	scav.free()
+	Scav.lod_enabled = true
 
 
 func _section_pmc_plan() -> void:

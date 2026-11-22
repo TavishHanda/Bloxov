@@ -262,7 +262,15 @@ func set_door(id: String, state: int) -> void:
 		return
 	var door := raid.get_node_or_null("Doors/" + id)
 	if door != null and door.has_method("set_state"):
+		var was: int = door.get("state")
 		door.call("set_state", clampi(state, -1, 1))
+		if int(door.get("state")) != was:
+			quiet_noise((door as Node3D).global_position, Network.QUIET_NOISES[Network.NOISE_DOOR])
+
+
+## A player's quieter noise (0.39.21: a reload, a heal, a door) that only this raid's AI PMCs hear, `reach` m at most.
+func quiet_noise(pos: Vector3, reach: float) -> void:
+	RaidScope.call_all(raid, &"pmc_bots", &"hear_player_noise", [pos, reach])
 
 
 ## A player threw a grenade: this raid's copy flies and does the damage (to the AI, and to players through their
