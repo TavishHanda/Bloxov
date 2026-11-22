@@ -719,6 +719,10 @@ class Tunnel:
         # (0.38.1: the garage starts off to one side of the hall's middle) the hall only makes way for it, and its
         # mouth only cuts the hall's wall, past `cut` along it; None = 0 (from the middle) and a0 - 6 as before
         self.cut = None
+        # (0.39.13) hall rock from `snap` up to `cut` along it that bulges in past the tunnel's sides is pushed out
+        # 1 m past them (so it still clears the arch where the hall leans in overhead) and laid flat (the garage: the rock east of its mouth stood inside its width and left a slot you could
+        # see the void through, owner 2026-11-22); None = off
+        self.snap = None
 
     def off(self, a):
         """How far the floor sits below the hall's at a: the floor slopes evenly from -drop at a0 up to 0 at a1."""
@@ -869,7 +873,7 @@ def dome(ctx, outline, C, profile, mats, amp=0.0, holes=(), seed="dome", tunnels
             push = amp * min(1.0, y / 1.2) * (n - inward) * max(f, 0.3)
             for t in tunnels:                                          # the rock sits flush round a tunnel's frame
                 u, a = t.local((x, 0.0, z))
-                if a > (t.cut or 0.0) and abs(u) < t.hw + 5.0:
+                if a > (t.cut or 0.0 if t.snap is None else t.snap) and abs(u) < t.hw + 5.0:
                     push *= min(1.0, max(0.0, (abs(u) - t.hw - 2.0) / 3.0))
             ring.append((C[0] + dx * f + dx / ln * push, y, C[1] + dz * f + dz / ln * push))
         grid.append(ring)
@@ -1138,6 +1142,7 @@ def post_layout(rock=False):
     g = Tunnel("garage", (GARAGE_X, 0.0), (0.0, -1.0), GARAGE_A0, GARAGE_A1, GARAGE_HW, 3.2, 5.4, GARAGE_LIP, concrete,
                ribs=("bk_old", 4.6, 0.3))
     g.cut = GARAGE_A0 - GARAGE_LIP - 0.6
+    g.snap = 6.0
     L.tunnels.append(g)
     L.hang = hangout_layout(L.tunnels[2]) if rock else None
     # the circle, with a straight chord across each tunnel's mouth (corners every half metre)
@@ -1146,6 +1151,14 @@ def post_layout(rock=False):
         a = 2 * math.pi * k / (96 if not rock else 120)
         p = (radius(a) * math.cos(a), radius(a) * math.sin(a))
         if not any(abs(t.local((p[0], 0, p[1]))[0]) < t.hw + 0.3 and t.local((p[0], 0, p[1]))[1] > (t.cut or 0.0) for t in L.tunnels):
+            for t in L.tunnels:                                        # (0.39.13: rock bulging into a tunnel's width)
+                u, a_ = t.local((p[0], 0, p[1]))
+                if t.snap is not None and abs(u) < t.hw + 0.3 and t.snap < a_:
+                    q = t.P(math.copysign(t.hw + 1.0, u), 0, a_)
+                    p = (q[0], q[2])
+                    edge = t.P(math.copysign(t.hw + 1.0, u), 0, t.a0 - t.lip + 0.3)   # meets the mouth's frame
+                    if (edge[0], edge[2]) not in pts:
+                        pts.append((edge[0], edge[2]))
             pts.append(p)
     for t in L.tunnels:
         n = int(round(t.hw * 2 / 0.5))
@@ -1189,9 +1202,34 @@ def post_layout(rock=False):
     # (0.28.3: none behind the pillar at 225 degrees any more, so you can get round it)
     L.sandbags = [(at(2.0, a - 8), at(2.0, a + 8)) for a in ((135,) if rock else (45, 135, 225))]
     # (0.38.1: none at 330 degrees any more, where the garage's mouth is)
-    L.duffels = [at(1.4, a) + (n,) for a, n in ((30, 4), (62, 5), (150, 3), (205, 5), (240, 4))]
+    # (0.39.13, owner 2026-11-22 "make sure nothing is stuck in walls": the tunnel mouths' concrete frames stand 2.4 m
+    # out beside each mouth, and most of the heaps round the wall had ended up inside them, out of sight; each one
+    # now slides along the wall from its angle to the nearest spot clear of the frames, the pillars and each other)
+    taken = [((a[0] + c[0]) / 2, (a[1] + c[1]) / 2, 1.6) for a, c in L.sandbags]
+
+    def clear_at(r, deg, size):
+        for k in range(0, 41):
+            for d in ((deg + k, deg - k) if k else (deg,)):
+                p = at(r, d)
+                if any(abs(t.local((p[0], 0, p[1]))[0]) < t.hw + 2.4 + size
+                       and t.local((p[0], 0, p[1]))[1] > t.a0 - t.lip - 1.5 - size for t in L.tunnels):
+                    continue
+                if any(math.hypot(p[0] - q[0], p[1] - q[1]) < q[2] + size + 1.6 for q in L.pillars):
+                    continue
+                if any(math.hypot(p[0] - q[0], p[1] - q[1]) < q[2] + size + 0.2 for q in taken):
+                    continue
+                taken.append((p[0], p[1], size))
+                return p
+        return None                    # (no room left: that heap goes)
+    # (the lamp that was at 330 degrees lights the garage's mouth from the nook beside it, out of the way in)
+    garage_nook = (GARAGE_X + GARAGE_HW + 0.5, -7.8)
+    taken.append(garage_nook + (0.4,))
+    lamps = [clear_at(2.0, 70, 0.4), clear_at(2.0, 150, 0.4), clear_at(2.5, 250, 0.4), garage_nook] if rock else []
+    L.crates = [clear_at(2.6, 115, 1.3), clear_at(2.6, 290, 1.3)] if rock else [at(2.6, 115), at(2.6, 290)]
+    L.crates = [c for c in L.crates if c] + [(28.9, -2.4)]   # (0.39.13: 0.5 m off the armory's end: its drum was in it)
+    L.duffels = [clear_at(1.4, a, 1.1) if rock else at(1.4, a) for a in (30, 62, 150, 205, 240)]
+    L.duffels = [d + (n,) for d, n in zip(L.duffels, (4, 5, 3, 5, 4)) if d]
     L.duffels += [(29.6, 3.0, 4)]                                       # (0.36.39: the market's far end is the gym now)
-    L.crates = [at(2.6, 115), at(2.6, 290), (29.4, -2.4)]
     L.gym = (-40.0, 5.0)                                                # the market's end wall (x) and its half width
     L.generator = (GARAGE_X + GARAGE_HW - 1.0, -18.0)                  # (0.38.1: in the garage, was out in the hall)
     L.keep_clear = []
@@ -1207,8 +1245,7 @@ def post_layout(rock=False):
     L.work_lamps = [(2.8, -4.6, 1.1, 3.2), (-33.9, 4.3, 0.9, 3.0), (29.0, 3.0, 1.0, 3.0), (5.0, 8.5, 0.9, 3.0),
                     (GARAGE_X + GARAGE_HW - 0.6, -22.5, 1.1, 3.4), (GARAGE_X - GARAGE_HW + 0.6, -34.0, 1.1, 3.4)]
     if rock:
-        L.work_lamps += [at(2.0, 70) + (1.0, 3.2), at(2.0, 150) + (1.0, 3.2), at(2.5, 250) + (1.0, 3.2),
-                         at(2.0, 330) + (1.0, 3.2), (3.0, 15.5, 0.9, 3.2)]
+        L.work_lamps += [p + (1.0, 3.2) for p in lamps if p] + [(3.0, 15.5, 0.9, 3.2)]
     return L
 
 
@@ -1734,9 +1771,10 @@ def garage(ctx):
     drum(b, x0 + 1.15, end + 0.9, mat="shed_metal")
     block(x0 + 0.85, 0.0, end + 0.95, 1.3, 0.95, 0.7)
     for k in range(4):
-        b.box((x0 + 0.5, 0.12 + k * 0.25, -30.5), (0.85, 0.24, 0.85), yaw=k * 11.0, style=mb._solid("black"))
-        b.box((x0 + 0.5, 0.12 + k * 0.25, -30.5), (0.4, 0.25, 0.4), yaw=k * 11.0, style=mb._solid("steel_light"))
-    block(x0 + 0.5, 0.0, -30.5, 0.9, 1.0, 0.9)
+        # (0.39.13: 0.65 in from the wall, not 0.5: the turned ones poked into it)
+        b.box((x0 + 0.65, 0.12 + k * 0.25, -30.5), (0.85, 0.24, 0.85), yaw=k * 11.0, style=mb._solid("black"))
+        b.box((x0 + 0.65, 0.12 + k * 0.25, -30.5), (0.4, 0.25, 0.4), yaw=k * 11.0, style=mb._solid("steel_light"))
+    block(x0 + 0.65, 0.0, -30.5, 0.9, 1.0, 0.9)
     tx, tz = x1 - 0.5, -29.0                                           # the toolbench: a steel top on legs, a vice
     b.box((tx, 0.9, tz), (0.8, 0.08, 2.2), style=mb._solid("bk_iron"))
     for dz in (-1.0, 1.0):
