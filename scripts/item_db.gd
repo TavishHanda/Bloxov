@@ -34,13 +34,13 @@ const ITEMS := {
 	"sniper_ammo": {"name": "Lancer Rounds", "desc": "Long rounds for the Lancer. Loaded when you reload.", "short": "Lancer", "kind": "ammo", "rarity": "uncommon", "w": 1, "h": 1, "stack": 30, "value": 75},
 	"ak": {"name": "Hound", "desc": "Old army rifle, full auto. Hits hard, kicks harder.", "short": "Hound", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 2, "stack": 1, "value": 12500, "durability": 1200,
 		"model": "rifle", "ammo": "rifle_ammo", "auto": true, "damage": 28, "head": 2.0, "rpm": 600, "mag": 30, "reload": 1.6,
-		"spread": 0.15, "hip_spread": 0.68, "move_spread": 1.5, "ads_time": 0.28, "ads_fov": 55.0,
-		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.2, "recoil_yaw": 0.45, "noise": 35.0,
+		"spread": 0.17, "hip_spread": 0.68, "move_spread": 1.5, "ads_time": 0.28, "ads_fov": 55.0,
+		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.35, "recoil_yaw": 0.45, "noise": 35.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"reaper": {"name": "Reaper", "desc": "Site Zero's own rifle. Takes Hound rounds, shoots straighter and faster. Only Raijin carries one.", "short": "Reaper", "kind": "weapon", "slot": "primary", "rarity": "epic", "w": 4, "h": 2, "stack": 1, "value": 30000, "durability": 1500,
 		"model": "reaper", "ammo": "rifle_ammo", "auto": true, "damage": 30, "head": 2.0, "rpm": 650, "mag": 30, "reload": 1.6,
 		"spread": 0.12, "hip_spread": 0.68, "move_spread": 1.5, "ads_time": 0.28, "ads_fov": 55.0,
-		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.0, "recoil_yaw": 0.38, "noise": 35.0,
+		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.15, "recoil_yaw": 0.42, "noise": 35.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"pistol": {"name": "Stinger", "desc": "Small sidearm. Quick to aim, one shot per click.", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 3000, "durability": 800,
 		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 17, "head": 2.5, "rpm": 360, "mag": 12, "reload": 1.2,
@@ -55,7 +55,7 @@ const ITEMS := {
 	"smg": {"name": "Wasp", "desc": "Small and fast. Sprays at close range, weak far away.", "short": "Wasp", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 10000, "durability": 1500,
 		"model": "smg", "ammo": "smg_ammo", "auto": true, "damage": 20, "head": 2.0, "rpm": 900, "mag": 25, "mag_ext": 35, "reload": 1.4,
 		"spread": 0.25, "hip_spread": 0.45, "move_spread": 0.9, "ads_time": 0.2, "ads_fov": 62.0,
-		"bloom": 0.1, "max_bloom": 1.3, "recoil": 0.7, "recoil_yaw": 0.4, "noise": 28.0, "falloff": [25.0, 50.0, 0.7], "flash": 0.8, "shot_db": -6.0,
+		"bloom": 0.1, "max_bloom": 1.3, "recoil": 0.9, "recoil_yaw": 0.4, "noise": 28.0, "falloff": [20.0, 50.0, 0.7], "flash": 0.8, "shot_db": -6.0,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"shotgun": {"name": "Mauler", "desc": "Pump shotgun. Deadly up close, useless far away. Loads one shell at a time.", "short": "Mauler", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 1, "stack": 1, "value": 11000, "durability": 300,
 		"model": "shotgun", "ammo": "shells", "auto": false, "damage": 14, "head": 1.5, "rpm": 70, "mag": 6, "reload": 0.45, "load_one": true, "cycle": "pump",
@@ -77,35 +77,55 @@ const ITEMS := {
 	"hornet": {"name": "Hornet", "desc": "Heavier SMG. Fires slower than the Wasp but hits harder and holds up farther out.", "short": "Hornet", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 3, "h": 2, "stack": 1, "value": 14000, "durability": 1400,
 		"model": "hornet", "ammo": "smg_ammo", "auto": true, "damage": 24, "head": 2.0, "rpm": 700, "mag": 30, "mag_ext": 40, "reload": 1.5,
 		"spread": 0.22, "hip_spread": 0.48, "move_spread": 1.0, "ads_time": 0.22, "ads_fov": 60.0,
-		"bloom": 0.11, "max_bloom": 1.3, "recoil": 0.85, "recoil_yaw": 0.42, "noise": 30.0, "falloff": [30.0, 60.0, 0.75], "flash": 0.9, "shot_db": -5.0, "shot_pitch": 0.88,
+		"bloom": 0.11, "max_bloom": 1.3, "recoil": 1.15, "recoil_yaw": 0.5, "noise": 30.0, "falloff": [25.0, 50.0, 0.75], "flash": 0.9, "shot_db": -5.0, "shot_pitch": 0.88,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"brawler": {"name": "Brawler", "desc": "Semi-auto shotgun. No pump: it fires as fast as you click. Wider spread than the Mauler.", "short": "Brawler", "kind": "weapon", "slot": "primary", "rarity": "uncommon", "w": 4, "h": 1, "stack": 1, "value": 15000, "durability": 350,
-		"model": "brawler", "ammo": "shells", "auto": false, "damage": 12, "head": 1.5, "rpm": 150, "mag": 8, "reload": 0.45, "load_one": true,
-		"pellets": 8, "pellet_spread": 3.6, "spread": 0.3, "hip_spread": 0.6, "move_spread": 1.2, "ads_time": 0.3, "ads_fov": 62.0,
+		"model": "brawler", "ammo": "shells", "auto": false, "damage": 12, "head": 1.5, "rpm": 120, "mag": 8, "reload": 0.45, "load_one": true,
+		"pellets": 8, "pellet_spread": 4.0, "spread": 0.3, "hip_spread": 0.6, "move_spread": 1.2, "ads_time": 0.3, "ads_fov": 62.0,
 		"bloom": 0.0, "max_bloom": 0.0, "recoil": 3.5, "recoil_yaw": 0.7, "noise": 40.0, "falloff": [12.0, 30.0, 0.4], "flash": 1.5, "shot_db": -1.5, "shot_pitch": 1.08,
 		"slots": ["barrel", "grip", "sight"]},
-	"talon": {"name": "Talon", "desc": "Semi-auto marksman rifle. Weaker shots than the Lancer, but ten of them, fast.", "short": "Talon", "kind": "weapon", "slot": "primary", "rarity": "rare", "w": 5, "h": 1, "stack": 1, "value": 26000, "durability": 400,
-		"model": "talon", "ammo": "sniper_ammo", "auto": false, "damage": 55, "head": 2.0, "rpm": 150, "mag": 10, "reload": 2.2,
+	"talon": {"name": "Talon", "desc": "Semi-auto marksman rifle. Weaker shots than the Lancer (three to the body, no one-shot heads), but ten of them.", "short": "Talon", "kind": "weapon", "slot": "primary", "rarity": "rare", "w": 5, "h": 1, "stack": 1, "value": 26000, "durability": 400,
+		"model": "talon", "ammo": "sniper_ammo", "auto": false, "damage": 45, "head": 2.0, "rpm": 120, "mag": 10, "reload": 2.2,
 		"spread": 0.06, "hip_spread": 2.0, "move_spread": 2.4, "ads_time": 0.34, "ads_fov": 50.0,
-		"bloom": 0.25, "max_bloom": 1.0, "recoil": 2.6, "recoil_yaw": 0.4, "noise": 55.0, "flash": 1.2, "shot_db": -2.0, "shot_pitch": 1.1,
+		"bloom": 0.25, "max_bloom": 1.0, "recoil": 3.0, "recoil_yaw": 0.4, "noise": 55.0, "flash": 1.2, "shot_db": -2.0, "shot_pitch": 1.1,
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	# Attachments (0.15.1, owner's plan): each goes in one slot type of a gun ("slots" on the gun) and its "mult"
 	# stats multiply the gun's (ItemDB.weapon_stats). "fits" (optional) limits it to those guns. "reticle": what you
 	# see through it when aimed ("dot": a red dot; "scope": the view through a scope, the gun out of sight).
 	"red_dot": {"name": "Red Dot", "desc": "Small sight with a red dot. Quicker to aim, a little more zoom.", "kind": "attachment", "rarity": "uncommon",
-		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["sight", "scope"], "mult": {"ads_time": 0.85, "ads_fov": 0.92}, "reticle": "dot"},
+		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["sight", "scope"], "mult": {"ads_time": 0.9, "ads_fov": 0.92}, "reticle": "dot", "tier": 1},
 	"scope_4x": {"name": "4x Scope", "short": "4x", "desc": "Brings far targets close. Slower to aim.", "kind": "attachment", "rarity": "rare",
 		"w": 2, "h": 1, "stack": 1, "value": 1500, "slots": ["scope"], "mult": {"ads_time": 1.2}, "set": {"ads_fov": 30.0}, "reticle": "scope"},
 	"scope_8x": {"name": "8x Scope", "short": "8x", "desc": "A sniper's scope. Huge zoom, slow to aim.", "kind": "attachment", "rarity": "epic",
 		"w": 2, "h": 1, "stack": 1, "value": 3000, "slots": ["scope"], "fits": ["sniper"], "mult": {"ads_time": 1.3}, "set": {"ads_fov": 14.0}, "reticle": "scope"},
 	"suppressor": {"name": "Suppressor", "short": "Supp", "desc": "Your shots are heard half as far. A little less kick.", "kind": "attachment", "rarity": "rare",
-		"w": 2, "h": 1, "stack": 1, "value": 1800, "slots": ["barrel"], "fits": ["pistol", "viper", "ak", "reaper", "smg", "hornet", "sniper", "talon"], "mult": {"noise": 0.5, "recoil": 0.9, "recoil_yaw": 0.9}},
+		"w": 2, "h": 1, "stack": 1, "value": 1800, "slots": ["barrel"], "fits": ["pistol", "viper", "ak", "reaper", "smg", "hornet", "sniper", "talon"], "mult": {"noise": 0.5, "recoil": 0.95, "recoil_yaw": 0.95}, "quiet": true, "tier": 2},
 	"choke": {"name": "Choke", "desc": "Shotgun muzzle. Keeps the pellets tighter.", "kind": "attachment", "rarity": "uncommon",
-		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun", "brawler"], "mult": {"pellet_spread": 0.85}},
+		"w": 1, "h": 1, "stack": 1, "value": 700, "slots": ["barrel"], "fits": ["shotgun", "brawler"], "mult": {"pellet_spread": 0.85}, "tier": 2},
 	"foregrip": {"name": "Foregrip", "short": "Grip", "desc": "Something to hold on to. Less kick.", "kind": "attachment", "rarity": "uncommon",
-		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.8, "recoil_yaw": 0.8}},
+		"w": 1, "h": 1, "stack": 1, "value": 800, "slots": ["grip"], "mult": {"recoil": 0.82, "recoil_yaw": 0.82}, "tier": 2},
 	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds more rounds. Slower to reload.", "kind": "attachment", "rarity": "rare",
-		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}},
+		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}, "tier": 2},
+	# Attachment tiers (0.40.0, owner 2026-11-22: bare guns are mid, attachments make them better, tiers for choice).
+	# "tier": 1 basic (Ponta level 1, easy to find), 2 good (the first attachments), 3 best (Ponta level 3 or found:
+	# Raiders, bosses, the bunker, Site Zero). Attachments change handling only, never damage or fire rate.
+	# "look": the attachment whose model it uses, "finish": its colour on that model (GunViewModels.dress).
+	"taped_grip": {"name": "Taped Grip", "short": "Tape Grp", "desc": "A block of wood taped under the barrel. A little less kick.", "kind": "attachment", "rarity": "common",
+		"w": 1, "h": 1, "stack": 1, "value": 400, "slots": ["grip"], "mult": {"recoil": 0.9, "recoil_yaw": 0.9}, "tier": 1, "look": "foregrip", "finish": "basic"},
+	"tactical_grip": {"name": "Tactical Grip", "short": "Tac Grip", "desc": "The best grip there is. Much less kick, a little quicker to aim.", "kind": "attachment", "rarity": "epic",
+		"w": 1, "h": 1, "stack": 1, "value": 2500, "slots": ["grip"], "mult": {"recoil": 0.75, "recoil_yaw": 0.75, "ads_time": 0.95}, "tier": 3, "look": "foregrip", "finish": "best"},
+	"muzzle_brake": {"name": "Muzzle Brake", "short": "Brake", "desc": "Vents the blast sideways. Less kick, but your shots are louder.", "kind": "attachment", "rarity": "common",
+		"w": 1, "h": 1, "stack": 1, "value": 600, "slots": ["barrel"], "fits": ["pistol", "viper", "ak", "reaper", "smg", "hornet", "sniper", "talon"], "mult": {"recoil": 0.92, "recoil_yaw": 0.92, "noise": 1.15}, "tier": 1, "look": "choke", "finish": "basic"},
+	"heavy_suppressor": {"name": "Heavy Suppressor", "short": "Hv Supp", "desc": "Long, fat and quiet. Heard less than half as far, less kick, a little slower to aim.", "kind": "attachment", "rarity": "epic",
+		"w": 2, "h": 1, "stack": 1, "value": 4000, "slots": ["barrel"], "fits": ["pistol", "viper", "ak", "reaper", "smg", "hornet", "sniper", "talon"], "mult": {"noise": 0.4, "recoil": 0.88, "recoil_yaw": 0.88, "ads_time": 1.05}, "quiet": true, "tier": 3, "look": "suppressor", "finish": "best"},
+	"full_choke": {"name": "Full Choke", "short": "Full Chk", "desc": "The tightest shotgun muzzle. Pellets stay together much farther.", "kind": "attachment", "rarity": "epic",
+		"w": 1, "h": 1, "stack": 1, "value": 2000, "slots": ["barrel"], "fits": ["shotgun", "brawler"], "mult": {"pellet_spread": 0.75}, "tier": 3, "look": "choke", "finish": "best"},
+	"holo_sight": {"name": "Holo Sight", "short": "Holo", "desc": "A better sight. Quicker to aim than a red dot, and steadier aimed.", "kind": "attachment", "rarity": "uncommon",
+		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["sight", "scope"], "mult": {"ads_time": 0.85, "ads_fov": 0.92, "spread": 0.95}, "reticle": "dot", "tier": 2, "look": "red_dot", "finish": "good"},
+	"fast_mag": {"name": "Fast Mag", "short": "Fast Mag", "desc": "A mag with a pull tab. Same size, 15% quicker to reload.", "kind": "attachment", "rarity": "common",
+		"w": 1, "h": 1, "stack": 1, "value": 500, "slots": ["mag"], "mult": {"reload": 0.85}, "tier": 1},
+	"drum_mag": {"name": "Drum Mag", "short": "Drum", "desc": "Twice the rounds. Heavy: slower to reload and to aim.", "kind": "attachment", "rarity": "epic",
+		"w": 2, "h": 2, "stack": 1, "value": 3000, "slots": ["mag"], "mult": {"mag": 2.0, "reload": 1.25, "ads_time": 1.1}, "tier": 3},
 	"armor_light": {"name": "Light Armor", "desc": "Soft vest. Takes the edge off a hit.", "short": "Lt Armor", "kind": "armor", "rarity": "uncommon", "w": 3, "h": 3, "stack": 1, "value": 7500, "durability": 60, "reduction": 0.2},
 	"armor_heavy": {"name": "Heavy Armor", "desc": "Plated vest. Stops a lot.", "short": "Hv Armor", "kind": "armor", "rarity": "rare", "w": 3, "h": 3, "stack": 1, "value": 20000, "durability": 120, "reduction": 0.4},
 	"armor_assault": {"name": "Assault Armor", "desc": "Site Zero plate carrier. The best armor there is. Only off Raijin.", "short": "As Armor", "kind": "armor", "rarity": "epic", "w": 3, "h": 3, "stack": 1, "value": 35000, "durability": 150, "reduction": 0.5, "special": true},
@@ -188,8 +208,8 @@ const LOOT_TABLES := {
 	# AI PMC bodies (0.36.4): their 1-3 rolled items (the gun, backpack, rounds and meds come from their kit). 0.36.7
 	# (owner approved: bodies can hold good loot): the Raider table's weights without the medium backpack (that
 	# comes from the kit's own roll), so it has the rare and epic entries, grenades and attachments.
-	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
-	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
@@ -228,7 +248,7 @@ const SPECIAL_FINDS := {
 const PLACE_BOOST := 3
 const PLACE_LOOT := {
 	"Waterfall": {"gold_bar": 8, "diamond_ring": 5, "crystal": 3, "epic": 10, "legendary": 10},   # the hidden room's safes
-	"Bunker": {"sniper": 6, "sniper_ammo": 10, "scope_4x": 6, "scope_8x": 3, "suppressor": 5, "ext_mag": 5, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
+	"Bunker": {"sniper": 6, "sniper_ammo": 10, "scope_4x": 6, "scope_8x": 3, "suppressor": 5, "ext_mag": 5, "tactical_grip": 3, "heavy_suppressor": 3, "drum_mag": 3, "full_choke": 2, "gunpowder": 8, "exion_medal": 6, "gpu": 3, "med_supplies": 6, "intel_exion": 12, "grenade": 8, "legendary": 25, "epic": 35, "mil_chip": 10, "armor_heavy": 10, "helmet_good": 8, "ak": 8, "rifle_ammo": 15},
 	"TownHall": {"novarra_badge": 6, "hard_drive": 6, "intel_novarra": 8, "intel_exion": 2, "uncommon": 10},
 	"Bank": {"diamond_ring": 5, "cash": 30, "gold_bar": 12, "gold_watch": 15, "rare": 10},
 	"Offices": {"wires": 10, "cpu": 5, "hard_drive": 8, "gpu": 3, "intel_novarra": 5},
@@ -236,7 +256,7 @@ const PLACE_LOOT := {
 	"BigHouse2": {"cpu": 8, "wires": 8, "gpu": 6, "hard_drive": 10, "laptop": 15, "phone": 25, "battery": 10},          # electronics
 	"BigHouse3": {"vase": 15, "epic": 8},        # antiques
 	"Police": {"shotgun": 10, "shells": 15, "red_dot": 6, "foregrip": 5, "ext_mag": 3, "gunpowder": 4, "novarra_badge": 8, "grenade": 8, "intel_novarra": 4, "armor_light": 15, "armor_heavy": 4, "helmet_basic": 10, "helmet_good": 3, "pistol": 15, "pistol_ammo": 20},
-	"GunStore": {"smg": 10, "shotgun": 10, "sniper": 4, "smg_ammo": 20, "shells": 20, "sniper_ammo": 10, "red_dot": 10, "scope_4x": 6, "scope_8x": 2, "suppressor": 5, "choke": 6, "foregrip": 8, "ext_mag": 6, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
+	"GunStore": {"smg": 10, "shotgun": 10, "sniper": 4, "smg_ammo": 20, "shells": 20, "sniper_ammo": 10, "red_dot": 10, "scope_4x": 6, "scope_8x": 2, "suppressor": 5, "choke": 6, "foregrip": 8, "ext_mag": 6, "taped_grip": 8, "muzzle_brake": 6, "fast_mag": 6, "holo_sight": 4, "gunpowder": 15, "ak": 12, "pistol": 15, "rifle_ammo": 30, "pistol_ammo": 25},
 	"Pharmacy": {"med_supplies": 25, "bandage": 45, "medkit": 25},
 	"Grocery": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
 	"Diner": {"energy_drink": 15, "beans": 30, "water": 30, "ration": 10},
@@ -263,7 +283,7 @@ const PLACE_LOOT := {
 	"EngineRoom": {"bolts": 15, "wires": 10, "fuel_can": 12},
 	"Workshop": {"bolts": 15, "wires": 10, "gunpowder": 6, "impound_key": 1},
 	"LabWing": {"med_supplies": 15, "medkit": 10, "intel_exion": 12, "mil_chip": 8, "hard_drive": 8, "gpu": 4, "cpu": 6, "epic": 10},
-	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5,
+	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5, "tactical_grip": 3, "heavy_suppressor": 3, "drum_mag": 3,
 		"talon": 1},   # (0.38.1, owner: the only place a Talon turns up in a raid, about 1 raid in 20)
 }
 
@@ -352,6 +372,16 @@ static func weapon_stats(stack: ItemStack) -> Dictionary:
 		stats["mag"] = stats["mag_ext"]
 	stats["mag"] = roundi(float(stats["mag"]))
 	return stats
+
+
+## A suppressor of any tier (0.40.0): a quiet shot (AI hear it less far, "quiet" kill quests).
+static func is_suppressor(id: String) -> bool:
+	return bool(ITEMS.get(id, {}).get("quiet", false))
+
+
+## Whether weapon `stack` has a suppressor of any tier on it.
+static func has_suppressor(stack: ItemStack) -> bool:
+	return stack != null and stack.attachments.values().any(is_suppressor)
 
 
 ## Attachment slots on a weapon ("scope", "sight", "barrel", "grip", "mag"); none for anything else.

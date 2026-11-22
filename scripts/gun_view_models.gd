@@ -152,14 +152,17 @@ static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_re
 	muzzle.position = muzzle_rest
 	var mag := art.get_node_or_null("Mag") as Node3D
 	if mag != null:
-		mag.scale = Vector3(1, 1.5 if attachments.values().has("ext_mag") else 1.0, 1)
+		mag.scale = Vector3(1, 1.8 if attachments.values().has("drum_mag") else 1.5 if attachments.values().has("ext_mag") else 1.0, 1)
 	var irons := art.get_node_or_null("Irons") as Node3D
 	if irons != null:   # an optic replaces the iron sights (0.20.20): never both on the gun
 		irons.visible = not (attachments.has("scope") or attachments.has("sight"))
 	var raise := 0.0
 	for slot: String in attachments:
-		var path := "res://assets/models/guns/att_%s.glb" % attachments[slot]
-		var own := "res://assets/models/guns/att_%s_%s.glb" % [attachments[slot], key]   # a gun's own look of it (0.35.18)
+		# (0.40.0: a tiered attachment uses another one's model, "look", in its own colour, "finish")
+		var data: Dictionary = ItemDB.ITEMS.get(attachments[slot], {})
+		var look: String = data.get("look", attachments[slot])
+		var path := "res://assets/models/guns/att_%s.glb" % look
+		var own := "res://assets/models/guns/att_%s_%s.glb" % [look, key]   # a gun's own look of it (0.35.18)
 		if ResourceLoader.exists(own):
 			path = own
 		var mount := art.get_node_or_null({"scope": "Optic", "sight": "Optic", "grip": "Fore"}.get(slot, "Muzzle")) as Node3D
@@ -169,6 +172,8 @@ static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_re
 			_parts[path] = load(path)
 		var part: Node3D = (_parts[path] as PackedScene).instantiate()
 		PixelModel.make_crisp(part)
+		if data.has("finish"):
+			apply_finish(part, data["finish"])
 		for mesh: GeometryInstance3D in part.find_children("*", "GeometryInstance3D", true, false):
 			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(part)
@@ -184,6 +189,33 @@ static func dress(model: Node3D, key: String, attachments: Dictionary, muzzle_re
 	model.set_meta(&"dressed", dressed)
 	model.set_meta(&"raise", raise)
 	return raise
+
+
+## Each attachment tier's finish (0.40.0): basic = worn bare steel, good = olive, best = coyote tan. The models are
+## near black with their colour in a texture, so a finish multiplies the colour (above 1 lightens).
+const FINISHES := {"basic": Color(2.0, 2.05, 2.1), "good": Color(1.5, 1.7, 1.0), "best": Color(3.0, 2.4, 1.5)}
+## Finished copies of materials, kept: material instance id + finish -> material (same shader, only the colour changes).
+static var _finished := {}
+
+
+## Gives every mesh under `root` attachment finish `finish` (FINISHES): its own colours pulled towards the finish's.
+## Also used for the inventory icons (tools/item_models.gd).
+static func apply_finish(root: Node, finish: String) -> void:
+	var tint: Color = FINISHES.get(finish, Color.WHITE)
+	for node in [root] + root.find_children("*", "MeshInstance3D", true, false):
+		var mesh_instance := node as MeshInstance3D
+		if mesh_instance == null or mesh_instance.mesh == null:
+			continue
+		for i in mesh_instance.mesh.get_surface_count():
+			var material := mesh_instance.mesh.surface_get_material(i) as BaseMaterial3D
+			if material == null:
+				continue
+			var cache_key := "%d:%s" % [material.get_instance_id(), finish]
+			if not _finished.has(cache_key):
+				var copy := material.duplicate() as BaseMaterial3D
+				copy.albedo_color = material.albedo_color * tint
+				_finished[cache_key] = copy
+			mesh_instance.set_surface_override_material(i, _finished[cache_key])
 
 
 ## Attachment models loaded so far, kept (0.35.28): loading one again on every switch made new copies of its looks.

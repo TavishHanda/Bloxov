@@ -64,7 +64,7 @@ const NET_GUNS := ["", "ak", "smg", "shotgun", "pistol", "sniper", "reaper", "vi
 const STYLE_OF := {"viper": "pistol", "hornet": "smg", "brawler": "shotgun", "talon": "sniper"}
 
 ## Attachments a dropped gun may come with (ScavBase.drop_part_chance: Raiders, sometimes).
-const DROP_PARTS := ["red_dot", "foregrip", "ext_mag", "suppressor", "scope_4x"]
+const DROP_PARTS := ["red_dot", "foregrip", "ext_mag", "suppressor", "scope_4x", "taped_grip", "muzzle_brake", "fast_mag", "holo_sight"]
 
 
 ## The gun for loadout `name` (a table rolls one; a gun id is that gun).

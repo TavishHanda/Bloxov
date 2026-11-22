@@ -502,7 +502,7 @@ func shoot_once() -> void:
 		Effects.tracer(world, muzzle.global_position, end)
 	_handle_hits(hits, from)
 	if online:
-		Network.main.send_shot(from, dirs, weapon.id, weapon.attachments.values().has("suppressor"))
+		Network.main.send_shot(from, dirs, weapon.id, ItemDB.has_suppressor(weapon))
 	elif Player.practice and Network.main.is_client():
 		# (the hideout's range, 0.39.0: a PvP party mate there sees and hears it, HideoutVisits)
 		Network.main.send_hideout_act("shot", muzzle.global_position, from + dirs[0] * minf(max_range, 150.0), weapon.id)

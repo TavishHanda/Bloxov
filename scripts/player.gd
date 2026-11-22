@@ -223,7 +223,7 @@ func on_hit_landed(target_health: Health, pos: Vector3, normal: Vector3, amount:
 		var victim := target_health.get_parent()
 		if victim != null and victim.scene_file_path != "":
 			var what := victim.scene_file_path.get_file().get_basename()
-			var quiet: bool = weapon != "knife" and gun.weapon != null and gun.weapon.id == weapon and gun.weapon.attachments.values().has("suppressor")
+			var quiet: bool = weapon != "knife" and gun.weapon != null and gun.weapon.id == weapon and ItemDB.has_suppressor(gun.weapon)
 			Quests.record_kill(what, weapon, Quests.kill_tags(global_position, (victim as Node3D).global_position, quiet))
 			killed.emit(what)
 
