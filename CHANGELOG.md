@@ -10,7 +10,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 ## 0.39.14 (AI PMCs fight like players)
 Owner (2026-11-22): AI PMCs are "standing still, not shooting back that much, not taking proper cover (like cover over
 a tree)". They fight with the Raider brain (a duel test against a player gave the same shots and moves as a Raider);
-three of its habits look wrong on a PMC. Fixed for AI PMCs only (scavs, Raiders, snipers and bosses
+three of its habits look wrong on a PMC. Owner OK'd all three fixes (2026-11-22), for AI PMCs only (scavs, Raiders, snipers and bosses
 unchanged: same-seed AI log identical before and after, `tests/ai_same_check.gd`):
 - **Real cover:** a spot only counts when it hides the bot's head and both shoulders (`PmcAI._hides_at`), not one
   line to the middle of its chest (a tree trunk did, with both shoulders showing).
