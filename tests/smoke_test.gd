@@ -11528,8 +11528,15 @@ func _section_free_cam() -> void:
 		Network.main.mode = Network.Mode.CLIENT
 		Network.main.in_raid = true
 		_check(not FreeCam.allowed() and not FreeCam.time_allowed(), "playtest: still not in online (PvP) raids")
+		Network.main.in_raid = false
+		_check(not FreeCam.allowed(), "playtest: not in the hideout while connected either (0.39.12)")
 		Network.main.mode = net_mode
 		Network.main.in_raid = net_in_raid
+		var profile_mode := Profile.mode
+		Profile.mode = Profile.ONLINE
+		_check(not FreeCam.allowed(), "playtest: not on the PvP stash (0.39.12)")
+		Profile.mode = profile_mode
+		_check(FreeCam.allowed(), "playtest: offline PvE still has it")
 	FreeCam.playtest_anywhere = false
 	# Not for scouting (0.31.13): it stays near you, stops at walls and keeps you in sight.
 	var far := cam.blocked_move(head + Vector3(0, 0, 2), head + Vector3(0, 0, 200))
