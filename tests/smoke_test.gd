@@ -1324,11 +1324,11 @@ func _section_items() -> void:
 		grails += grail_box.grid.count_of("holy_grail")
 		grail_box.free()
 	_check(not grail_rolled and grails >= 3 and grails < 40 and ItemDB.value("holy_grail") > ItemDB.value("golden_toilet")
-		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return n.begins_with("Bank_Safe") or n.begins_with("Bunker_Safe"))
+		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return n.begins_with("Bank_Safe") or n.begins_with("Bunker_Safe") or n.begins_with("LabWing_"))
 		and ItemDB.item("golden_toilet").get("special", false) and ItemDB.TABLE_CHANCES["safe"]["golden_toilet"] == 0.03
 		and ItemDB.TABLE_CHANCES["scav"]["backpack_small"] == 0.07
 		and ItemDB.SPECIAL_FINDS["Bank_Safe1"]["holy_grail"] == 0.03 and ItemDB.SPECIAL_FINDS["Bank_Safe2"]["golden_toilet"] == 0.03
-		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return map_text.contains('name="%s"' % n)),
+		and ItemDB.SPECIAL_FINDS.keys().all(func(n: String) -> bool: return n.begins_with("LabWing_") or map_text.contains('name="%s"' % n)),
 		"the Holy Grail: 1%% in bank vault and bunker safes (%d in 1500); golden toilet 3%% of safes; scav backpacks 7%%" % grails)
 	tag_raider.free()
 	tag_boss.free()
@@ -5136,6 +5136,42 @@ func _section_playables() -> void:
 		and Characters.unlock_problem(state, "sable", 400000, {"guns": 3}) == "", "SABLE needs Ponta level 3 and $400,000")
 	_check(Characters.unlock_problem(state, "nine", 9999999, {"guns": 3, "meds": 2, "supplies": 2}) != "",
 		"NINE can't be bought: the Subject 09 files unlock him")
+	# NINE's files (owner 2026-11-21): one each in its Site Zero spot every raid; all three unlock NINE and are used up.
+	var files_placed := true
+	var riptide_text := FileAccess.get_file_as_string("res://scenes/maps/riptide.tscn")
+	for f: String in Characters.FILES:
+		var spots := 0
+		for spot: String in ItemDB.SPECIAL_FINDS:
+			if float(ItemDB.SPECIAL_FINDS[spot].get(f, 0.0)) >= 1.0 and riptide_text.contains('[node name="%s"' % spot):
+				spots += 1
+		files_placed = files_placed and spots == 1 and ItemDB.ITEMS[f].get("special", false) and ItemDB.ITEMS[f].get("quest", false)
+	_check(files_placed, "the three Subject 09 files are each in one Site Zero spot every raid")
+	var two := {"nine_file_1": 1, "nine_file_2": 1}
+	var three := {"nine_file_1": 1, "nine_file_2": 1, "nine_file_3": 1}
+	var file_needs := Characters.requirements(state, "nine", 0, {}, two)
+	_check(Characters.unlock_problem(state, "nine", 0, {}, two).contains("2 of 3") and Characters.unlock_problem(state, "nine", 0, {}, three) == ""
+		and file_needs.size() == 3 and file_needs[0][1] and not file_needs[2][1], "NINE shows each file found or needed, and unlocks with all three")
+	var nine_old := OnlineProfile.fresh()
+	nine_old["characters"] = {"picked": true, "selected": "voss", "unlocked": ["voss"]}
+	var nine_grid := GridInventory.new("Stash", OnlineProfile.STASH_WIDTH, OnlineProfile.STASH_ROWS[0])
+	for f: String in Characters.FILES:
+		nine_grid.add(f, 1)
+	nine_old["stash"] = Profile._write_grid(nine_grid)
+	nine_old = OnlineProfile.clean(JSON.parse_string(JSON.stringify(nine_old)))
+	var nine_new: Dictionary = JSON.parse_string(JSON.stringify(nine_old))
+	var no_files: Dictionary = JSON.parse_string(JSON.stringify(nine_old))
+	for f: String in Characters.FILES:
+		nine_grid.take(f, 1)
+	nine_new["stash"] = Profile._write_grid(nine_grid)
+	nine_new["characters"]["unlocked"] = ["voss", "nine"]
+	nine_new = OnlineProfile.clean(nine_new)
+	var nine_why := OnlineProfile.audit(nine_old, nine_new)
+	var bare := OnlineProfile.clean(JSON.parse_string(JSON.stringify(no_files)))
+	bare["stash"] = Profile._write_grid(nine_grid)
+	var bare_new: Dictionary = JSON.parse_string(JSON.stringify(bare))
+	bare_new["characters"]["unlocked"] = ["voss", "nine"]
+	_check(nine_why == "" and OnlineProfile.audit(OnlineProfile.clean(bare), OnlineProfile.clean(bare_new)) != "",
+		"online, NINE unlocks with the three files (used up), never without them (%s)" % nine_why)
 	# Raids: XP, and Bounty by kind (an AI PMC is a PMC, like a player).
 	var hunter := Characters.fresh()
 	(hunter["unlocked"] as Array).append("sable")

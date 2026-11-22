@@ -61,6 +61,13 @@ static func build(id: String) -> Node3D:
 		"armor_assault": _vest(m, "black", "purple", true)
 		"helmet_assault": _helmet(m, "black", "purple", true)
 		"backpack_raid": _pack(m, Vector3(0.48, 0.54, 0.24), "iron", "purple", true)
+		"nine_file_1", "nine_file_2", "nine_file_3":   # a manila folder with a stamped tab and a "09" mark
+			box(m, Vector3(0.2, 0.26, 0.012), Vector3.ZERO, "tan")
+			box(m, Vector3(0.07, 0.03, 0.012), Vector3(-0.05, 0.14, 0), "tan_dk")
+			box(m, Vector3(0.16, 0.012, 0.004), Vector3(0, 0.07, 0.008), "paper")
+			box(m, Vector3(0.12, 0.012, 0.004), Vector3(-0.02, 0.04, 0.008), "paper")
+			box(m, Vector3(0.08, 0.05, 0.004), Vector3(0.03, -0.06, 0.008), "red", Vector3(0, 0, 12))
+			box(m, Vector3(0.01 * float(id.right(1)), 0.012, 0.004), Vector3(-0.05, -0.1, 0.008), "black")
 		"formula":
 			cyl(m, 0.05, 0.03, Vector3(0, -0.13, 0), "steel_dk")
 			cyl(m, 0.042, 0.2, Vector3(0, -0.015, 0), "cyan")

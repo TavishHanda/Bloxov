@@ -40,6 +40,9 @@ const KIND_OF := {"scav": "scav", "sniper": "scav", "deckhand": "scav", "raider"
 
 ## The two starters: a new player picks one for free; the other unlocks for STARTER_PRICE (owner, 2026-11-20).
 const STARTERS: Array[String] = ["vega", "voss"]
+## NINE's unlock (owner 2026-11-21): the three Subject 09 files, found in Site Zero (ItemDB.SPECIAL_FINDS) and brought
+## out; unlocking NINE uses them up.
+const FILES: Array[String] = ["nine_file_1", "nine_file_2", "nine_file_3"]
 const STARTER_PRICE := 50000
 ## Each character's skins (0.39, looks only, free to change), the first its default. The models' slot options
 ## (PlayableModels, make_character.py) are these names.
@@ -290,13 +293,15 @@ static func skin_or_default(id: String, skin: String) -> String:
 
 
 ## What `id` needs to unlock, each with whether it's met: [[text, met], ...] (shown in full on the CHARACTERS screen).
-static func requirements(state: Dictionary, id: String, money: int, trader_levels: Dictionary) -> Array:
+## `held`: item id -> how many you have (stash and loadout), for NINE's files.
+static func requirements(state: Dictionary, id: String, money: int, trader_levels: Dictionary, held := {}) -> Array:
 	var info: Dictionary = LIST[id]
 	var out := []
 	if not state.get("picked", true) and not STARTERS.has(id):
 		out.append(["Pick VEGA or VOSS first", false])
 	if info.get("files", false):
-		out.append(["Find the 3 Subject 09 files in Site Zero (coming in a later update)", false])
+		for file: String in FILES:
+			out.append(["%s (Site Zero, Riptide)" % ItemDB.display_name(file), int(held.get(file, 0)) > 0])
 		return out
 	var trader := str(info.get("trader", ""))
 	if trader != "":
@@ -318,14 +323,15 @@ static func pick_starter(state: Dictionary, id: String) -> bool:
 
 
 ## Why `id` can't be unlocked now ("" = it can): money on hand and each trader's level.
-static func unlock_problem(state: Dictionary, id: String, money: int, trader_levels: Dictionary) -> String:
+static func unlock_problem(state: Dictionary, id: String, money: int, trader_levels: Dictionary, held := {}) -> String:
 	var info: Dictionary = LIST[id]
 	if (state.get("unlocked", []) as Array).has(id):
 		return "Unlocked"
 	if not state.get("picked", true):
 		return "Pick your first character" if STARTERS.has(id) else "Pick your first character first"
 	if info.get("files", false):
-		return "Find the 3 Subject 09 files in Site Zero (coming in the next update)"
+		var have := FILES.filter(func(file: String) -> bool: return int(held.get(file, 0)) > 0).size()
+		return "" if have == FILES.size() else "Find the 3 Subject 09 files in Site Zero and bring them out (%d of 3)" % have
 	var trader := str(info.get("trader", ""))
 	if trader != "" and int(trader_levels.get(trader, 1)) < int(info["trader_level"]):
 		return "Needs %s level %d" % [Traders.title(trader), int(info["trader_level"])]
@@ -520,11 +526,12 @@ static func steps_of_look(text: String, look_length: int) -> float:
 
 ## The hideout's check of a profile change (OnlineProfile.audit): unlocks paid for and allowed, XP and earned points
 ## untouched (only raids and expeditions move them, on the server), spent points within what was earned, a reset paid.
-## Returns {"error": "" or why, "money": what it cost}.
+## Returns {"error": "" or why, "money": what it cost, "used": items an unlock used up (NINE's files)}.
 static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 	var a := clean(old.get("characters"))
 	var b := clean(new.get("characters"))
 	var cost := 0
+	var used := {}
 	var levels: Dictionary = new.get("trader_levels", {}) if new.get("trader_levels") is Dictionary else {}
 	if a["picked"] and not b["picked"]:
 		return {"error": "first pick undone", "money": 0}
@@ -545,7 +552,9 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 			return {"error": "unlock before the first pick", "money": 0}
 		var info: Dictionary = LIST[id]
 		if info.get("files", false):
-			return {"error": "character %s without its files" % id, "money": 0}
+			for file: String in FILES:   # (the unlock uses them up: the audit counts them as gone, not sold)
+				used[file] = int(used.get(file, 0)) + 1
+			continue
 		var trader := str(info.get("trader", ""))
 		if trader != "" and int(levels.get(trader, 1)) < int(info["trader_level"]):
 			return {"error": "character %s before its trader level" % id, "money": 0}
@@ -566,4 +575,4 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 			cost += RESET_COST
 	if points_spent(b) > points_earned(b):
 		return {"error": "upgrade points overspent", "money": 0}
-	return {"error": "", "money": cost}
+	return {"error": "", "money": cost, "used": used}

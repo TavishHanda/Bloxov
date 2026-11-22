@@ -168,6 +168,11 @@ const ITEMS := {
 	"crystal": {"name": "Rare Crystal", "desc": "Nobody knows where these come from. Everyone wants one.", "short": "Crystal", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 18000},
 	"golden_toilet": {"name": "Golden Toilet", "desc": "Yes, really.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 3, "stack": 1, "value": 50000, "special": true},
 	"holy_grail": {"name": "Holy Grail", "short": "Grail", "desc": "The most valuable thing in Bloxov. Only ever seen in the town hall and the bank vault.", "kind": "valuable", "rarity": "legendary", "w": 2, "h": 2, "stack": 1, "value": 75000, "special": true},
+	# NINE's files (owner 2026-11-21): one each in its spot in Site Zero every raid (SPECIAL_FINDS). Bring all three out
+	# and NINE unlocks for free (Characters.FILES; the unlock uses them up). Traders won't take them ("quest").
+	"nine_file_1": {"name": "Subject 09 File: Intake", "short": "File 1", "desc": "Site Zero intake record, page one of three. Subject 09: Brotherhood conscript, volunteered for the program, memory wiped on arrival. 'Strong, quiet, asks nothing.' Bring all three files out to unlock NINE.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 0, "special": true, "quest": true},
+	"nine_file_2": {"name": "Subject 09 File: Trials", "short": "File 2", "desc": "Trial log, page two of three. Subject 09 ran the ring for six hours without stopping and lifted the gate the guards couldn't. In the margin: 'It has started asking questions.' Bring all three files out to unlock NINE.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 0, "special": true, "quest": true},
+	"nine_file_3": {"name": "Subject 09 File: Escape", "short": "File 3", "desc": "Server log, page three of three. The night of the strike the power failed, cell 09 opened, and the cameras show the subject walking out through the sub bay. Last line: 'Do not pursue. It knows the way.' Bring all three files out to unlock NINE.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 1, "stack": 1, "value": 0, "special": true, "quest": true},
 	"formula": {"name": "The Formula", "short": "Formula", "desc": "What Site Zero was built to make. Raijin never lets it out of his sight.", "kind": "valuable", "rarity": "legendary", "w": 1, "h": 2, "stack": 1, "value": 100000, "special": true},
 }
 
@@ -209,6 +214,10 @@ const SPECIAL_FINDS := {
 	"Bunker_Safe2": {"holy_grail": 0.01},
 	"Bunker_Safe3": {"holy_grail": 0.01},
 	"Bunker_Safe4": {"holy_grail": 0.01},
+	# NINE's files (owner 2026-11-21: "every raid"): the director's safe, the holding block's crate, the server room's.
+	"LabWing_Safe6": {"nine_file_1": 1.0},
+	"LabWing_Crate7": {"nine_file_2": 1.0},
+	"LabWing_Crate9": {"nine_file_3": 1.0},
 }
 
 ## Loot by place (0.14.0, MAP_PLAN.md "Loot by place"): a container tagged with one of these places (its

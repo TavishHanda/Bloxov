@@ -7,6 +7,16 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.9 (NINE's files)
+The owner's ask (2026-11-21: "add subject 09 files in site zero", picked "every raid"):
+- **Three Subject 09 files** in Site Zero, on Riptide, in the same spot every raid: **File 1: Intake** in the director's
+  safe, **File 2: Trials** in the holding block's receiving crate, **File 3: Escape** in the server room crate. Each is
+  a small 1x1 folder with a few lines of NINE's story. They only count once you bring them out; die and they're lost
+  like any loot. Online there's one of each per raid, so other players can get there first.
+- **NINE unlocks for free** once all three are in your stash (the CHARACTERS screen shows which you have, "UNLOCK WITH
+  THE FILES"); the unlock uses them up. Traders won't buy them.
+- Server checks the unlock (net version 23).
+
 ## 0.39.8 (Riptide: windows and roof access)
 The tester's notes and the owner's answers (2026-11-20: "move badly placed windows ... you're an architect"; "roof
 access on most buildings", roof props only, no roof cover):

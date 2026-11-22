@@ -76,6 +76,9 @@ edit the item database, then re-run the script (don't edit this file by hand).
 | Bon's Dog Tag (`bon_tag`) | Valuable | Epic | 1×1 | 1 | $9,000 | only from one-off finds:  | Bon's own tag. Everyone in Bloxov will want to see this. |
 | Antique Vase (`vase`) | Valuable | Epic | 2×2 | 1 | $9,000 |  | Old and fragile. Don't drop it. |
 | Graphics Card (`gpu`) | Valuable | Epic | 2×1 | 1 | $10,000 |  | A high-end graphics card. Worth more than most guns. |
+| Subject 09 File: Intake (`nine_file_1`) | Valuable | Legendary | 1×1 | 1 | $0 | only from one-off finds: 100% in LabWing_Safe6 | Site Zero intake record, page one of three. Subject 09: Brotherhood conscript, volunteered for the program, memory wiped on arrival. 'Strong, quiet, asks nothing.' Bring all three files out to unlock NINE. |
+| Subject 09 File: Trials (`nine_file_2`) | Valuable | Legendary | 1×1 | 1 | $0 | only from one-off finds: 100% in LabWing_Crate7 | Trial log, page two of three. Subject 09 ran the ring for six hours without stopping and lifted the gate the guards couldn't. In the margin: 'It has started asking questions.' Bring all three files out to unlock NINE. |
+| Subject 09 File: Escape (`nine_file_3`) | Valuable | Legendary | 1×1 | 1 | $0 | only from one-off finds: 100% in LabWing_Crate9 | Server log, page three of three. The night of the strike the power failed, cell 09 opened, and the cameras show the subject walking out through the sub bay. Last line: 'Do not pursue. It knows the way.' Bring all three files out to unlock NINE. |
 | Diamond Ring (`diamond_ring`) | Valuable | Legendary | 1×1 | 1 | $15,000 |  | A real diamond. Someone kept it in the vault for a reason. |
 | Rare Crystal (`crystal`) | Valuable | Legendary | 1×1 | 1 | $18,000 |  | Nobody knows where these come from. Everyone wants one. |
 | Golden Toilet (`golden_toilet`) | Valuable | Legendary | 2×3 | 1 | $50,000 | only from one-off finds: 3% in Bank_Safe1, 3% in Bank_Safe2 | Yes, really. |
