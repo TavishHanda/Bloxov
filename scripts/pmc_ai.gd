@@ -114,6 +114,13 @@ const EAR_TIME := 20.0            # after hearing a player, spots toward that no
 const EAR_SPOT_MULT := 0.5
 const EAR_CONE_COS := 0.766       # within 40 degrees of the noise
 const COVER_LOOK := 10.0
+## Shot at (0.39.21, owner picked "suppression + hide", 2026-11-22). A player's bullet passing within near_miss_radius
+## (5 m, pmc_ai.tscn) or hitting it pins it down for SUPPRESS_TIME s: it ducks into cover first, stays down there
+## instead of peeking, and its shots land SUPPRESSED_AIM as often. Hit by someone it can't see, it gets into cover
+## from them and waits HIDE_WAIT s watching that way, instead of walking toward them in the open.
+const SUPPRESS_TIME := 3.0
+const SUPPRESSED_AIM := 0.7
+const HIDE_WAIT := 10.0
 ## Tuning (not the owner's numbers): a wait of RETRY_WAIT s when nowhere is open, containers of one place within
 ## PLACE_SPREAD m of each other form one place.
 const RETRY_WAIT := 3.0
@@ -196,6 +203,8 @@ var _watch_at := Vector3.ZERO
 var _watch_left := 0.0
 var _look_after := false
 var _step_trait := 1.0   # its character's "hearing" (footsteps) trait
+var _suppressed_left := 0.0
+var _hit_unseen_left := 0.0   # just hit by a player it couldn't see: hide from them (for this long it still may)
 ## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
 ## roll (0 = unseeded), and when it leaves: seconds after it spawned.
 var raid_length := 0.0
@@ -352,6 +361,7 @@ func _physics_process(delta: float) -> void:
 	super(delta)
 	if not puppet and state != State.DEAD:
 		_update_watch(delta)
+		_update_shot_at(delta)
 	if state != _seen_state and not puppet:
 		if state == State.IDLE and _seen_state != State.IDLE:
 			_holding_ground = false
@@ -538,6 +548,54 @@ func _cover_from(threat: Vector3) -> Vector3:
 func _wall_between(pos: Vector3) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3(0, 1.6, 0), pos + Vector3(0, 1.0, 0), 1 | Door.LAYER, [get_rid()])
 	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+## Pinned down or hit from out of sight (see SUPPRESS_TIME): runs after the brain each frame.
+func _update_shot_at(delta: float) -> void:
+	_suppressed_left -= delta
+	_hit_unseen_left -= delta
+	if state != State.ENGAGE or _target == null or not is_instance_valid(_target):
+		return
+	if _hit_unseen_left > 0.0 and not _can_see and _cover_phase == Cover.NONE:
+		_hit_unseen_left = 0.0
+		_hide_from_unseen()
+		return
+	if _suppressed_left <= 0.0:
+		return
+	match _cover_phase:
+		Cover.HOLDING:
+			_cover_hold_left = maxf(_cover_hold_left, 0.2)   # stays down while the bullets keep coming
+		Cover.PEEKING:
+			if _shots_left <= 0:
+				_cover_phase = Cover.MOVING   # ducks back in
+		Cover.NONE:
+			if _cover_cooldown_left <= 0.0:
+				_try_take_cover()
+				if _cover_phase != Cover.NONE:
+					tactic = Tactic.COVER
+
+
+## Hit by someone it can't see: cover from them (farther off is fine), then it waits there HIDE_WAIT s watching where
+## the shot came from before it goes looking (the scavs' "sniped from beyond its range" run, for any distance).
+func _hide_from_unseen() -> void:
+	var spot := _find_cover(cover_search_radius * 2.0)
+	if spot == Vector3.INF:
+		return
+	_cover_point = spot
+	_cover_low = _found_low
+	_cover_phase = Cover.MOVING
+	_peeks_left = 0
+	_peek_point = global_position
+	_note_move_start()
+	_bark("cover", 0.35)
+	_fled_left = HIDE_WAIT
+	_cover_cooldown_left = cover_cooldown
+	tactic = Tactic.COVER
+
+
+## Pinned down, its shots land SUPPRESSED_AIM as often.
+func hit_chance(dist: float) -> float:
+	return super(dist) * (SUPPRESSED_AIM if _suppressed_left > 0.0 else 1.0)
 
 
 ## For EAR_TIME s after hearing a player, it spots anyone toward that noise twice as fast.
@@ -1086,6 +1144,11 @@ func _quiet_enough_to_heal() -> bool:
 func _on_damaged(amount: int, source_position: Vector3) -> void:
 	if _hit_by == null:
 		_since_player_hit = 0.0
+		_suppressed_left = SUPPRESS_TIME
+		if not _can_see:
+			_hit_unseen_left = 1.5
+			if state == State.ENGAGE:
+				_last_seen = source_position   # (where the shot came from: it watches that way from cover)
 	_hit_now = true
 	super(amount, source_position)
 	_hit_now = false
@@ -1093,6 +1156,8 @@ func _on_damaged(amount: int, source_position: Vector3) -> void:
 
 ## A shot that just missed: as a hit, never a group it can let be.
 func notice_near_miss(shooter_pos: Vector3) -> void:
+	if not puppet and _player_made(shooter_pos):
+		_suppressed_left = SUPPRESS_TIME
 	_hit_now = true
 	super(shooter_pos)
 	_hit_now = false

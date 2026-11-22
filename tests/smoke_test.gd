@@ -7812,6 +7812,37 @@ func _section_pmc_ears() -> void:
 	bot.global_position = Vector3(0, 0.1, 13.0)
 	bot.hear_noise(Vector3(0, 0.1, 32.0), 10.0)
 	_check(bot.state == Scav.State.IDLE, "another AI's step 19 m off: heard as before (not at all)")
+	# Shot at (0.39.21, owner: "suppression + hide"): a player's bullet within 5 m pins a bot down (worse aim for 3 s);
+	# a scav still only notices one within 2.5 m.
+	var aim_before := bot.hit_chance(20.0)
+	bot.notice_near_miss(at)
+	_check(bot.near_miss_radius == 5.0 and scav.near_miss_radius == 2.5 and bot._suppressed_left > 0.0
+		and is_equal_approx(bot.hit_chance(20.0), aim_before * PmcAI.SUPPRESSED_AIM),
+		"a near miss pins a bot down: its hit chance x%.1f (scavs notice misses within 2.5 m, bots 5 m)" % PmcAI.SUPPRESSED_AIM)
+	bot._suppressed_left = 0.0
+	_check(is_equal_approx(bot.hit_chance(20.0), aim_before), "not pinned: its aim is back")
+	# In a fight in the open with a wall close by, a near miss sends it into cover.
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	wall_shape.shape = BoxShape3D.new()
+	(wall_shape.shape as BoxShape3D).size = Vector3(4.0, 3.0, 0.4)
+	wall.add_child(wall_shape)
+	main.add_child(wall)
+	wall.global_position = at + Vector3(4.0, 1.5, 12.0)
+	bot.global_position = at + Vector3(0, 0.1, 12.0)
+	_face_player(bot)
+	await physics_frame
+	bot._target = player
+	bot._last_seen = at
+	bot._set_state(Scav.State.ENGAGE)
+	bot._cover_cooldown_left = 0.0
+	for f in 3:
+		await physics_frame
+	bot.notice_near_miss(at)
+	for f in 3:
+		await physics_frame
+	_check(bot._cover_phase != Scav.Cover.NONE, "a near miss mid-fight: it heads for cover (phase %d)" % bot._cover_phase)
+	wall.queue_free()
 	bot.free()
 	scav.free()
 	Scav.lod_enabled = true

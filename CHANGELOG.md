@@ -24,6 +24,10 @@ bots hear other AI's noises as before.
 - **Eyes**: for 20 s after hearing a player it spots anyone toward that noise twice as fast.
 - **Memory**: having lost someone in a fight it hunts round where it last saw them for 45 s (was 30 s); hearing a
   player beats its "keep away from other AI" rule while it investigates.
+- **Shot at** (owner's pick, "suppression + hide"): a player's bullet passing within 5 m (was 2.5 m) or hitting it pins
+  a bot down for 3 s: it ducks into cover first, stays down instead of peeking, and its shots land 70% as often.
+  Hit by someone it can't see, it gets into cover from them and waits 10 s watching where the shot came from,
+  instead of walking toward them in the open.
 
 ## 0.39.20 (Riptide: the ship's insides, railings and clutter)
 The owner asked for more in the ship (2026-11-22: "big open hallways. ramps without railings like there needs to be
