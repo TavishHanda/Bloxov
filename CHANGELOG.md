@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.18 (Riptide: art pass 5, the ship's bow, the loader and the boats)
+The last pieces of Riptide still drawn as grey boxes now have a model (added to `south_port`):
+- **The forecastle**: the bosun's hut in white with a steel inside, the two windlasses, the white foremast.
+- **The ship loader**: its tower against the ship's side in corrugated sheet, the yellow boom post, the steel plate
+  over to the main deck.
+- **The boats**: the pilot cutter (orange hull), the launch and the stern dinghy (white), the tug (red hull, white
+  wheelhouse), each with a dark boot topping at the water and a planked or steel deck; the dinghy's canopy.
+- **The map's edges**: the fence round the land side and the sea wall round the water.
+Nothing that collides moved (same navigation and net version). After this pass no part of Riptide is drawn as a
+plain box.
+
 ## 0.39.17 (Riptide: art pass 4, the last plain boxes on the shore)
 Everything on Riptide's shore that was still drawn as a grey box now has a model (added to `south_port`), using only
 the textures already on Riptide's sheet:

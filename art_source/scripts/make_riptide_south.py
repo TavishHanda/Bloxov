@@ -48,11 +48,15 @@ BUILDINGS = {
     "bargeoffice": ([(-58.0, -44.0, 110.0, 122.0)], "rs_sandstone", "rip_panel", "rip_lino", "rip_ceiling", "rip_lino"),
     "signalhut": ([(-2.0, 8.0, -129.2, -124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", None),
     "wheelhouse": ([(61.5, 67.5, -123.0, -117.0)], "rip_white", "rip_panel", "rip_wood", "rip_ceiling", None),
+    # (art pass 5) the bosun's hut on the forecastle, the ship loader's tower against the ship's side
+    "bosun": ([(44.0, 52.0, -102.0, -95.0)], "rip_white", "rip_steel_in", "rip_deck", "rip_steel_in", None),
+    "loader": ([(21.5, 29.5, 42.0, 56.0)], "rq_corr", "rq_conc", "rq_conc", "rip_steel_in", None),
 }
 TOPS = {"grainstore": SHORE + 8.0, "headhouse": 34.0, "fabshed": SHORE + 12.0, "workshop": SHORE + 5.0,
         "tshed1": SHORE + 7.0, "tshed2": SHORE + 7.0, "tshed3": SHORE + 7.0, "weighbridge": SHORE + 4.0,
         "railshed": SHORE + 6.0, "signalbox": SHORE + 7.0, "laneshed": SHORE + 4.0, "sgarage": SHORE + 5.0,
-        "sshed": SHORE + 4.0, "bargeoffice": SHORE + 5.0, "signalhut": SHORE + 3.0, "wheelhouse": SHORE + 2.3}
+        "sshed": SHORE + 4.0, "bargeoffice": SHORE + 5.0, "signalhut": SHORE + 3.0, "wheelhouse": SHORE + 2.3,
+        "bosun": 7.0 + 2.6, "loader": 14.0 + 3.2}
 LEVELS = [SHORE, 5.0, 8.0, 11.0, 14.0]        # (floors a doorway can stand on: their openings get no sill)
 
 
@@ -200,6 +204,35 @@ def roof_bit(m, row):
         m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else ("rip_roof" if n[1] > 0.7 else "rs_tank"))
 
 
+def boat_piece(m, row):
+    """(art pass 5) The boats moored round the ship: a painted hull with a dark boot topping at the water, a planked
+    or steel deck; the tug red with a white wheelhouse."""
+    kind = row["kind"]
+    c, s = row["pos"], row["size"]
+    y0 = c[1] - s[1] / 2
+    if kind == "tug_house":
+        m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else ("rip_roof" if n[1] > 0.7 else "rip_white"))
+        return
+    if kind == "canopy":
+        m.box(c, s, lambda n, mid, q: "rip_roof" if n[1] > 0.7 else "rip_iron")
+        return
+    side = "rip_hull" if kind == "tug_hull" else ("rip_orange" if c[2] + OZ < -110.0 else "rip_white")   # (the pilot cutter orange)
+    deck = "rip_deck" if kind == "tug_hull" else "rq_plank"
+    boot = y0 + min(0.8, s[1] * 0.4)
+
+    def style(n, mid, q):
+        if n[1] > 0.7:
+            return deck
+        if n[1] < -0.7:
+            return None
+        return "rip_boot" if mid[1] < boot else side
+    cuts = sorted({y0, boot, y0 + s[1]})
+    for ya, yb in zip(cuts, cuts[1:]):
+        m.box((c[0], (ya + yb) / 2, c[2]), (s[0], yb - ya, s[2]), style)
+    # a rubbing strake round the top edge
+    m.box((c[0], y0 + s[1] - 0.1, c[2]), (s[0] + 0.1, 0.12, s[2] + 0.1), lambda n, mid, q: None if abs(n[1]) > 0.7 else "rip_iron")
+
+
 def details(m):
     X = lambda x: x - OX    # noqa: E731
     Z = lambda z: z - OZ    # noqa: E731
@@ -294,6 +327,16 @@ def build_south(name="south_port"):
             boxcar(m, row)
         elif kind in ("ac_unit", "vent", "roof_tank"):
             roof_bit(m, row)
+        elif kind in ("boat_hull", "tug_hull", "tug_house", "canopy"):
+            boat_piece(m, row)
+        elif kind == "windlass":
+            machine(m, row)
+        elif kind == "mast":
+            m.box(row["pos"], row["size"], mat("rip_white" if row["pos"][0] + OX > 40.0 else "rip_yellow"))
+        elif kind == "plate":
+            m.box(row["pos"], row["size"], lambda n, mid, q: "rip_deck" if n[1] > 0.7 else "rip_iron")
+        elif kind == "seawall":
+            m.box(row["pos"], row["size"], lambda n, mid, q: None if n[1] < -0.7 else "rs_rock")
         elif kind == "mole":       # the breakwater: concrete on top, rock below the quay's edge
             m.box(row["pos"], row["size"], lambda n, mid, q: "rq_quay" if n[1] > 0.7 else (None if n[1] < -0.7 else
                   ("rq_conc" if mid[1] > SHORE - 1.0 else "rs_rock")))

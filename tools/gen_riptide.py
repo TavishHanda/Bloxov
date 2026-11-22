@@ -459,14 +459,16 @@ def quay():
     gaps = [(-124.0, 12.0), (2.6, 10.0), (39.0, 3.0), (121.0, 6.0), (163.0, 14.0)]
     gaps += [(z, 2.0) for z in WATER_LADDERS_QUAY]      # (0.33.6) the ladders up out of the sea
     # the sea's edge (0.33.6, swimming): a low sea wall round the far water, so nobody swims off the map
-    box(HALF - 0.6, -4.0, -HALF, HALF, 3.0, HALF, "rock")
-    for z0, z1 in ((-HALF, -HALF + 0.6), (HALF - 0.6, HALF)):
-        box(QUAY, -4.0, z0, HALF, 3.0, z1, "rock")
+    with modeled("south_port", -90.0, 110.0), kinded("seawall"):     # (art pass 5)
+        box(HALF - 0.6, -4.0, -HALF, HALF, 3.0, HALF, "rock")
+        for z0, z1 in ((-HALF, -HALF + 0.6), (HALF - 0.6, HALF)):
+            box(QUAY, -4.0, z0, HALF, 3.0, z1, "rock")
     with modeled("quay_front", -30.0, 0.0), kinded("parapet"):
         wall("z", -29.7, -HALF, HALF, SHORE, 0.9, "concrete", [(c, w, 0.0, 0.9) for c, w in gaps], t=0.6)
-    wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)
-    for z in (-HALF + 0.5, HALF - 0.5):
-        wall("x", z, -HALF, QUAY, SHORE, 3.0, "concrete", t=0.6)
+    with modeled("south_port", -90.0, 110.0), kinded("fence"):
+        wall("z", -HALF + 0.5, -HALF, HALF, SHORE, 3.0, "concrete", t=0.6)
+        for z in (-HALF + 0.5, HALF - 0.5):
+            wall("x", z, -HALF, QUAY, SHORE, 3.0, "concrete", t=0.6)
     labels.append(("THE LANDING", -110, -2, 1))
     # the rail line inland: stopped freight trains (cover along the spawn side), a level crossing at the road
     with modeled("south_port", -90.0, 110.0), kinded("boxcar"):    # (art pass 4)
@@ -1209,11 +1211,13 @@ def breakers():
         else:
             z += 1.0
     # the forecastle: the windlasses, the bosun's store, a mast (cover up on the bow)
-    for x in (40.0, 56.0):      # (0.36.17: 2 m in from the shaped bow's sides; were x 38 / 58)
-        box(x - 1.5, FORECASTLE, -100.0, x + 1.5, FORECASTLE + 1.6, -96.0, "rust")
-    room(44.0, 52.0, -102.0, -95.0, FORECASTLE, 2.6, "wall", s=[door(48.0)], e=[window(-98.5)], w=[window(-98.5)],
-         roof="roof")
-    box(47.5, FORECASTLE + 2.85, -99.0, 48.5, FORECASTLE + 12.0, -98.0, "rust")
+    with modeled("south_port", -90.0, 110.0):     # (art pass 5)
+        for x in (40.0, 56.0):      # (0.36.17: 2 m in from the shaped bow's sides; were x 38 / 58)
+            box(x - 1.5, FORECASTLE, -100.0, x + 1.5, FORECASTLE + 1.6, -96.0, "rust", kind="windlass")
+        with kinded("bosun"):
+            room(44.0, 52.0, -102.0, -95.0, FORECASTLE, 2.6, "wall", s=[door(48.0)], e=[window(-98.5)], w=[window(-98.5)],
+                 roof="roof")
+        box(47.5, FORECASTLE + 2.85, -99.0, 48.5, FORECASTLE + 12.0, -98.0, "rust", kind="mast")
 
 
 # ---------------------------------------------------------------------------------------------- the ways across
@@ -1320,9 +1324,11 @@ def _gallery_mole_boats():
         ladder(-4.0, 0.8, 40.3, 180, GALLERY - 0.8, "Gallery")
     labels.append(("GRAIN GALLERY", -8, 49, 0))
     # the ship loader: a stairwell tower against the ship's side, down to the main deck (a gap in the rail)
-    stairwell(LOADER[0], LOADER[1], [GALLERY, 11.0, 7.5, DECK], {0: "W", 3: "E"})
-    box(LOADER[0] + 8.0 - 0.1, DECK - SLAB_T, 53.2, SX0 + 0.6, DECK, 55.8, "metal")
-    box(LOADER[0] + 3.0, GALLERY + 3.45, 44.0, LOADER[0] + 5.0, GALLERY + 12.0, 46.0, "rust")   # the loader's boom post
+    with modeled("south_port", -90.0, 110.0):     # (art pass 5)
+        with kinded("loader"):
+            stairwell(LOADER[0], LOADER[1], [GALLERY, 11.0, 7.5, DECK], {0: "W", 3: "E"})
+        box(LOADER[0] + 8.0 - 0.1, DECK - SLAB_T, 53.2, SX0 + 0.6, DECK, 55.8, "metal", kind="plate")
+        box(LOADER[0] + 3.0, GALLERY + 3.45, 44.0, LOADER[0] + 5.0, GALLERY + 12.0, 46.0, "rust", kind="mast")   # the loader's boom post
     footprints.append((LOADER[0], LOADER[1], LOADER[0] + 8.0, LOADER[1] + 14.0))
     labels.append(("LOADER", 18, 58, 0))
     # the pontoon under it, at the water (its float: crossings()): a ladder up the quay, a ladder up the ship's side
@@ -1349,7 +1355,8 @@ def _gallery_mole_boats():
         box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
     labels.append(("BREAKWATER", 0, -134, 0))
     ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
-    box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
+    with modeled("south_port", -90.0, 110.0):
+        box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood", kind="boat_hull")      # the pilot cutter moored at the pad (deck level with it)
     # (0.38.7, owner: an extract at the end of the landing "that i can activate to open like the ship") shut until
     # its engine is started from the wheelhouse: the alarm sounds, it's ready 20 s later
     extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0, "pilot_boat"))
@@ -1358,9 +1365,10 @@ def _gallery_mole_boats():
         room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
 
     # The sea side (east): two boats moored against the hull, ladders up to the deck
-    box(SX1 + 0.4, BOAT - 1.5, -96.0, SX1 + 9.0, BOAT, -80.0, "wood")
-    box(SX1 + 0.4, BOAT - 1.5, 40.0, SX1 + 11.0, BOAT, 60.0, "rust")
-    box(SX1 + 5.0, BOAT, 52.0, SX1 + 9.5, BOAT + 2.6, 58.0, "wall")    # the tug's wheelhouse
+    with modeled("south_port", -90.0, 110.0):     # (art pass 5)
+        box(SX1 + 0.4, BOAT - 1.5, -96.0, SX1 + 9.0, BOAT, -80.0, "wood", kind="boat_hull")
+        box(SX1 + 0.4, BOAT - 1.5, 40.0, SX1 + 11.0, BOAT, 60.0, "rust", kind="tug_hull")
+        box(SX1 + 5.0, BOAT, 52.0, SX1 + 9.5, BOAT + 2.6, 58.0, "wall", kind="tug_house")    # the tug's wheelhouse
     ladder(SX1 + 0.4, BOAT, -88.0, 90, DECK - BOAT, "SeaSide")
     ladder(SX1 + 0.4, BOAT, 50.0, 90, DECK - BOAT, "SeaSide")
     player_spawns.append((SX1 + 5.0, BOAT, -92.0))
@@ -1370,12 +1378,14 @@ def _gallery_mole_boats():
     water_ladders()
 
     # The stern ladder down to a dinghy (an extract)
-    box(57.0, 0.2, SZ1 + 0.4, 63.0, 0.8, SZ1 + 6.0, "wood")
+    with modeled("south_port", -90.0, 110.0):
+        box(57.0, 0.2, SZ1 + 0.4, 63.0, 0.8, SZ1 + 6.0, "wood", kind="boat_hull")
     ladder(60.0, 0.8, SZ1 + 0.4, 0, DECK - 0.8, "Stern")
     # (0.38.7, owner: the ship's extract "isn't that risky at all ... could be higher up in the ship" -> the lifeboat on
     # the bridge tower's boat deck, tower()) the stern ladder and its dinghy stay, as a way on and off the ship
-    box(56.8, 0.8, SZ1 + 0.6, 57.2, 2.8, SZ1 + 6.0, "wood")              # the screen on the barge side
-    box(56.8, 2.8, SZ1 + 1.8, 63.2, 3.0, SZ1 + 6.0, "roof")              # the canopy (0.35.16: clear of a climber's head)
+    with modeled("south_port", -90.0, 110.0):
+        box(56.8, 0.8, SZ1 + 0.6, 57.2, 2.8, SZ1 + 6.0, "wood", kind="timber")              # the screen on the barge side
+        box(56.8, 2.8, SZ1 + 1.8, 63.2, 3.0, SZ1 + 6.0, "roof", kind="canopy")              # the canopy (0.35.16: clear of a climber's head)
 
 
 # ---------------------------------------------------------------------------------------------- the ship
