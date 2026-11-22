@@ -1,4 +1,4 @@
-23
+24
 rpc 9a215769c764
 scripts/item_db.gd a6578a48c7df
 scripts/online_profile.gd 4c9c8553ce57
