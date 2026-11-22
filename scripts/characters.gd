@@ -103,8 +103,8 @@ const PASSIVES := {
 }
 const OVERDRIVE_BELOW := 0.3
 const POCKETS_WIDTH := 4
-## Spent-point keys: u0/u1 = the two upsides, p = passive ranks above 1 (downsides only grow with level, 0.39.15).
-## (0.39.15, owner 2026-11-22: downsides only grow with level, points never go on them; old downside points come back)
+## Spent-point keys: u0/u1 = the two upsides, p = passive ranks above 1 (downsides only grow with level, 0.39.16).
+## (0.39.16, owner 2026-11-22: downsides only grow with level, points never go on them; old downside points come back)
 const SPEND_KEYS: Array[String] = ["u0", "u1", "p"]
 
 ## This device's player in a raid (set by the player as it spawns): stat -> multiplier, and the passive and its rank.

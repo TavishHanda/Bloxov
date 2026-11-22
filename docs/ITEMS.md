@@ -9,21 +9,29 @@ edit the item database, then re-run the script (don't edit this file by hand).
 |---|---|---|---|---|---|---|---|
 | Stinger (`pistol`) | Weapon | Common | 2×1 | 1 | $3,000 | secondary slot; semi-auto; 17 dmg, 360 rpm, 12-round mag, pistol ammo; attachment slots: barrel, sight | Small sidearm. Quick to aim, one shot per click. |
 | Viper (`viper`) | Weapon | Uncommon | 2×1 | 1 | $6,500 | secondary slot; semi-auto; 30 dmg, 200 rpm, 7-round mag, pistol ammo; attachment slots: barrel, sight | Heavy sidearm. Hits almost twice as hard as the Stinger, holds 7 and kicks. |
-| Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $10,000 | primary slot; full-auto; 20 dmg, 900 rpm, 25-round mag, smg ammo; damage drops to 70% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
+| Wasp (`smg`) | Weapon | Uncommon | 3×2 | 1 | $10,000 | primary slot; full-auto; 20 dmg, 900 rpm, 25-round mag, smg ammo; damage drops to 70% from 20 to 50 m; attachment slots: scope, barrel, grip, mag | Small and fast. Sprays at close range, weak far away. |
 | Mauler (`shotgun`) | Weapon | Uncommon | 4×1 | 1 | $11,000 | primary slot; semi-auto; 8 pellets x 14 dmg, 70 rpm, 6-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Pump shotgun. Deadly up close, useless far away. Loads one shell at a time. |
 | Hound (`ak`) | Weapon | Uncommon | 4×2 | 1 | $12,500 | primary slot; full-auto; 28 dmg, 600 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Old army rifle, full auto. Hits hard, kicks harder. |
-| Hornet (`hornet`) | Weapon | Uncommon | 3×2 | 1 | $14,000 | primary slot; full-auto; 24 dmg, 700 rpm, 30-round mag, smg ammo; damage drops to 75% from 30 to 60 m; attachment slots: scope, barrel, grip, mag | Heavier SMG. Fires slower than the Wasp but hits harder and holds up farther out. |
-| Brawler (`brawler`) | Weapon | Uncommon | 4×1 | 1 | $15,000 | primary slot; semi-auto; 8 pellets x 12 dmg, 150 rpm, 8-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Semi-auto shotgun. No pump: it fires as fast as you click. Wider spread than the Mauler. |
+| Hornet (`hornet`) | Weapon | Uncommon | 3×2 | 1 | $14,000 | primary slot; full-auto; 24 dmg, 700 rpm, 30-round mag, smg ammo; damage drops to 75% from 25 to 50 m; attachment slots: scope, barrel, grip, mag | Heavier SMG. Fires slower than the Wasp but hits harder and holds up farther out. |
+| Brawler (`brawler`) | Weapon | Uncommon | 4×1 | 1 | $15,000 | primary slot; semi-auto; 8 pellets x 12 dmg, 120 rpm, 8-round mag, shells; damage drops to 40% from 12 to 30 m; attachment slots: barrel, grip, sight | Semi-auto shotgun. No pump: it fires as fast as you click. Wider spread than the Mauler. |
 | Lancer (`sniper`) | Weapon | Rare | 5×1 | 1 | $22,500 | primary slot; semi-auto; 90 dmg, 40 rpm, 5-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Bolt-action sniper rifle. Two body shots or one to the head. Terrible from the hip. |
-| Talon (`talon`) | Weapon | Rare | 5×1 | 1 | $26,000 | primary slot; semi-auto; 55 dmg, 150 rpm, 10-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Semi-auto marksman rifle. Weaker shots than the Lancer, but ten of them, fast. |
+| Talon (`talon`) | Weapon | Rare | 5×1 | 1 | $26,000 | primary slot; semi-auto; 45 dmg, 120 rpm, 10-round mag, sniper ammo; attachment slots: scope, barrel, grip, mag | Semi-auto marksman rifle. Weaker shots than the Lancer (three to the body, no one-shot heads), but ten of them. |
 | Reaper (`reaper`) | Weapon | Epic | 4×2 | 1 | $30,000 | primary slot; full-auto; 30 dmg, 650 rpm, 30-round mag, rifle ammo; attachment slots: scope, barrel, grip, mag | Site Zero's own rifle. Takes Hound rounds, shoots straighter and faster. Only Raijin carries one. |
-| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer, Viper, Hornet, Brawler, Talon; ads_time x0.85, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
+| Taped Grip (`taped_grip`) | Attachment | Common | 1×1 | 1 | $400 | fits Hound, Reaper, Wasp, Mauler, Lancer, Hornet, Brawler, Talon; recoil x0.9, recoil_yaw x0.9 | A block of wood taped under the barrel. A little less kick. |
+| Fast Mag (`fast_mag`) | Attachment | Common | 1×1 | 1 | $500 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; reload x0.85 | A mag with a pull tab. Same size, 15% quicker to reload. |
+| Muzzle Brake (`muzzle_brake`) | Attachment | Common | 1×1 | 1 | $600 | fits Hound, Reaper, Stinger, Wasp, Lancer, Viper, Hornet, Talon; recoil x0.92, recoil_yaw x0.92, noise x1.15 | Vents the blast sideways. Less kick, but your shots are louder. |
+| Red Dot (`red_dot`) | Attachment | Uncommon | 1×1 | 1 | $500 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer, Viper, Hornet, Brawler, Talon; ads_time x0.9, ads_fov x0.92 | Small sight with a red dot. Quicker to aim, a little more zoom. |
 | Choke (`choke`) | Attachment | Uncommon | 1×1 | 1 | $700 | fits Mauler, Brawler; pellet_spread x0.85 | Shotgun muzzle. Keeps the pellets tighter. |
-| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Reaper, Wasp, Mauler, Lancer, Hornet, Brawler, Talon; recoil x0.8, recoil_yaw x0.8 | Something to hold on to. Less kick. |
+| Foregrip (`foregrip`) | Attachment | Uncommon | 1×1 | 1 | $800 | fits Hound, Reaper, Wasp, Mauler, Lancer, Hornet, Brawler, Talon; recoil x0.82, recoil_yaw x0.82 | Something to hold on to. Less kick. |
+| Holo Sight (`holo_sight`) | Attachment | Uncommon | 1×1 | 1 | $1,200 | fits Hound, Reaper, Stinger, Wasp, Mauler, Lancer, Viper, Hornet, Brawler, Talon; ads_time x0.85, ads_fov x0.92, spread x0.95 | A better sight. Quicker to aim than a red dot, and steadier aimed. |
 | Extended Mag (`ext_mag`) | Attachment | Rare | 1×1 | 1 | $1,200 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; mag x1.5, reload x1.1 | Holds more rounds. Slower to reload. |
 | 4x Scope (`scope_4x`) | Attachment | Rare | 2×1 | 1 | $1,500 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; ads_time x1.2, ads_fov = 30.0 | Brings far targets close. Slower to aim. |
-| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Reaper, Stinger, Wasp, Lancer, Viper, Hornet, Talon; noise x0.5, recoil x0.9, recoil_yaw x0.9 | Your shots are heard half as far. A little less kick. |
+| Suppressor (`suppressor`) | Attachment | Rare | 2×1 | 1 | $1,800 | fits Hound, Reaper, Stinger, Wasp, Lancer, Viper, Hornet, Talon; noise x0.5, recoil x0.95, recoil_yaw x0.95 | Your shots are heard half as far. A little less kick. |
+| Full Choke (`full_choke`) | Attachment | Epic | 1×1 | 1 | $2,000 | fits Mauler, Brawler; pellet_spread x0.75 | The tightest shotgun muzzle. Pellets stay together much farther. |
+| Tactical Grip (`tactical_grip`) | Attachment | Epic | 1×1 | 1 | $2,500 | fits Hound, Reaper, Wasp, Mauler, Lancer, Hornet, Brawler, Talon; recoil x0.75, recoil_yaw x0.75, ads_time x0.95 | The best grip there is. Much less kick, a little quicker to aim. |
 | 8x Scope (`scope_8x`) | Attachment | Epic | 2×1 | 1 | $3,000 | fits Lancer; ads_time x1.3, ads_fov = 14.0 | A sniper's scope. Huge zoom, slow to aim. |
+| Drum Mag (`drum_mag`) | Attachment | Epic | 2×2 | 1 | $3,000 | fits Hound, Reaper, Wasp, Lancer, Hornet, Talon; mag x2.0, reload x1.25, ads_time x1.1 | Twice the rounds. Heavy: slower to reload and to aim. |
+| Heavy Suppressor (`heavy_suppressor`) | Attachment | Epic | 2×1 | 1 | $4,000 | fits Hound, Reaper, Stinger, Wasp, Lancer, Viper, Hornet, Talon; noise x0.4, recoil x0.88, recoil_yaw x0.88, ads_time x1.05 | Long, fat and quiet. Heard less than half as far, less kick, a little slower to aim. |
 | Light Armor (`armor_light`) | Armor | Uncommon | 3×3 | 1 | $7,500 | -20% damage taken | Soft vest. Takes the edge off a hit. |
 | Heavy Armor (`armor_heavy`) | Armor | Rare | 3×3 | 1 | $20,000 | -40% damage taken | Plated vest. Stops a lot. |
 | Assault Armor (`armor_assault`) | Armor | Epic | 3×3 | 1 | $35,000 | -50% damage taken; only from one-off finds:  | Site Zero plate carrier. The best armor there is. Only off Raijin. |
@@ -183,13 +191,13 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 
 | Entry | Chance per roll |
 |---|---|
-| Hound Rounds | 20% |
+| Hound Rounds | 19% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 13% |
 | Bandage | 8% |
 | Medkit | 8% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
-| Wasp Rounds | 7% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
+| Wasp Rounds | 6% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 6% |
 | Mauler Shells | 5% |
 | Frag Grenade | 4% |
 | Stinger Rounds | 4% |
@@ -198,35 +206,49 @@ A roll gives one item, except these come as a stack: Hound Rounds 20–60, Wasp 
 | Lancer Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
+| Taped Grip | 1% |
+| Muzzle Brake | 1% |
+| Fast Mag | 1% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
 | 4x Scope | 1% |
 | Suppressor | 1% |
 | Extended Mag | 1% |
+| Holo Sight | 1% |
+| Tactical Grip | 1% |
+| Heavy Suppressor | 1% |
+| Drum Mag | 1% |
 
 ### Raider (body bag, 2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Hound Rounds | 20% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 13% |
-| Bandage | 8% |
-| Medkit | 8% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
-| Wasp Rounds | 7% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 7% |
+| Hound Rounds | 19% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 12% |
+| Bandage | 7% |
+| Medkit | 7% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 7% |
+| Wasp Rounds | 6% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 6% |
 | Mauler Shells | 5% |
 | Frag Grenade | 4% |
 | Stinger Rounds | 4% |
 | Stinger | 3% |
-| Energy Drink | 3% |
+| Energy Drink | 2% |
 | Lancer Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
 | Medium Backpack | 2% |
+| Taped Grip | 1% |
+| Muzzle Brake | 1% |
+| Fast Mag | 1% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
 | 4x Scope | 1% |
 | Suppressor | 1% |
 | Extended Mag | 1% |
+| Holo Sight | 1% |
+| Tactical Grip | 1% |
+| Heavy Suppressor | 1% |
+| Drum Mag | 1% |
 
 ## Loot by place
 
@@ -236,7 +258,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Place | Extra weights |
 |---|---|
 | Waterfall | Gold Bar 8, Diamond Ring 5, Rare Crystal 3, epic valuable 10, legendary valuable 10 |
-| Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Powder Tin 8, Exion Medal 6, Graphics Card 3, Med Parts 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
+| Bunker | Lancer 6, Lancer Rounds 10, 4x Scope 6, 8x Scope 3, Suppressor 5, Extended Mag 5, Tactical Grip 3, Heavy Suppressor 3, Drum Mag 3, Full Choke 2, Powder Tin 8, Exion Medal 6, Graphics Card 3, Med Parts 6, Exion Orders 12, Frag Grenade 8, legendary valuable 25, epic valuable 35, Military Chip 10, Heavy Armor 10, Combat Helmet 8, Hound 8, Hound Rounds 15 |
 | TownHall | Novarra Badge 6, Hard Drive 6, Novarra Field Report 8, Exion Orders 2, uncommon valuable 10 |
 | Bank | Diamond Ring 5, Cash Bundle 30, Gold Bar 12, Gold Watch 15, rare valuable 10 |
 | Offices | Wires 10, Processor 5, Hard Drive 8, Graphics Card 3, Novarra Field Report 5 |
@@ -244,7 +266,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | BigHouse2 | Processor 8, Wires 8, Graphics Card 6, Hard Drive 10, Laptop 15, Old Phone 25, Car Battery 10 |
 | BigHouse3 | Antique Vase 15, epic valuable 8 |
 | Police | Mauler 10, Mauler Shells 15, Red Dot 6, Foregrip 5, Extended Mag 3, Powder Tin 4, Novarra Badge 8, Frag Grenade 8, Novarra Field Report 4, Light Armor 15, Heavy Armor 4, Old Helmet 10, Combat Helmet 3, Stinger 15, Stinger Rounds 20 |
-| GunStore | Wasp 10, Mauler 10, Lancer 4, Wasp Rounds 20, Mauler Shells 20, Lancer Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Powder Tin 15, Hound 12, Stinger 15, Hound Rounds 30, Stinger Rounds 25 |
+| GunStore | Wasp 10, Mauler 10, Lancer 4, Wasp Rounds 20, Mauler Shells 20, Lancer Rounds 10, Red Dot 10, 4x Scope 6, 8x Scope 2, Suppressor 5, Choke 6, Foregrip 8, Extended Mag 6, Taped Grip 8, Muzzle Brake 6, Fast Mag 6, Holo Sight 4, Powder Tin 15, Hound 12, Stinger 15, Hound Rounds 30, Stinger Rounds 25 |
 | Pharmacy | Med Parts 25, Bandage 45, Medkit 25 |
 | Grocery | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
 | Diner | Energy Drink 15, Canned Beans 30, Water Bottle 30, Ration Pack 10 |
@@ -267,7 +289,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | EngineRoom | Bolts 15, Wires 10, Fuel Can 12 |
 | Workshop | Bolts 15, Wires 10, Powder Tin 6, Impound Key 1 |
 | LabWing | Med Parts 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
-| LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Talon 1 |
+| LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Tactical Grip 3, Heavy Suppressor 3, Drum Mag 3, Talon 1 |
 
 ## Crafting
 
@@ -284,6 +306,7 @@ parts from the stash (free-kit items don't count). Crafted items aren't found in
 | Mauler Shells x30 | Powder Tin, Scrap Metal | 1 |
 | Lancer Rounds x20 | Powder Tin x2, Bolts x5 | 1 |
 | Frag Grenade | Powder Tin x2, Scrap Metal, Duct Tape | 2 |
+| Taped Grip | Scrap Metal, Duct Tape | 1 |
 | Foregrip | Scrap Metal, Bolts x3, Duct Tape | 2 |
 | Suppressor | Scrap Metal x3, Bolts x5, Duct Tape | 2 |
 | 4x Scope | Old Phone, Bolts x3, Duct Tape | 2 |

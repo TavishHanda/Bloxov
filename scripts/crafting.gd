@@ -18,6 +18,7 @@ const RECIPES := {
 	"shells": {"makes": "shells", "amount": 30, "needs": {"gunpowder": 1, "scrap": 1}, "level": 1},
 	"sniper_ammo": {"makes": "sniper_ammo", "amount": 20, "needs": {"gunpowder": 2, "bolts": 5}, "level": 1},
 	"grenade": {"makes": "grenade", "amount": 1, "needs": {"gunpowder": 2, "scrap": 1, "duct_tape": 1}, "level": 2},
+	"taped_grip": {"makes": "taped_grip", "amount": 1, "needs": {"scrap": 1, "duct_tape": 1}, "level": 1},
 	"foregrip": {"makes": "foregrip", "amount": 1, "needs": {"scrap": 1, "bolts": 3, "duct_tape": 1}, "level": 2},
 	"suppressor": {"makes": "suppressor", "amount": 1, "needs": {"scrap": 3, "bolts": 5, "duct_tape": 1}, "level": 2},
 	"scope_4x": {"makes": "scope_4x", "amount": 1, "needs": {"phone": 1, "bolts": 3, "duct_tape": 1}, "level": 2},
