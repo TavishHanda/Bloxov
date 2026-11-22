@@ -6911,6 +6911,12 @@ func _section_riptide() -> void:
 	for i in 200: await physics_frame
 	_check(swimmer.is_swimming() and absf(swimmer.global_position.y + Player.SWIM_FLOAT) < 0.1 and not swimmer.hands_free(),
 		"in the sea you float with your head out, hands busy (y %.2f)" % swimmer.global_position.y)
+	# (0.39.24, owner: crouching or lying in the water put your eyes under it) no crouch or prone afloat
+	swimmer.set_crouching(true)
+	swimmer.set_prone(true)
+	for i in 20: await physics_frame
+	_check(not swimmer.is_crouching and not swimmer.is_prone and swimmer.camera.global_position.y > 0.1,
+		"afloat you can't crouch or lie down, and your eyes stay above the water (eyes at %.2f)" % swimmer.camera.global_position.y)
 	swimmer.global_position = Vector3(-100, 2.7, 0)
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
@@ -11203,7 +11209,11 @@ func _section_sound() -> void:
 	var ear := player.camera.global_position
 	var before: int = sounds.call().size()
 	var crowd := Effects._playing   # (said if it fails: past MAX_SOUNDS playing, the far boom is skipped)
+	# (0.39.24) sounds left over from earlier sections can still be playing on a slow runner (46 on Windows CI): this
+	# checks the boom and the snap, not the crowd limit (that has its own check above), so count from an empty mix.
+	Effects._playing = 0
 	Hearing.gunshot(main, ear + Vector3(0, 0, 120), ear + Vector3(1, 0, -50), -4.0)
+	Effects._playing += crowd
 	var added: Array = sounds.call().slice(before)
 	_check(added.size() == 2 and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream == Hearing.DISTANT_SHOT)
 		and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream in Hearing.SNAPS),

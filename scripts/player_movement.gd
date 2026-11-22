@@ -44,6 +44,8 @@ const LADDER_LOOK_DOWN := -0.44
 ## Swimming: how far under the surface your feet float (eyes just over the water), and how fast you get going.
 const SWIM_FLOAT := 1.3
 const SWIM_ACCEL := 4.0
+## The eyes stay at least this far above the water while swimming (0.39.24).
+const SWIM_EYE_CLEAR := 0.15
 const HANG_OUT := 0.16
 var _climbed := 0.0
 ## Climbing speed now (eased toward the keys, m/s up) and how far we've climbed on this ladder (the bob's rhythm).
@@ -75,6 +77,8 @@ const LEAN_HEAD_ROOM := 0.32
 
 
 func set_crouching(crouch: bool) -> void:
+	if crouch and _swimming:
+		return   # (0.39.24: no crouching while afloat; it dropped the eyes under the water)
 	if is_prone:
 		# Getting up from prone, to a crouch or all the way (if there's room).
 		if _ceiling_blocked(crouch_height if crouch else stand_height):
@@ -92,8 +96,8 @@ func set_crouching(crouch: bool) -> void:
 
 ## Z: lie down, or get up (standing if there's room, else crouched).
 func set_prone(on: bool) -> void:
-	if on == is_prone or downed:
-		return
+	if on == is_prone or downed or (on and _swimming):
+		return   # (0.39.24: no lying down while afloat)
 	if not on:
 		set_crouching(false)
 		if is_prone:
@@ -215,14 +219,17 @@ func _update_swim(delta: float) -> bool:
 		if is_instance_valid(zone):
 			surface = maxf(surface, zone.surface_y())
 	# Afloat once the water is over our chest; standing in the shallows or on something in it isn't swimming.
+	_swim_surface = surface
 	var afloat := surface > -INF and global_position.y < surface - (SWIM_FLOAT - 0.25) and not (is_on_floor() and not _swimming)
 	if not afloat:
 		_swimming = false
 		return false
 	if not _swimming:
 		_swimming = true
-		set_prone(false)
-		set_crouching(false)
+		# Always upright in the water (0.39.24): straight up, no ceiling check (under a pier that kept you crouched).
+		is_prone = false
+		is_crouching = false
+		_set_capsule()
 		_sprinting = false
 		WorldSounds.own(self, WorldSounds.LAND, clampf(-14.0 + _fall_speed, -14.0, -2.0))
 	_fall_speed = 0.0
