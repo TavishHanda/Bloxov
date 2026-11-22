@@ -7,6 +7,32 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.20 (Riptide: the ship's insides, railings and clutter)
+The owner asked for more in the ship (2026-11-22: "big open hallways. ramps without railings like there needs to be
+more noise in that boat"). Looks and a little cover only; doors, ladders, ramps and walking room stay clear.
+- **Railings** down every open side of the ship's ramps: the pier platform's ramp into the hold, both sides of the
+  stern ramp, the forecastle ramp, both drill floor ramps, the rest of the two boat door ramps, and both ramps in Site
+  Zero. Yellow rails with posts, 1 m over the slope, the same as the companionways'.
+- **Side passages**: 18 more stores (shelves, drums, crates, tool cabinets), now on the bulkhead side too, never
+  opposite another one, so there is still 4 m to walk.
+- **Passage walls**: the hull's frames every 3 m, deck beams across the ceiling every 6 m, valve stations with red
+  wheels and fire hose boxes on the hull side, junction boxes on the bulkheads, a cable tray and a bundle of pipes along
+  each bulkhead, yellow walkway lines on the floor. These have no collision (they sit flat to the walls or overhead).
+- Net version 28: the railings and the new stores collide.
+
+## 0.39.19 (Riptide: detail pass, furnished rooms)
+The owner agreed to a detail pass (2026-11-22, "yea lets do it"). The small buildings from art passes 3b-5 were bare
+rooms. They now have furniture: 36 pieces against their walls, kept clear of doors, gates, low windows and loot, with
+the middle of each room left open. This adds a little indoor cover, which the owner approved for Riptide's interiors
+on 2026-11-20.
+- **Weighbridge office**: the clerk's desk and chair, a filing cabinet, shelves of dockets.
+- **Signal box**: the lever frame on the north wall with the signalman's chair, a desk, shelves.
+- **Barge office**: the manager's desk, files, a counter by the south door, a chart table.
+- **Rail shed, lane shed, south shed, garage**: tool cabinets, workbenches, racks, drums, crates.
+- **Shipyard workshop and fab shed**: a workbench, a tool cabinet, racks, drums and crates.
+- Floors are laid inside these buildings: lino in the offices, concrete in the sheds. Before, they showed bare ground.
+- Net version 27: the furniture collides.
+
 ## 0.39.18 (Riptide: art pass 5, the ship's bow, the loader and the boats)
 The last pieces of Riptide still drawn as grey boxes now have a model (added to `south_port`):
 - **The forecastle**: the bosun's hut in white with a steel inside, the two windlasses, the white foremast.
