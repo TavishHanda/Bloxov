@@ -5146,6 +5146,13 @@ func _section_playables() -> void:
 				spots += 1
 		files_placed = files_placed and spots == 1 and ItemDB.ITEMS[f].get("special", false) and ItemDB.ITEMS[f].get("quest", false)
 	_check(files_placed, "the three Subject 09 files are each in one Site Zero spot every raid")
+	var pocket := Inventory.new()
+	root.add_child(pocket)
+	var dead := OnlineProfile.death_loadout({"secure": [{"id": "nine_file_1", "count": 1}, {"id": "bandage", "count": 1}]})
+	_check(pocket.secure.add("nine_file_1") == 1 and pocket.secure.add("bandage") == 0 and pocket.pockets.add("nine_file_1") == 0
+		and dead["secure"].size() == 1 and dead["secure"][0]["id"] == "bandage",
+		"the secure pocket won't take NINE's files, and online a death never keeps one (owner 2026-11-21)")
+	pocket.queue_free()
 	var two := {"nine_file_1": 1, "nine_file_2": 1}
 	var three := {"nine_file_1": 1, "nine_file_2": 1, "nine_file_3": 1}
 	var file_needs := Characters.requirements(state, "nine", 0, {}, two)

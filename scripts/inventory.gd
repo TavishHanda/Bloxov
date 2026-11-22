@@ -43,6 +43,7 @@ var meds_choice := ""
 func _ready() -> void:
 	pockets = GridInventory.new("Pockets", pockets_size.x, pockets_size.y)
 	secure = GridInventory.new("Secure Pocket", secure_size.x, secure_size.y)
+	secure.refuses_quest = true
 	pockets.changed.connect(changed.emit)
 	secure.changed.connect(changed.emit)
 
