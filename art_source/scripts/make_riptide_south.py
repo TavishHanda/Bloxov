@@ -38,9 +38,21 @@ BUILDINGS = {
     "tshed1": ([(-60.0, -42.0, -112.0, -72.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
     "tshed2": ([(-60.0, -42.0, -64.0, -24.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
     "tshed3": ([(-62.0, -44.0, 64.0, 104.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    # (art pass 4) the small buildings along the rail corridor and the south streets, the breakwater's huts
+    "weighbridge": ([(-152.0, -138.0, -44.0, -34.0)], "rs_block_buff", "rip_panel", "rip_lino", "rip_ceiling", "rip_lino"),
+    "railshed": ([(-152.0, -136.0, 36.0, 56.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "signalbox": ([(-150.0, -138.0, 72.0, 84.0)], "rs_block_buff", "rip_panel_g", "rip_lino", "rip_ceiling", "rip_lino"),
+    "laneshed": ([(-128.0, -114.0, 94.0, 102.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", None),
+    "sgarage": ([(-80.0, -66.0, 126.0, 136.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "sshed": ([(-100.0, -86.0, 164.0, 176.0)], "rs_block_grey", "rq_conc", "rq_conc", "rip_ceiling", None),
+    "bargeoffice": ([(-58.0, -44.0, 110.0, 122.0)], "rs_sandstone", "rip_panel", "rip_lino", "rip_ceiling", "rip_lino"),
+    "signalhut": ([(-2.0, 8.0, -129.2, -124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", None),
+    "wheelhouse": ([(61.5, 67.5, -123.0, -117.0)], "rip_white", "rip_panel", "rip_wood", "rip_ceiling", None),
 }
 TOPS = {"grainstore": SHORE + 8.0, "headhouse": 34.0, "fabshed": SHORE + 12.0, "workshop": SHORE + 5.0,
-        "tshed1": SHORE + 7.0, "tshed2": SHORE + 7.0, "tshed3": SHORE + 7.0}
+        "tshed1": SHORE + 7.0, "tshed2": SHORE + 7.0, "tshed3": SHORE + 7.0, "weighbridge": SHORE + 4.0,
+        "railshed": SHORE + 6.0, "signalbox": SHORE + 7.0, "laneshed": SHORE + 4.0, "sgarage": SHORE + 5.0,
+        "sshed": SHORE + 4.0, "bargeoffice": SHORE + 5.0, "signalhut": SHORE + 3.0, "wheelhouse": SHORE + 2.3}
 LEVELS = [SHORE, 5.0, 8.0, 11.0, 14.0]        # (floors a doorway can stand on: their openings get no sill)
 
 
@@ -66,7 +78,8 @@ def use_plaza_helpers():
     N.OX, N.OZ = OX, OZ
 
 
-SIGN_NAMES = ("GRAIN STORE", "FAB SHED", "WORKSHOP", "BOATHOUSE", "SHED 1", "SHED 2", "SHED 3", "GRAIN TERMINAL")
+SIGN_NAMES = ("GRAIN STORE", "FAB SHED", "WORKSHOP", "BOATHOUSE", "SHED 1", "SHED 2", "SHED 3", "GRAIN TERMINAL",
+              "WEIGHBRIDGE", "RAIL SHED", "SIGNAL BOX", "GARAGE", "BARGE OFFICE")
 
 
 def south_decals(rng):
@@ -79,6 +92,11 @@ def south_decals(rng):
     for name in SIGN_NAMES:
         w, h, p = R._sign(name, "rw_white", "rx_black", 3)
         a.add("n_" + name, w, h, p)
+    for kind, line in R.CONTAINER_LINES.items():          # (art pass 4: the loose containers, as on the terminal)
+        w, h, p = R._stencil(line, 3, "rw_light", random.Random(line), chip=0.1)
+        a.add("line_" + kind, w, h, p)
+    for kind, base in (("container_a", "rc_a"), ("container_b", "rc_b"), ("container_c", "rc_c")):
+        a.add("doors_" + kind, 77, 83, R._door_decal(base))
     return a
 
 
@@ -155,6 +173,33 @@ def machine(m, row):
     m.box((c[0], c[1] + s[1] / 2 - 0.1, c[2] + s[2] / 2 - 0.05), (s[0], 0.08, 0.06), mat("rip_yellow"), cull=False)
 
 
+BOXCAR = {"rust": "rip_cont_a", "container_c": "rip_cont_c", "container_b": "rip_cont_b"}
+
+
+def boxcar(m, row):
+    """(art pass 4) A freight wagon on the rail line: a ribbed box body, a dark roof, the iron underframe and bogies
+    under it, a door half way along each side."""
+    c, s = row["pos"], row["size"]
+    body = BOXCAR.get(row["colour"], "rip_cont_a")
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    m.box((c[0], (y0 + 1.1 + y1) / 2, c[2]), (s[0], y1 - y0 - 1.1, s[2]),
+          lambda n, mid, q: "rip_roof" if n[1] > 0.7 else (None if n[1] < -0.7 else (body if abs(n[0]) > 0.7 else "rip_iron")))
+    m.box((c[0], y0 + 0.55, c[2]), (s[0] - 0.3, 1.1, s[2] - 0.2), lambda n, mid, q: None if n[1] < -0.7 else "rip_iron")
+    for sg in (-1, 1):                                 # the doors
+        m.box((c[0] + sg * (s[0] / 2 + 0.02), (y0 + 1.2 + y1 - 0.2) / 2, c[2]), (0.04, y1 - y0 - 1.4, 2.4), mat("rip_iron"), cull=False)
+
+
+def roof_bit(m, row):
+    kind = row["kind"]
+    c, s = row["pos"], row["size"]
+    if kind == "ac_unit":
+        m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else ("rip_iron" if n[1] > 0.7 else "rip_machine"))
+    elif kind == "vent":
+        R.cyl(m.b, c, min(s[0], s[2]) / 2, s[1], "rip_pipe", "rip_iron", sides=8)
+    else:
+        m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else ("rip_roof" if n[1] > 0.7 else "rs_tank"))
+
+
 def details(m):
     X = lambda x: x - OX    # noqa: E731
     Z = lambda z: z - OZ    # noqa: E731
@@ -176,6 +221,17 @@ def details(m):
     sign(m, "n_FAB SHED", (0, 0, 1), 128.0 + 0.15, -136.0, SHORE + 9.6, 5.0)
     sign(m, "n_WORKSHOP", (0, 0, -1), 106.0 - 0.15, -98.0, SHORE + 3.0, 2.6)
     sign(m, "n_BOATHOUSE", (0, 0, -1), 156.0 - 0.15, -39.0, SHORE + 3.4, 3.2)
+    for name, key, side in (("n_WEIGHBRIDGE", "weighbridge", "n"), ("n_RAIL SHED", "railshed", "s"),
+                            ("n_SIGNAL BOX", "signalbox", "n"), ("n_GARAGE", "sgarage", "n"),
+                            ("n_BARGE OFFICE", "bargeoffice", "n")):
+        x0, x1, z0, z1 = BUILDINGS[key][0][0]
+        if side == "n":
+            sign(m, name, (0, 0, -1), z0 - 0.15, (x0 + x1) / 2 + 3.0, TOPS[key] - 1.2, 2.4)
+        else:
+            sign(m, name, (0, 0, 1), z1 + 0.15, (x0 + x1) / 2 + 4.0, TOPS[key] - 1.4, 2.8)
+    for key in ("weighbridge", "railshed", "signalbox", "laneshed", "sgarage", "sshed", "bargeoffice", "signalhut"):
+        x0, x1, z0, z1 = BUILDINGS[key][0][0]
+        R.t_lamp(m, X((x0 + x1) / 2), TOPS[key], Z((z0 + z1) / 2))
     for k, (x0, x1, z0, z1) in enumerate([BUILDINGS[k][0][0] for k in ("tshed1", "tshed2", "tshed3")]):
         name = "n_SHED %d" % (k + 1)
         sign(m, name, (0, 0, -1), z0 - 0.15, (x0 + x1) / 2, SHORE + 4.6, 3.6)
@@ -205,6 +261,7 @@ def build_south(name="south_port"):
     P._M[0] = m
     R._against = P.against
     outside = []
+    conts = 0
     for row in data["boxes"]:
         kind = row.get("kind") or ""
         if kind == "pallets":
@@ -233,6 +290,22 @@ def build_south(name="south_port"):
             machine(m, row)
         elif kind == "boathouse":
             boathouse(m, row)
+        elif kind == "boxcar":
+            boxcar(m, row)
+        elif kind in ("ac_unit", "vent", "roof_tank"):
+            roof_bit(m, row)
+        elif kind == "mole":       # the breakwater: concrete on top, rock below the quay's edge
+            m.box(row["pos"], row["size"], lambda n, mid, q: "rq_quay" if n[1] > 0.7 else (None if n[1] < -0.7 else
+                  ("rq_conc" if mid[1] > SHORE - 1.0 else "rs_rock")))
+        elif kind == "block":
+            m.box(row["pos"], row["size"], Q.concrete_style, yaw=row["yaw"])
+        elif kind == "fence":
+            m.box(row["pos"], row["size"], Q.concrete_style)
+        elif kind == "woodpile":
+            R.t_prop(m, dict(row, kind="crates"))
+        elif row["colour"] in R.CONT_MAT:
+            R.container(m, row, conts)
+            conts += 1
         elif kind == "tshed":
             x = row["pos"][0] + OX
             z = row["pos"][2] + OZ

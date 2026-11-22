@@ -469,14 +469,17 @@ def quay():
         wall("x", z, -HALF, QUAY, SHORE, 3.0, "concrete", t=0.6)
     labels.append(("THE LANDING", -110, -2, 1))
     # the rail line inland: stopped freight trains (cover along the spawn side), a level crossing at the road
-    for z0, n in [(-176.0, 4), (-104.0, 3), (-46.0, 2), (14.0, 3), (70.0, 4), (142.0, 2)]:
-        for i in range(n):
-            wagon(-156.0, z0 + 7.0 + 17.0 * i, ("rust", "container_c", "container_b")[i % 3])
+    with modeled("south_port", -90.0, 110.0), kinded("boxcar"):    # (art pass 4)
+        for z0, n in [(-176.0, 4), (-104.0, 3), (-46.0, 2), (14.0, 3), (70.0, 4), (142.0, 2)]:
+            for i in range(n):
+                wagon(-156.0, z0 + 7.0 + 17.0 * i, ("rust", "container_c", "container_b")[i % 3])
     # the spawn strip (between the fence and the rail): fences across it, gates on alternate sides
     for i, z in enumerate((-112.0, -40.0, 48.0, 128.0)):
         gx = -175.0 if i % 2 else -165.0
-        wall("x", z, -HALF, -158.0, SHORE, 2.6, "concrete", [(gx, 3.0, 0.0, 2.6)], t=0.4)
-        box(gx + (3.5 if i % 2 else -6.5), SHORE, z + 0.3, gx + (6.5 if i % 2 else -3.5), SHORE + 2.4, z + 3.3, "wood")
+        with modeled("south_port", -90.0, 110.0), kinded("fence"):
+            wall("x", z, -HALF, -158.0, SHORE, 2.6, "concrete", [(gx, 3.0, 0.0, 2.6)], t=0.4)
+        with modeled("south_port", -90.0, 110.0), kinded("woodpile"):
+            box(gx + (3.5 if i % 2 else -6.5), SHORE, z + 0.3, gx + (6.5 if i % 2 else -3.5), SHORE + 2.4, z + 3.3, "wood")
     # quay cranes straddling the apron (legs every 40 m) and things parked across it, so the apron along the quay
     # never gives a clear line
     with modeled("quay_front", -30.0, 0.0):
@@ -1139,39 +1142,57 @@ def breakers():
     add_loot("Clinic", "crate", -103.6, SHORE, -116.4)                  # (south bay, against the bays' wall)
     add_loot("Shed", "crate", -148.0, SHORE, -120.0)
     add_loot("Shed", "crate", -60.0, SHORE, -124.0, table="field")
-    container(-84.0, SHORE, -127.0, "z", "container_b", 2)
+    with modeled("south_port", -90.0, 110.0):
+        container(-84.0, SHORE, -127.0, "z", "container_b", 2)
     # the corridor beside the rail: the weighbridge office, the rail shed, the signal box, a container across
-    hall(-152.0, -138.0, -44.0, -34.0, 4.0, "wall", n=[door(-145.0)], s=[door(-141.0)], e=[window(-39.0)])
-    hall(-152.0, -136.0, 36.0, 56.0, 6.0, "wall", n=[gate(-144.0)], s=[gate(-144.0)], e=[door(46.0)])
-    hall(-150.0, -138.0, 72.0, 84.0, 7.0, "wall", n=[door(-144.0)], e=[window(78.0)], w=[window(78.0)])
+    with modeled("south_port", -90.0, 110.0), kinded("weighbridge"):
+        hall(-152.0, -138.0, -44.0, -34.0, 4.0, "wall", n=[door(-145.0)], s=[door(-141.0)], e=[window(-39.0)])
+    with modeled("south_port", -90.0, 110.0), kinded("railshed"):
+        hall(-152.0, -136.0, 36.0, 56.0, 6.0, "wall", n=[gate(-144.0)], s=[gate(-144.0)], e=[door(46.0)])
+    with modeled("south_port", -90.0, 110.0), kinded("signalbox"):
+        hall(-150.0, -138.0, 72.0, 84.0, 7.0, "wall", n=[door(-144.0)], e=[window(78.0)], w=[window(78.0)])
     add_loot("Railyard", "crate", -150.0, SHORE, 54.0)
     add_loot("Railyard", "locker", -149.5, SHORE, 82.0, 90)
-    box(-153.0, SHORE, -89.2, -147.0, SHORE + 5.2, -86.8, "container_a")
+    with modeled("south_port", -90.0, 110.0):
+        box(-153.0, SHORE, -89.2, -147.0, SHORE + 5.2, -86.8, "container_a")
     # the lane between the rail shed / canteen and the silos / grain store (x -136..-112): broken at three places
-    box(-136.0, SHORE, 58.5, -122.0, SHORE + 3.8, 61.5, "container_c")
-    box(-132.0, SHORE, 29.8, -126.0, SHORE + 5.2, 32.2, "container_b")
-    box(-122.0, SHORE, 32.6, -116.0, SHORE + 2.6, 35.0, "container_a")
-    hall(-128.0, -114.0, 94.0, 102.0, 4.0, "wall", n=[door(-121.0)], s=[door(-118.0)], w=[window(98.0)])
+    with modeled("south_port", -90.0, 110.0):
+        box(-136.0, SHORE, 58.5, -122.0, SHORE + 3.8, 61.5, "container_c")
+    with modeled("south_port", -90.0, 110.0):
+        box(-132.0, SHORE, 29.8, -126.0, SHORE + 5.2, 32.2, "container_b")
+    with modeled("south_port", -90.0, 110.0):
+        box(-122.0, SHORE, 32.6, -116.0, SHORE + 2.6, 35.0, "container_a")
+    with modeled("south_port", -90.0, 110.0), kinded("laneshed"):
+        hall(-128.0, -114.0, 94.0, 102.0, 4.0, "wall", n=[door(-121.0)], s=[door(-118.0)], w=[window(98.0)])
     add_loot("Shed", "crate", -126.0, SHORE, 100.0, table="field")
-    container(-126.0, SHORE, 136.0, "z", "container_b", 2)
-    box(-170.0, SHORE, -22.0, -164.0, SHORE + 2.6, -19.6, "container_c")   # (the spawn strip by the road)
+    with modeled("south_port", -90.0, 110.0):
+        container(-126.0, SHORE, 136.0, "z", "container_b", 2)
+    with modeled("south_port", -90.0, 110.0):
+        box(-170.0, SHORE, -22.0, -164.0, SHORE + 2.6, -19.6, "container_c")   # (the spawn strip by the road)
     # the road: a checkpoint booth, kiosks and stacks staggered across it
     with modeled("harbor_plaza", -100.0, -40.0), kinded("kiosk"):
         for x0, z0, x1, z1, h in [(-151.0, -10.0, -147.0, -2.0, 2.6), (-137.0, 1.0, -133.0, 8.0, 2.6),
                                   (-119.0, -9.0, -115.0, -3.0, 2.4), (-101.0, 2.0, -97.0, 8.0, 2.4)]:
             box(x0, SHORE, z0, x1, SHORE + h, z1, "wall")
     # the south street (between the fab shed / workshop and the hull) and the south edge
-    container(-118.0, SHORE, 133.0, "x", "container_c", 2)
-    hall(-80.0, -66.0, 126.0, 136.0, 5.0, "wall", n=[door(-73.0)], s=[door(-70.0)], w=[window(131.0)])
+    with modeled("south_port", -90.0, 110.0):
+        container(-118.0, SHORE, 133.0, "x", "container_c", 2)
+    with modeled("south_port", -90.0, 110.0), kinded("sgarage"):
+        hall(-80.0, -66.0, 126.0, 136.0, 5.0, "wall", n=[door(-73.0)], s=[door(-70.0)], w=[window(131.0)])
     add_loot("Garage", "crate", -78.0, SHORE, 128.0)
-    hall(-100.0, -86.0, 164.0, 176.0, 4.0, "wall", n=[door(-93.0)], e=[window(170.0)], w=[door(170.0)])
+    with modeled("south_port", -90.0, 110.0), kinded("sshed"):
+        hall(-100.0, -86.0, 164.0, 176.0, 4.0, "wall", n=[door(-93.0)], e=[window(170.0)], w=[door(170.0)])
     add_loot("Shed", "crate", -98.0, SHORE, 174.0, table="field")
-    container(-70.0, SHORE, 170.0, "z", "container_a", 2)
-    container(-128.0, SHORE, 160.0, "x", "container_b", 1)
+    with modeled("south_port", -90.0, 110.0):
+        container(-70.0, SHORE, 170.0, "z", "container_a", 2)
+    with modeled("south_port", -90.0, 110.0):
+        container(-128.0, SHORE, 160.0, "x", "container_b", 1)
     # the barge line's way into the port: the barge office and a stack, offset
-    hall(-58.0, -44.0, 110.0, 122.0, 5.0, "wall", n=[door(-51.0)], s=[door(-48.0)], e=[window(116.0)])
+    with modeled("south_port", -90.0, 110.0), kinded("bargeoffice"):
+        hall(-58.0, -44.0, 110.0, 122.0, 5.0, "wall", n=[door(-51.0)], s=[door(-48.0)], e=[window(116.0)])
     add_loot("Offices", "crate", -56.0, SHORE, 112.0)
-    box(-40.0, SHORE, 124.0, -37.6, SHORE + 5.2, 130.0, "container_c")
+    with modeled("south_port", -90.0, 110.0):
+        box(-40.0, SHORE, 124.0, -37.6, SHORE + 5.2, 130.0, "container_c")
     # the quay edge: a row of containers (cover from the ship), gaps where the ways across, the ladders and the
     # cranes' legs are
     keep_clear = [(-131.0, -116.0), (-4.0, 9.0), (36.0, 42.0), (117.0, 125.0), (154.0, 172.0)]
@@ -1311,15 +1332,21 @@ def _gallery_mole_boats():
     # The breakwater (north): a wide mole (level with the quay) from the north quay to a pad under the bow; a wave wall on the sea side,
     # the signal hut on its north half, broken concrete blocks across the south half
     mz0, mz1 = -130.0, -118.0
-    box(QUAY, SEABED, mz0, 36.0, SHORE, mz1, "rock")
-    wall("x", mz0 + 0.4, QUAY, 60.0, SHORE, 2.6, "concrete", t=0.8)
-    room(-2.0, 8.0, mz0 + 0.8, -124.0, SHORE, 3.0, "wall", w=[door(-126.5)], e=[door(-126.5)], s=[window(3.0, 3.0)],
+    with modeled("south_port", -90.0, 110.0), kinded("mole"):     # (art pass 4)
+        box(QUAY, SEABED, mz0, 36.0, SHORE, mz1, "rock")
+    with modeled("south_port", -90.0, 110.0), kinded("fence"):
+        wall("x", mz0 + 0.4, QUAY, 60.0, SHORE, 2.6, "concrete", t=0.8)
+    with modeled("south_port", -90.0, 110.0), kinded("signalhut"):
+        room(-2.0, 8.0, mz0 + 0.8, -124.0, SHORE, 3.0, "wall", w=[door(-126.5)], e=[door(-126.5)], s=[window(3.0, 3.0)],
          roof="roof")
-    container(20.0, SHORE, -127.6, "x", "container_a", 2)
+    with modeled("south_port", -90.0, 110.0):
+        container(20.0, SHORE, -127.6, "x", "container_a", 2)
     for x, z, yaw, h in [(-18.0, -120.5, 30, 2.4), (-8.0, -122.0, -20, 2.0), (12.0, -120.0, 15, 2.6),
                          (22.0, -122.5, -35, 2.2), (30.0, -119.5, 40, 2.4), (-24.0, -126.0, 10, 2.2)]:
-        obox(x, SHORE + h / 2, z, 3.4, h, 3.0, yaw, "concrete")
-    box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
+        with modeled("south_port", -90.0, 110.0), kinded("block"):
+            obox(x, SHORE + h / 2, z, 3.4, h, 3.0, yaw, "concrete")
+    with modeled("south_port", -90.0, 110.0), kinded("mole"):
+        box(36.0, SEABED, mz0, 60.0, SHORE, SZ0 - 0.3, "rock")        # the pad under the bow
     labels.append(("BREAKWATER", 0, -134, 0))
     ladder(48.0, SHORE, SZ0 - 0.4, 180, FORECASTLE - SHORE, "Bow")
     box(60.0, BOAT - 0.8, -128.0, 68.0, SHORE, -116.0, "wood")      # the pilot cutter moored at the pad (deck level with it)
@@ -1327,7 +1354,8 @@ def _gallery_mole_boats():
     # its engine is started from the wheelhouse: the alarm sounds, it's ready 20 s later
     extracts.append(("BowBoat", "BOW PILOT BOAT", 64.0, SHORE, -120.0, "pilot_boat"))
     switches.append(("PilotBoatEngine", "pilot_boat", "Start the pilot boat's engine", 66.9, SHORE + 1.1, -119.0, 20.0))
-    room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
+    with modeled("south_port", -90.0, 110.0), kinded("wheelhouse"):
+        room(61.5, 67.5, -123.0, -117.0, SHORE, 2.3, "wall", w=[door(-121.5)], s=[window(64.5, 2.0, 0.9, 1.9)], roof="roof")
 
     # The sea side (east): two boats moored against the hull, ladders up to the deck
     box(SX1 + 0.4, BOAT - 1.5, -96.0, SX1 + 9.0, BOAT, -80.0, "wood")
@@ -2315,12 +2343,15 @@ def roof_access():
         ladder(lx, SHORE, lz, yaw, height, "Roof")
         w, d = x1 - x0, z1 - z0
         ax, az = x0 + w * 0.38, z0 + d * 0.4
-        box(ax - 0.6, top, az - 0.45, ax + 0.6, top + 0.9, az + 0.45, "metal")             # the AC unit
+        with modeled("south_port", -90.0, 110.0):      # (art pass 4: drawn as the real thing)
+            box(ax - 0.6, top, az - 0.45, ax + 0.6, top + 0.9, az + 0.45, "metal", kind="ac_unit")
         vx, vz = x0 + w * 0.7, z0 + d * 0.66
-        box(vx - 0.25, top, vz - 0.25, vx + 0.25, top + 0.8, vz + 0.25, "rust")            # the vent stack
+        with modeled("south_port", -90.0, 110.0):
+            box(vx - 0.25, top, vz - 0.25, vx + 0.25, top + 0.8, vz + 0.25, "rust", kind="vent")
         if w * d > 400.0:
             tx, tz = x0 + w * 0.62, z0 + d * 0.25
-            box(tx - 0.9, top, tz - 0.9, tx + 0.9, top + 0.9, tz + 0.9, "concrete")       # the water tank
+            with modeled("south_port", -90.0, 110.0):
+                box(tx - 0.9, top, tz - 0.9, tx + 0.9, top + 0.9, tz + 0.9, "concrete", kind="roof_tank")
 
 
 def settle_tops():
