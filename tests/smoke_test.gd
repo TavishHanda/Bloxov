@@ -357,15 +357,28 @@ func _section_recoil() -> void:
 
 
 func _section_ttk() -> void:
-	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 2 headshots; you die in ~7 scav hits.
+	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 3 headshots up close (0.39.19: full-auto
+	# heads 1.6x); you die in ~7 scav hits.
 	var ak_damage: int = ItemDB.item("ak")["damage"]
 	var scav_probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	var raider_probe := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var scav_hp: int = scav_probe.get_node("Health").max_health
 	var raider_health := raider_probe.get_node("Health") as Health
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
-	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
-		"scav: 4 AK body shots or 2 headshots")
+	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 3,
+		"scav: 4 AK body shots or 3 headshots")
+	# Damage drop-off (0.39.19, owner): every gun but the shotguns' own gets weaker with distance; full-auto heads 1.6x.
+	var ak := ItemDB.item("ak")
+	_check(ItemDB.falloff_mult(ak["falloff"], 20.0) == 1.0 and is_equal_approx(ItemDB.falloff_mult(ak["falloff"], 200.0), 0.65)
+		and is_equal_approx(float(ak["head"]), 1.6), "Hound: full damage to 30 m, 65% from 80 m, heads 1.6x")
+	for id: String in ["ak", "reaper", "smg", "hornet", "pistol", "viper", "talon", "sniper", "shotgun", "brawler"]:
+		_check(ItemDB.item(id).get("falloff", []).size() == 3, "%s loses damage with distance" % id)
+	var lancer := ItemDB.item("sniper")
+	_check(lancer["damage"] * ItemDB.falloff_mult(lancer["falloff"], 600.0) * lancer["head"] >= 100.0
+		and ceili(100.0 / (lancer["damage"] * ItemDB.falloff_mult(lancer["falloff"], 600.0))) == 2,
+		"Lancer: one to the head or two to the body at any range")
+	var talon := ItemDB.item("talon")
+	_check(ceili(100.0 / (talon["damage"] * ItemDB.falloff_mult(talon["falloff"], 600.0))) == 3, "Talon: three to the body at any range")
 	_check(raider_probe.armor == "armor_light" and raider_probe.helmet == "helmet_basic"
 		and hits_to_kill.call(raider_health.max_health, ak_damage * (1.0 - ItemDB.item(raider_probe.armor)["reduction"])) == 5,
 		"Raiders wear light armor and an old helmet: 5 AK body shots")
@@ -1960,7 +1973,7 @@ func _section_new_guns() -> void:
 	_check(ceili(100.0 / ItemDB.item("sniper")["damage"]) == 2 and ItemDB.item("sniper")["damage"] * ItemDB.item("sniper")["head"] >= 100,
 		"sniper: 2 body shots or 1 headshot")
 	_check(is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 10.0), 1.0)
-		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.7), "SMG damage drops off past 25 m")
+		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.55), "SMG damage drops off past 15 m")
 	_check(ItemDB.attachment_slot_for("sniper", "scope_8x") == "scope" and ItemDB.attachment_slot_for("shotgun", "choke") == "barrel"
 		and ItemDB.attachment_slot_for("shotgun", "scope_4x") == "", "the 8x scope and choke go on their guns")
 	# The second gun of each type (0.36.42, owner): Viper, Hornet, Brawler, Talon. Each takes its type's ammo, is sold by
@@ -5774,7 +5787,7 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return got["hits"].size() >= 2)
-	_check(got["hits"].size() == 2 and got["hits"][1] == [56, true], "a headshot does double (%s)" % str(got["hits"]))
+	_check(got["hits"].size() == 2 and got["hits"][1] == [45, true], "a headshot does 1.6x (0.39.19: %s)" % str(got["hits"]))
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([Vector3(1, 0, 0)]), "ak")
 	OS.delay_msec(60)
