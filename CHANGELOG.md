@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.39.14 (Gun balance and attachment tiers)
+## 0.39.15 (Gun balance and attachment tiers)
 Owner (2026-11-22): the guns were too strong, the new SMG had almost no kick; bare guns should be "mid" and attachments
 should make them better, with tiers. The rule now: **damage and fire rate belong to the gun, handling belongs to the
 attachments.** A fully kitted Hound kicks less than a bare Reaper, but the Reaper still hits harder and fires faster.
@@ -25,6 +25,21 @@ attachments.** A fully kitted Hound kicks less than a bare Reaper, but the Reape
   bench level 1. Each uses an existing model in its tier's finish (Basic bare steel, Good olive, Best coyote tan).
 - Any suppressor counts for "quiet" kills and quieter shots, online too. Net version 25 (gun numbers and items changed).
 - Smoke test: tiers get better in order, a kitted Hound vs a bare Reaper, attachments never touch damage or fire rate.
+## 0.39.14 (AI PMCs fight like players)
+Owner (2026-11-22): AI PMCs are "standing still, not shooting back that much, not taking proper cover (like cover over
+a tree)". They fight with the Raider brain (a duel test against a player gave the same shots and moves as a Raider);
+three of its habits look wrong on a PMC. Owner OK'd all three fixes (2026-11-22), for AI PMCs only (scavs, Raiders, snipers and bosses
+unchanged: same-seed AI log identical before and after, `tests/ai_same_check.gd`):
+- **Real cover:** a spot only counts when it hides the bot's head and both shoulders (`PmcAI._hides_at`), not one
+  line to the middle of its chest (a tree trunk did, with both shoulders showing).
+- **Shoots on the way to cover** (`_fires_on_cover_runs`; the other AI only do after trading shots in the open), and
+  **doesn't run from a shooter within 30 m** (`NO_BREAK_NEAR`; was 12 m): 5 of 18 bot deaths in a raid check were bots
+  shot in the back while breaking off a fight with AI.
+- **Hurt, it gets into cover** when it loses sight of you (`_wait_for_target`) instead of standing in the open for up
+  to 15 s.
+- Duel test (14 spots, player 18-35 m off shooting it): shots per 20 s 21 -> 30, bots killed 7 -> 4, body showing
+  while "in cover" 37% -> 28% of the time.
+
 ## 0.39.13 (Hideout tidy: the garage hole, props in the walls)
 Owner 2026-11-22: "the new truck area has like this hole in the side making us able to see through the map ... make
 sure nothing is stuck in walls and all the things are put in spots properly". Looks and placement only, no gameplay.

@@ -7575,6 +7575,27 @@ func _section_pmc_ai() -> void:
 	await physics_frame
 	_check(NetRaid.ENEMY_SCENES[6].resource_path == PMC_AI_SCENE and a.net_kind == 6, "AI PMCs are net kind 6 (the seventh puppet scene)")
 	_check(a.health.max_health == 100, "an AI PMC has 100 HP")
+	# (0.39.14, owner: "not taking proper cover (like cover over a tree)") Cover must hide an AI PMC's head and both
+	# shoulders: a thin post hides a scav's chest (its cover), not a bot. Bots shoot on cover runs; scavs don't.
+	var post := StaticBody3D.new()
+	var post_shape := CollisionShape3D.new()
+	post_shape.shape = BoxShape3D.new()
+	(post_shape.shape as BoxShape3D).size = Vector3(0.3, 4.0, 0.3)
+	post.add_child(post_shape)
+	root.add_child(post)
+	post.global_position = Vector3(500, 300, 500)
+	await physics_frame
+	var post_space := (a as Node3D).get_world_3d().direct_space_state
+	var post_eyes := Vector3(500, 301.6, 490)
+	var behind := Vector3(500, 298.0, 501)
+	_check(scav._hides_at(post_space, post_eyes, behind) == 2 and a._hides_at(post_space, post_eyes, behind) == 0,
+		"a thin post is cover for a scav (%d) but not for an AI PMC (%d)" % [scav._hides_at(post_space, post_eyes, behind), a._hides_at(post_space, post_eyes, behind)])
+	(post_shape.shape as BoxShape3D).size = Vector3(2.0, 4.0, 0.3)
+	await physics_frame
+	await physics_frame
+	_check(a._hides_at(post_space, post_eyes, behind) == 2, "a wall is cover for an AI PMC")
+	post.queue_free()
+	_check(a._fires_on_cover_runs() and not scav._fires_on_cover_runs(), "AI PMCs shoot on their way to cover, scavs don't")
 	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as Scav
 	_check(is_equal_approx(ref.accuracy_near, 0.7) and is_equal_approx(ref.accuracy_far, 0.35) and is_equal_approx(ref.accuracy_long, 0.2)
 		and is_equal_approx(ref.skill_spread, 0.1), "AI PMC hit chance 70/35/20, each one +/- 10%")
