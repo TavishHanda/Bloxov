@@ -168,7 +168,10 @@ static func more_than(loadout: Dictionary, carried: Dictionary) -> Dictionary:
 
 ## What's left of a loadout after dying: only the secure pocket (and hotbar bindings). Same as Profile.death_loadout.
 static func death_loadout(loadout: Dictionary) -> Dictionary:
-	return {"equipment": {}, "pockets": [], "backpack": [], "secure": loadout.get("secure", []),
+	# (0.39.10: quest items never survive a death, even if a changed game slipped one into the secure pocket)
+	var secure: Array = loadout.get("secure", []).filter(func(e: Variant) -> bool:
+		return not (e is Dictionary and ItemDB.ITEMS.get(str(e.get("id", "")), {}).get("quest", false)))
+	return {"equipment": {}, "pockets": [], "backpack": [], "secure": secure,
 		"hotbar": loadout.get("hotbar", ["", "", "", ""])}
 
 
