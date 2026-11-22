@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.24 (Raijin and his guards fight you on the stairs)
+The owner's friend shot Raijin and his guards down from a stairway while they stood in the open and did nothing.
+- **Why:** a boss zone's height band (0.35.34: Riptide's lab, Fore and Aft stop at the decks above and below) had no
+  slack. It was meant for where they patrol, but it was also used for where they fight and what they hear. So a shooter
+  just above the lab's band (the moon pool ramp, the stairwells' upper flights) was "outside their area": his shots
+  went unheard, calls for help were ignored, and the moment Raijin followed you up a step past the band he gave up the
+  fight on the spot, turned his back and couldn't spot you again for 6 s.
+- **Fix:** the band gets the same 40 m leash the zone already had sideways: they still patrol only their own decks, but
+  fight, hear and come after you up and down stairs as far as they already did past the edge of their area. Applies to
+  every boss crew with a height band (Raijin, Ace, Orbit). Test raid (player on the moon pool ramp): before, Raijin
+  went idle 1 m from the player after 29 shots; now he keeps fighting (60 shots in 15 s).
+- Smoke test: Raijin doesn't give up a fight on the stairs just above the lab.
+
 ## 0.39.21 (AI PMCs: sharp ears)
 The owner: AI PMCs "need to be way better at detecting if there are players around them". Plan approved 2026-11-22.
 Only the AI PMCs change, and only for noises a player makes; scavs, Raiders, snipers and Raijin hear as before, and
