@@ -15,6 +15,26 @@ the back". The owner picked look A of three (`/mnt/project-files/guns/models/hou
   model changed (`make_gun.py`, `hound.glb`).
 - The Hound's inventory icon is re-rendered. It still showed the old slab stock from before 0.38.8.
 
+## 0.39.22 (Damage drop-off, pistol nerf, SMG kick, ammo names)
+Owner, 2026-11-22: a Hound bullet doing 56 to the head at any range was too much. Player guns now lose damage with
+distance, and full-auto heads count less (the bots' own damage is unchanged):
+- **Drop-off on every gun** ("falloff": full damage up to the first range, weakest from the second and beyond):
+  Hound and Reaper 30 m to 80 m (65%), Wasp 15 m to 40 m (55%), Hornet 20 m to 50 m (60%), Stinger and Viper 15 m to
+  40 m (60%), Talon 60 m to 150 m (80%), Lancer 80 m to 200 m (85%). Mauler and Brawler unchanged (12 m to 30 m, 40%).
+- **Full-auto headshots 1.6x** (Hound, Reaper, Wasp, Hornet; was 2x). A close Hound headshot does 45 (was 56), so a
+  scav takes 3 Hound headshots instead of 2; body shots up close are unchanged (4). Pistols and rifles keep theirs.
+- The Lancer still kills with one to the head or two to the body at any range, the Talon with three to the body.
+- **Pistol nerf** (owner, 2026-11-22: "Viper damage is like WAYY too strong"): Viper 24 damage (was 30), 1.8x heads
+  (was 2.5x), 170 rpm (was 200): 5 body shots or 3 headshots to kill (was 4 or 2). Stinger 14 damage (was 17), 1.8x
+  heads (was 2.5x): 8 body shots or 4 headshots (was 6 or 3).
+- **SMGs kick more** (owner, 2026-11-22: kitted SMGs had almost no recoil; a fully kitted Hornet should feel like
+  the old Wasp): Wasp 750 rpm (was 900), kick 1.3 (was 0.9), side kick 0.55 (was 0.4); Hornet kick 1.4 (was 1.15),
+  side kick 0.6 (was 0.5). Fully kitted, either one now kicks about like the old bare Wasp.
+- **Ammo named by gun type** (owner, 2026-11-22): Rifle Rounds (Hound, Reaper), Pistol Rounds (Stinger, Viper),
+  SMG Rounds (Wasp, Hornet), Shotgun Shells (Mauler, Brawler), Sniper Rounds (Lancer, Talon). Names only: the items
+  are the same, so ammo already in stashes keeps working.
+- The stat bars' range bar now measures where a gun's damage has fallen off the most.
+Net version 30 (the server judges gun damage).
 ## 0.39.21 (AI PMCs: sharp ears)
 The owner: AI PMCs "need to be way better at detecting if there are players around them". Plan approved 2026-11-22.
 Only the AI PMCs change, and only for noises a player makes; scavs, Raiders, snipers and Raijin hear as before, and
