@@ -13,7 +13,7 @@ extends Node
 ## in through doors), so it can't find scavs or loot you couldn't see from where you stand.
 ## TEMP playtest switch (0.35.29, owner 2026-11-17: "make it so you can free cam anywhere ... to help explore and find
 ## bugs"): while `playtest_anywhere` is on, it works in the walkable hideout too, and flies anywhere (no leash, through
-## walls). Still PvE (solo raids) only (owner, 0.35.30: "make sure its only in PvE for now"): never in online / PvP raids.
+## walls). Still offline PvE only (owner, 0.35.30 and 0.39.12): never online (PvP raids, the hideout while connected).
 ## Set it back to false before release.
 
 ## Flying speeds (m/s); the mouse wheel steps through them.
@@ -73,14 +73,16 @@ func _init(owner_body: Node3D) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 
-## The free camera can be used here: solo raids only (owner's security rules: no seeing round walls online).
+## The free camera can be used here: offline PvE only (owner's security rules: no seeing round walls online). Off
+## anywhere online (owner, 0.39.12: "turn off free camera in online"): connected to the server at all (raid or hideout)
+## or on the PvP stash.
 static func allowed() -> bool:
-	return not Network.main.in_online_raid()
+	return not Network.main.is_online() and Profile.mode != Profile.ONLINE
 
 
 ## Slow motion and stopped time: offline only (online the server keeps time).
 static func time_allowed() -> bool:
-	return not Network.main.in_online_raid()
+	return allowed()
 
 
 ## Whoever the camera flies off: the raid's player or the hideout's walker.

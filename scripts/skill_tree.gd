@@ -3,7 +3,7 @@ extends Control
 ## The upgrade points as a skill tree in its own menu (owner 2026-11-20: "the traits screen to kinda be like a skill
 ## tree in its own menu"), opened from the CHARACTERS screen (CharacterScreen.open_tree). Three branches grow up from
 ## the character: its two upsides (5 steps of +2% each) and its passive (rank 1 free, ranks 2 and 3 for 2 points each).
-## Its downsides only grow with level (0.39.12, owner 2026-11-22), shown in red beside the character. A branch is bought from the bottom up (Characters.spend,
+## Its downsides only grow with level (0.39.13, owner 2026-11-22), shown in red beside the character. A branch is bought from the bottom up (Characters.spend,
 ## through CharacterScreen.spend so the pockets and the save follow). Bought nodes are lit, the next one you can buy
 ## has a bright edge, the rest are dim. Same rules as before: only the look of the screen is new.
 
