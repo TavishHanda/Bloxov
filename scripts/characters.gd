@@ -20,8 +20,6 @@ const EXPEDITION_POINTS := 2
 const MAX_EXPEDITION_POINTS := 10
 const UPSIDE_STEP := 0.02
 const UPSIDE_MAX := 5
-const DOWNSIDE_STEP := 0.25
-const DOWNSIDE_MAX := 2
 const PASSIVE_RANK_COST := 2
 ## Moving your points around (all of them back) costs this much.
 const RESET_COST := 25000
@@ -105,8 +103,9 @@ const PASSIVES := {
 }
 const OVERDRIVE_BELOW := 0.3
 const POCKETS_WIDTH := 4
-## Spent-point keys: u0/u1 = the two upsides, d0/d1 = the two downsides, p = passive ranks above 1.
-const SPEND_KEYS: Array[String] = ["u0", "u1", "d0", "d1", "p"]
+## Spent-point keys: u0/u1 = the two upsides, p = passive ranks above 1 (downsides only grow with level, 0.39.11).
+## (0.39.11, owner 2026-11-22: downsides only grow with level, points never go on them; old downside points come back)
+const SPEND_KEYS: Array[String] = ["u0", "u1", "p"]
 
 ## This device's player in a raid (set by the player as it spawns): stat -> multiplier, and the passive and its rank.
 ## Empty on the server and for everyone else, so nothing changes there.
@@ -173,7 +172,7 @@ static func _clean_char(c: Dictionary) -> Dictionary:
 		"spent": {}}
 	var spent: Dictionary = c.get("spent", {}) if c.get("spent") is Dictionary else {}
 	for key in SPEND_KEYS:
-		var cap := UPSIDE_MAX if key.begins_with("u") else (DOWNSIDE_MAX if key.begins_with("d") else 2)
+		var cap := UPSIDE_MAX if key.begins_with("u") else 2
 		out["spent"][key] = clampi(int(spent[key]), 0, cap) if _num(spent.get(key)) else 0
 	return out
 
@@ -254,21 +253,20 @@ static func trait_value(id: String, c: Dictionary, index: int) -> float:
 	var value := full * (START_SHARE + (1.0 - START_SHARE) * float(lv - 1) / float(MAX_LEVEL - 1))
 	if index < 2:
 		value += signf(full) * UPSIDE_STEP * int(c["spent"].get("u%d" % index, 0))
-	else:
-		value *= 1.0 - DOWNSIDE_STEP * int(c["spent"].get("d%d" % (index - 2), 0))
 	return value
 
 
-## Whether one more point can go on `key` ("u0".."d1", "p").
+## Whether one more point can go on `key` ("u0", "u1", "p").
 static func can_spend(state: Dictionary, c: Dictionary, key: String) -> bool:
 	var cost := PASSIVE_RANK_COST if key == "p" else 1
-	var cap := UPSIDE_MAX if key.begins_with("u") else (DOWNSIDE_MAX if key.begins_with("d") else 2)
+	var cap := UPSIDE_MAX if key.begins_with("u") else 2
 	return SPEND_KEYS.has(key) and points_left(state) >= cost and int(c["spent"].get(key, 0)) < cap
 
 
 static func spend(state: Dictionary, id: String, key: String) -> bool:
 	var c := char_of(state, id)
-	if not can_spend(state, c, key):
+	# (owner 2026-11-22: never on a character you don't own; the server refuses it too, `changes`)
+	if not state.get("picked", true) or not (state.get("unlocked", []) as Array).has(id) or not can_spend(state, c, key):
 		return false
 	c["spent"][key] = int(c["spent"].get(key, 0)) + 1
 	return true
@@ -431,7 +429,7 @@ static func ai_pick(seed_value: int) -> Dictionary:
 	for at: int in LEVEL_POINTS:
 		if lv >= at:
 			points += int(LEVEL_POINTS[at])
-	var state := {"selected": id, "chars": {id: {"xp": xp, "lvl_points": points, "exp_points": 0, "spent": {}}}}
+	var state := {"selected": id, "unlocked": [id], "chars": {id: {"xp": xp, "lvl_points": points, "exp_points": 0, "spent": {}}}}
 	var c := char_of(state, id)
 	while points_left(state) > 0:
 		var options := SPEND_KEYS.filter(func(key: String) -> bool: return can_spend(state, c, key))

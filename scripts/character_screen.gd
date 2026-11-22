@@ -304,16 +304,14 @@ func _fill_points(c: Dictionary, unlocked: bool) -> void:
 	var state := Profile.characters
 	_points.text = "%d points to spend (shared by all characters, %d earned)" % [Characters.points_left(state), Characters.points_earned(state)]
 	var info: Dictionary = Characters.LIST[showing]
-	for key: String in ["u0", "u1", "d0", "d1", "p"]:
+	for key: String in ["u0", "u1", "p"]:
 		var spent := int(c["spent"].get(key, 0))
 		var row := _text(15, HudStyle.INK if spent > 0 else HudStyle.INK_DIM)
 		if key == "p":
 			row.text = "%s: rank %d / 3" % [Characters.PASSIVES[info["passive"]]["name"], Characters.passive_rank(c)]
 		else:
-			var index := 0 if key == "u0" else 1 if key == "u1" else 2 if key == "d0" else 3
-			var cap := Characters.UPSIDE_MAX if key.begins_with("u") else Characters.DOWNSIDE_MAX
-			row.text = "%s %s: %d / %d" % ["Boost" if key.begins_with("u") else "Shrink",
-				Characters.STAT_NAMES[str(info["traits"][index][0])], spent, cap]
+			var index := 0 if key == "u0" else 1
+			row.text = "Boost %s: %d / %d" % [Characters.STAT_NAMES[str(info["traits"][index][0])], spent, Characters.UPSIDE_MAX]
 		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_spend.add_child(row)
 	_reset.disabled = false

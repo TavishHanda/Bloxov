@@ -1,15 +1,15 @@
 class_name SkillTree
 extends Control
 ## The upgrade points as a skill tree in its own menu (owner 2026-11-20: "the traits screen to kinda be like a skill
-## tree in its own menu"), opened from the CHARACTERS screen (CharacterScreen.open_tree). Five branches grow up from
-## the character: its two upsides (5 steps of +2% each), its passive (rank 1 free, ranks 2 and 3 for 2 points each)
-## and its two downsides (2 steps, each a quarter smaller). A branch is bought from the bottom up (Characters.spend,
+## tree in its own menu"), opened from the CHARACTERS screen (CharacterScreen.open_tree). Three branches grow up from
+## the character: its two upsides (5 steps of +2% each) and its passive (rank 1 free, ranks 2 and 3 for 2 points each).
+## Its downsides only grow with level (0.39.11, owner 2026-11-22), shown in red beside the character. A branch is bought from the bottom up (Characters.spend,
 ## through CharacterScreen.spend so the pockets and the save follow). Bought nodes are lit, the next one you can buy
 ## has a bright edge, the rest are dim. Same rules as before: only the look of the screen is new.
 
 const NODE := 58.0
-const BRANCHES: Array[String] = ["u0", "u1", "p", "d0", "d1"]
-const COLUMNS := [0.1, 0.28, 0.5, 0.72, 0.9]
+const BRANCHES: Array[String] = ["u0", "p", "u1"]
+const COLUMNS := [0.2, 0.5, 0.8]
 const LINE_ON := Color("e2a83e")
 const LINE_OFF := Color("545b63")
 
@@ -20,6 +20,7 @@ var _info: Label
 var _reset: Button
 var _area: Control
 var _root: Button
+var _downsides: Label
 ## branch key -> Array[Button], bottom first ("p" starts with rank 1, which every character has).
 var _nodes := {}
 var _heads := {}
@@ -94,6 +95,10 @@ func _init(owner_screen: Node) -> void:
 	_root.add_theme_font_size_override("font_size", 18)
 	_root.mouse_entered.connect(func() -> void: _info.text = _level_text())
 	_area.add_child(_root)
+	_downsides = _label(15, HudStyle.BLOOD)
+	_downsides.name = "Downsides"
+	_downsides.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_area.add_child(_downsides)
 	var foot := HBoxContainer.new()
 	foot.add_theme_constant_override("separation", 14)
 	rows.add_child(foot)
@@ -125,7 +130,7 @@ func _label(size: int, color: Color) -> Label:
 static func _count(key: String) -> int:
 	if key == "p":
 		return 3
-	return Characters.UPSIDE_MAX if key.begins_with("u") else Characters.DOWNSIDE_MAX
+	return Characters.UPSIDE_MAX
 
 
 func open() -> void:
@@ -162,10 +167,15 @@ func refresh() -> void:
 	_points.text = "%d POINTS LEFT" % Characters.points_left(state)
 	_root.text = "%s\nLEVEL %d" % [info["name"], Characters.level(state, id)]
 	_style(_root, HudStyle.FACE_HI, HudStyle.BRASS)
+	var downs: Array[String] = []
+	for index in [2, 3]:
+		var value := Characters.trait_value(id, c, index)
+		downs.append("%s %s%.1f%%" % [Characters.STAT_NAMES[str(info["traits"][index][0])], "+" if value >= 0.0 else "", value * 100.0])
+	_downsides.text = "DOWNSIDES (grow with level)\n" + "\n".join(downs)
 	for key: String in BRANCHES:
 		var owned := _owned(c, key)
 		(_heads[key] as Label).text = _head_text(id, c, key)
-		var color: Color = HudStyle.LIFE if key.begins_with("u") else (HudStyle.BLOOD if key.begins_with("d") else HudStyle.BRASS)
+		var color: Color = HudStyle.LIFE if key.begins_with("u") else HudStyle.BRASS
 		var list: Array = _nodes[key]
 		for i in list.size():
 			var node: Button = list[i]
@@ -180,17 +190,17 @@ func refresh() -> void:
 			node.set_meta("state", "owned" if i < owned else ("next" if next else "locked"))
 	_reset.text = "RESET POINTS  %s" % ItemDB.money(Characters.RESET_COST)
 	_reset.disabled = not _unlocked() or Characters.char_spent(c) == 0 or Profile.money < Characters.RESET_COST
-	_area.queue_redraw()
+	_layout.call_deferred()
 
 
 func _node_text(key: String, i: int) -> String:
 	if key == "p":
 		return "R%d" % (i + 1)
-	return "+2%" if key.begins_with("u") else "-¼"
+	return "+2%"
 
 
 func _stat(id: String, key: String) -> String:
-	var index := {"u0": 0, "u1": 1, "d0": 2, "d1": 3}[key] as int
+	var index := {"u0": 0, "u1": 1}[key] as int
 	return str(Characters.STAT_NAMES[str(Characters.LIST[id]["traits"][index][0])])
 
 
@@ -198,7 +208,7 @@ func _head_text(id: String, c: Dictionary, key: String) -> String:
 	if key == "p":
 		var passive: Dictionary = Characters.PASSIVES[Characters.LIST[id]["passive"]]
 		return "%s\n%s" % [str(passive["name"]).to_upper(), passive["rank_text"][Characters.passive_rank(c) - 1]]
-	var index := {"u0": 0, "u1": 1, "d0": 2, "d1": 3}[key] as int
+	var index := {"u0": 0, "u1": 1}[key] as int
 	var value := Characters.trait_value(id, c, index)
 	return "%s\n%s%.1f%%" % [_stat(id, key), "+" if value >= 0.0 else "", value * 100.0]
 
@@ -213,11 +223,11 @@ func _describe(key: String, i: int) -> void:
 		_info.text = "%s rank %d: %s %s%s" % [passive["name"], i + 1, passive["about"], passive["rank_text"][i],
 			"" if i == 0 else ("  (owned)" if i < owned else "  Costs %d points." % Characters.PASSIVE_RANK_COST)]
 		return
-	var index := {"u0": 0, "u1": 1, "d0": 2, "d1": 3}[key] as int
+	var index := {"u0": 0, "u1": 1}[key] as int
 	var trial := c.duplicate(true)
 	trial["spent"][key] = i + 1
 	var after := Characters.trait_value(id, trial, index)
-	var what := "2% more" if key.begins_with("u") else "a quarter smaller (never gone)"
+	var what := "2% more"
 	_info.text = "%s: %s, %s%.1f%% at this step.%s" % [_stat(id, key), what, "+" if after >= 0.0 else "", after * 100.0,
 		"  (owned)" if i < owned else "  Costs 1 point."]
 
@@ -260,6 +270,8 @@ func _layout() -> void:
 	if w <= 0.0 or h <= 0.0:
 		return
 	_root.position = Vector2(w * 0.5 - _root.size.x / 2.0, h - _root.size.y - 6.0)
+	_downsides.size = Vector2(minf(w * 0.5 - _root.size.x / 2.0 - 24.0, 300.0), 0)
+	_downsides.position = Vector2(w * 0.5 + _root.size.x / 2.0 + 16.0, h - 80.0)
 	var bottom := _root.position.y - 40.0
 	var step := clampf((bottom - 60.0) / float(Characters.UPSIDE_MAX), 50.0, 90.0)
 	for k in BRANCHES.size():
@@ -271,7 +283,7 @@ func _layout() -> void:
 		var head: Label = _heads[key]
 		head.size = Vector2(170, 0)
 		var top := (list[list.size() - 1] as Button).position.y
-		head.position = Vector2(x - 85.0, maxf(top - 50.0, 0.0))
+		head.position = Vector2(x - 85.0, maxf(top - head.get_combined_minimum_size().y - 6.0, 0.0))
 	_area.queue_redraw()
 
 
