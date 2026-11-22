@@ -18,6 +18,14 @@ could see under the water. Now, afloat:
   was 0.87 m under).
 - Smoke test (sound): the far-boom check now counts from an empty sound mix, so sounds still playing from earlier
   sections on a slow runner (46 on Windows CI) can't make the crowd limit skip the boom.
+## 0.39.23 (A triangle stock on the Hound)
+Owner, 2026-11-22: "The back of the hound still looks so ugly, it needs to be more triangle, its like droopy from
+the back". The owner picked look A of three (`/mnt/project-files/guns/models/hound-stock-options-2026-11-22.png`).
+- The stock's top edge now runs level straight back from the receiver, and only the bottom slopes down to the butt.
+  The 0.38.8 wedge sloped down along its top edge, so it hung off the gun. Same length, same in every look; only the
+  model changed (`make_gun.py`, `hound.glb`).
+- The Hound's inventory icon is re-rendered. It still showed the old slab stock from before 0.38.8.
+
 ## 0.39.22 (Damage drop-off, pistol nerf, SMG kick, ammo names)
 Owner, 2026-11-22: a Hound bullet doing 56 to the head at any range was too much. Player guns now lose damage with
 distance, and full-auto heads count less (the bots' own damage is unchanged):
