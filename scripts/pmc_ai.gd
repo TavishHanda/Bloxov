@@ -53,6 +53,9 @@ const FLEE_CLEAR := 30.0
 ## close; then it fights that fight out (no breaking off again until it is over). A run lasts at most FLEE_GIVE_UP s,
 ## and after one it doesn't break off again for BREAK_COOLDOWN s.
 const FLEE_FIGHT := 12.0
+## (0.39.14, owner OK pending) It doesn't break off at all while one this close has it in sight: running with its back to
+## a shooter that near got it killed (5 of 18 bot deaths in a raid check were bots shot running off); it fights.
+const NO_BREAK_NEAR := 30.0
 const FLEE_GIVE_UP := 30.0
 const BREAK_COOLDOWN := 10.0
 ## (0.36.12, pending) Got there with someone still after it within FLEE_MIN m: it runs on to another spot, at most
@@ -79,6 +82,8 @@ const ESCAPE_GAIN := 0.5
 const PASS_FLOOR := 20.0
 const PASS_FLOOR_BOT := 40.0
 const HELD_UP := 10.0
+## How far either side of the middle of its chest cover has to hide it (its body is 0.8 m wide).
+const COVER_SHOULDER := 0.35
 ## (0.39.2 fix: in playtests and the raid report a bot boxed in by other AI could stand on one spot for minutes, every
 ## place and way "too busy") Held up this long, it stops steering round AI for COMMIT_TIME s and goes to a place
 ## anyway, fighting whoever it meets (the owner's rule: "steer around AI, fight if they meet"). Tuning, not the
@@ -204,6 +209,42 @@ func apply_character(mult: Dictionary) -> void:
 	heal_time *= m.call("heal_time")
 	search_mult *= m.call("search")
 	footstep_range *= m.call("steps")
+
+
+# ---- Fighting like a player (0.39.14, owner 2026-11-22: "standing still, not shooting back that much, not taking
+# proper cover (like cover over a tree)"). Hooks of the scav brain; scavs, Raiders and bosses keep theirs. ----------
+
+## Cover has to hide its head and both shoulders, not just the middle of its chest (a tree trunk did, with both
+## shoulders showing). 2 standing, 1 crouched, 0 not hidden.
+func _hides_at(space: PhysicsDirectSpaceState3D, eyes: Vector3, spot: Vector3) -> int:
+	var side := _flat(spot - eyes).normalized().cross(Vector3.UP) * COVER_SHOULDER
+	var hidden := func(points: Array) -> bool:
+		for p: Vector3 in points:
+			if space.intersect_ray(PhysicsRayQueryParameters3D.create(eyes, p, 1)).is_empty():
+				return false
+		return true
+	var chest := spot + Vector3(0, 1.3, 0)
+	if hidden.call([chest, chest + side, chest - side, spot + Vector3(0, 1.65, 0)]):
+		return 2
+	var low_head := spot + Vector3(0, 1.71 * CROUCH_HEIGHT + 0.2, 0)
+	var low_chest := spot + Vector3(0, 1.71 * CROUCH_HEIGHT - 0.3, 0)
+	if hidden.call([low_head, low_chest + side, low_chest - side, spot + Vector3(0, 0.5, 0)]):
+		return 1
+	return 0
+
+
+## It keeps shooting at you while it runs to cover.
+func _fires_on_cover_runs() -> bool:
+	return true
+
+
+## Hurt and lost sight of you: it gets into cover first instead of waiting out in the open.
+func _wait_for_target(delta: float) -> Vector3:
+	if is_hurt() and not holds_position and _cover_cooldown_left <= 0.0 and is_instance_valid(_target):
+		_try_take_cover()
+		if _cover_phase != Cover.NONE:
+			return Vector3.ZERO   # (the cover steps take over from the next frame)
+	return super(delta)
 
 
 ## Puppets (looks only, never on the server): wear the character the server's AI with id `seed_value` is. Call before
@@ -663,7 +704,7 @@ func _check_break_off() -> void:
 	var threat := 0.0
 	for foe in foes:
 		threat += threat_of(foe)
-		if foe._target == self and foe._can_see and _flat(foe.global_position - global_position).length() < FLEE_FIGHT:
+		if foe._target == self and foe._can_see and _flat(foe.global_position - global_position).length() < NO_BREAK_NEAR:
 			return   # (cornered: one this close has it in sight, so it fights; it looks again in a moment)
 	if threat >= BREAK_THREAT or health.current < health.max_health * BREAK_HURT:
 		_break_off(foes)
