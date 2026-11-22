@@ -5270,7 +5270,7 @@ func _section_crafting() -> void:
 	var stash := GridInventory.new("Stash", 8, 20)
 	stash.add("gunpowder", 3)
 	stash.add("scrap", 2)
-	_check(Crafting.times_possible(stash, "rifle_ammo") == 2, "two powder tins and two scrap make Hound Rounds twice")
+	_check(Crafting.times_possible(stash, "rifle_ammo") == 2, "two powder tins and two scrap make Rifle Rounds twice")
 	_check(Crafting.craft(stash, "rifle_ammo", 2, 1) == "" and stash.count_of("rifle_ammo") == 180
 		and stash.count_of("gunpowder") == 1 and stash.count_of("scrap") == 0,
 		"crafting twice takes both sets of parts and gives 180 rounds (%d)" % stash.count_of("rifle_ammo"))

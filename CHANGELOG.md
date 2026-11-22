@@ -7,7 +7,7 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
-## 0.39.19 (Damage drop-off, pistol nerf, SMG kick)
+## 0.39.19 (Damage drop-off, pistol nerf, SMG kick, ammo names)
 Owner, 2026-11-22: a Hound bullet doing 56 to the head at any range was too much. Player guns now lose damage with
 distance, and full-auto heads count less (the bots' own damage is unchanged):
 - **Drop-off on every gun** ("falloff": full damage up to the first range, weakest from the second and beyond):
@@ -22,6 +22,9 @@ distance, and full-auto heads count less (the bots' own damage is unchanged):
 - **SMGs kick more** (owner, 2026-11-22: kitted SMGs had almost no recoil; a fully kitted Hornet should feel like
   the old Wasp): Wasp 750 rpm (was 900), kick 1.3 (was 0.9), side kick 0.55 (was 0.4); Hornet kick 1.4 (was 1.15),
   side kick 0.6 (was 0.5). Fully kitted, either one now kicks about like the old bare Wasp.
+- **Ammo named by gun type** (owner, 2026-11-22): Rifle Rounds (Hound, Reaper), Pistol Rounds (Stinger, Viper),
+  SMG Rounds (Wasp, Hornet), Shotgun Shells (Mauler, Brawler), Sniper Rounds (Lancer, Talon). Names only: the items
+  are the same, so ammo already in stashes keeps working.
 - The stat bars' range bar now measures where a gun's damage has fallen off the most.
 Net version 27 (the server judges gun damage).
 
