@@ -399,7 +399,7 @@ func toggle_free_cam() -> void:
 	if free_cam.active:
 		free_cam.stop()
 	elif not FreeCam.allowed():
-		show_note("The free camera is for solo raids")
+		show_note("The free camera is offline (PvE) only")
 	elif TouchInput.playing() or menu.visible:
 		if free_cam.start():
 			if TouchInput.active:
