@@ -957,71 +957,102 @@ def plaza():
 
 def grain():
     """The grain terminal: the silo bank (30 m tall), the headhouse by the quay with the covered gallery out to the
-    ship at y 14, the grain store, hopper wagons on the siding."""
-    for i in range(5):
-        box(-112.0 + 8.0 * i, SHORE, 38.0, -104.0 + 8.0 * i, SHORE + 30.0, 54.0, "concrete")
-    box(-112.0, SHORE + 30.0, 44.0, -46.0, SHORE + 32.0, 47.0, "rust")    # the conveyor over to the headhouse
-    footprints.append((-112.0, 38.0, -72.0, 54.0))
+    ship at y 14, the grain store, hopper wagons on the siding. (0.39.10, shore art pass 3b: model `south_port`)"""
+    with modeled("south_port", -90.0, 110.0):
+        _grain()
     labels.append(("SILOS", -92, 34, 0))
-    # the headhouse: a stairwell tower by the quay, the gallery leaves from its top landing
-    stairwell(-46.0, 42.0, [GALLERY, 11.0, 8.0, 5.0, SHORE], {0: "E", 4: "W"})
-    box(-46.0, GALLERY + 3.45, 42.0, -38.0, 34.0, 56.0, "concrete")
-    footprints.append((-46.0, 42.0, -38.0, 56.0))
     labels.append(("HEADHOUSE", -42, 60, 0))
-    # the grain store, grain heaps inside (cover)
-    hall(-112.0, -72.0, 64.0, 92.0, 8.0, "wall", n=[gate(-104.0), gate(-80.0)], s=[gate(-92.0)], w=[door(78.0)],
-         e=[gate(70.0), door(86.0)])
-    for x, z, yaw in [(-102.0, 72.0, 0), (-84.0, 82.0, 30), (-96.0, 86.0, 80)]:
-        obox(x, SHORE + 1.0, z, 7.0, 2.0, 6.0, yaw, "sand")
     add_loot("Depot", "crate", -110.0, SHORE, 90.0)
     add_loot("Depot", "crate", -74.0, SHORE, 66.0, table="field")
-    for x in (-108.0, -84.0):                       # hopper wagons between the silos and the store
-        box(x - 7.0, SHORE, 57.5, x + 7.0, SHORE + 3.8, 60.5, "container_c")
     add_loot("Railyard", "crate", -96.0, SHORE, 59.0, table="field")
     labels.append(("GRAIN STORE", -92, 96, 0))
     player_spawns.append((-172.0, SHORE, 90.0))
 
 
+def _grain():
+    for i in range(5):
+        box(-112.0 + 8.0 * i, SHORE, 38.0, -104.0 + 8.0 * i, SHORE + 30.0, 54.0, "concrete", kind="silo")
+    box(-112.0, SHORE + 30.0, 44.0, -46.0, SHORE + 32.0, 47.0, "rust", kind="conveyor")    # the conveyor over to the headhouse
+    footprints.append((-112.0, 38.0, -72.0, 54.0))
+    # the headhouse: a stairwell tower by the quay, the gallery leaves from its top landing
+    with kinded("headhouse"):
+        stairwell(-46.0, 42.0, [GALLERY, 11.0, 8.0, 5.0, SHORE], {0: "E", 4: "W"})
+        box(-46.0, GALLERY + 3.45, 42.0, -38.0, 34.0, 56.0, "concrete")
+    footprints.append((-46.0, 42.0, -38.0, 56.0))
+    # the grain store, grain heaps inside (cover). (0.39.10, tester: windows "badly placed") it had none: high windows
+    # down both long sides, clear of the gates and the roof ladder
+    with kinded("grainstore"):
+        hi = [window(x, 2.4, 4.4, 6.2) for x in (-96.0, -88.0)]
+        lo = [window(x, 2.4, 4.4, 6.2) for x in (-104.0, -84.0, -77.0)]
+        hall(-112.0, -72.0, 64.0, 92.0, 8.0, "wall", n=[gate(-104.0), gate(-80.0)] + hi, s=[gate(-92.0)] + lo,
+             w=[door(78.0), window(70.0, 2.4, 4.4, 6.2)], e=[gate(70.0), door(86.0), window(78.0, 2.4, 4.4, 6.2)])
+    with kinded("heap"):
+        for x, z, yaw in [(-102.0, 72.0, 0), (-84.0, 82.0, 30), (-96.0, 86.0, 80)]:
+            obox(x, SHORE + 1.0, z, 7.0, 2.0, 6.0, yaw, "sand")
+    with kinded("wagon"):
+        for x in (-108.0, -84.0):                       # hopper wagons between the silos and the store
+            box(x - 7.0, SHORE, 57.5, x + 7.0, SHORE + 3.8, 60.5, "container_c")
+
+
 def shipyard():
     """The unfinished hull on the slipway (open frames, a half deck up a scaffold ramp), the fab shed, the workshop,
-    the boathouse on the south quay."""
+    the boathouse on the south quay. (0.39.10, shore art pass 3b: model `south_port`)"""
+    with modeled("south_port", -90.0, 110.0):
+        _shipyard()
+    labels.append(("SLIPWAY", -85, 136, 0))
+    add_loot("Workshop", "crate", -110.0, SHORE, 156.0)
+    add_loot("Workshop", "crate", -96.0, SHORE + 5.5, 142.0, table="crate")
+    add_loot("Workshop", "crate", -150.0, SHORE, 126.0, table="crate")
+    labels.append(("FAB SHED", -136, 100, 0))
+    add_loot("Shed", "crate", -102.0, SHORE, 108.0)
+    extracts.append(("Boathouse", "BOATHOUSE", -38.0, SHORE, 163.0))
+    labels.append(("BOATHOUSE", -39, 174, 0))
+    player_spawns.append((-150.0, SHORE, 172.0))
+
+
+def _shipyard():
     hx0, hx1, hz0, hz1 = -112.0, -58.0, 140.0, 158.0
     deck = SHORE + 5.5
     plating = [gate(x, 3.2, 3.0) for x in (-106.0, -94.0, -82.0, -70.0)]
-    wall("x", hz0, hx0, hx1, SHORE, 9.0, "hull", plating, t=0.5)
-    wall("x", hz1, hx0, hx1, SHORE, 9.0, "hull", plating[1:] + [(-86.0, 2.6, deck - SHORE, deck - SHORE + DOOR_H)], t=0.5)
-    wall("z", hx0, hz0, hz1, SHORE, 9.0, "hull", [gate(149.0, 4.0, 3.0)], t=0.5)
-    for x in (-100.0, -88.0, -76.0, -66.0):       # the frames inside (under the half deck, up to it)
-        wall("z", x, hz0, hz1, SHORE, 9.0 if x > -80 else deck - SLAB_T - SHORE, "rust", [gate(149.0, 5.0, 3.4)], t=0.4)
-    slab(hx0, -80.0, hz0, hz1, deck, "metal", holes=[(-108.0, -104.0, 144.0, 150.0)])
-    ramp((-58.0, SHORE, 161.0), (-84.0, deck, 161.0), 2.6, "wood")
-    box(-90.0, deck - SLAB_T, 158.0, -84.0, deck, 162.3, "wood")
-    for x in range(-110, -56, 8):                   # the scaffold posts
-        box(x, SHORE, 162.4, x + 0.3, SHORE + 9.0, 162.7, "rust")
+    with kinded("slip_hull"):
+        wall("x", hz0, hx0, hx1, SHORE, 9.0, "hull", plating, t=0.5)
+        wall("x", hz1, hx0, hx1, SHORE, 9.0, "hull", plating[1:] + [(-86.0, 2.6, deck - SHORE, deck - SHORE + DOOR_H)], t=0.5)
+        wall("z", hx0, hz0, hz1, SHORE, 9.0, "hull", [gate(149.0, 4.0, 3.0)], t=0.5)
+    with kinded("slip_frame"):
+        for x in (-100.0, -88.0, -76.0, -66.0):       # the frames inside (under the half deck, up to it)
+            wall("z", x, hz0, hz1, SHORE, 9.0 if x > -80 else deck - SLAB_T - SHORE, "rust", [gate(149.0, 5.0, 3.4)], t=0.4)
+    with kinded("slip_deck"):
+        slab(hx0, -80.0, hz0, hz1, deck, "metal", holes=[(-108.0, -104.0, 144.0, 150.0)])
+    with kinded("scaffold"):
+        ramp((-58.0, SHORE, 161.0), (-84.0, deck, 161.0), 2.6, "wood")
+        box(-90.0, deck - SLAB_T, 158.0, -84.0, deck, 162.3, "wood")
+    with kinded("post"):
+        for x in range(-110, -56, 8):                   # the scaffold posts
+            box(x, SHORE, 162.4, x + 0.3, SHORE + 9.0, 162.7, "rust")
     footprints.append((hx0, hz0, hx1, hz1))
-    labels.append(("SLIPWAY", -85, 136, 0))
-    add_loot("Workshop", "crate", -110.0, SHORE, 156.0)
-    add_loot("Workshop", "crate", -96.0, deck, 142.0, table="crate")
-    # the fab shed (tall, big doors both ends), the workshop
-    hall(-152.0, -120.0, 104.0, 128.0, 12.0, "wall", n=[gate(-136.0, 6.0, 6.0)], s=[gate(-136.0, 6.0, 6.0)],
-         w=[door(116.0)], e=[gate(112.0), door(124.0)])
-    for x, z in [(-146.0, 110.0), (-128.0, 122.0), (-140.0, 120.0)]:
-        box(x - 2.5, SHORE, z - 1.5, x + 2.5, SHORE + 1.6, z + 1.5, "metal")
-    add_loot("Workshop", "crate", -150.0, SHORE, 126.0, table="crate")
-    labels.append(("FAB SHED", -136, 100, 0))
-    hall(-104.0, -84.0, 106.0, 124.0, 5.0, "wall", n=[door(-94.0)], s=[door(-98.0)], e=[gate(115.0)], w=[window(115.0)])
-    add_loot("Shed", "crate", -102.0, SHORE, 108.0)
+    # the fab shed (tall, big doors both ends), the workshop. (0.39.10) the fab shed had no windows: a high row down
+    # both long sides and over the west door, clear of the gates and the roof ladder
+    with kinded("fabshed"):
+        hi = [window(x, 3.0, 7.0, 9.4) for x in (-146.0, -127.0)]
+        hall(-152.0, -120.0, 104.0, 128.0, 12.0, "wall", n=[gate(-136.0, 6.0, 6.0)] + hi, s=[gate(-136.0, 6.0, 6.0)] + hi,
+             w=[door(116.0), window(110.0, 3.0, 7.0, 9.4), window(122.0, 3.0, 7.0, 9.4)], e=[gate(112.0), door(124.0)])
+    with kinded("machine"):
+        for x, z in [(-146.0, 110.0), (-128.0, 122.0), (-140.0, 120.0)]:
+            box(x - 2.5, SHORE, z - 1.5, x + 2.5, SHORE + 1.6, z + 1.5, "metal")
+    with kinded("workshop"):
+        hall(-104.0, -84.0, 106.0, 124.0, 5.0, "wall", n=[door(-94.0), window(-89.0, 1.6, 3.2, 4.4)],
+             s=[door(-98.0), window(-90.0, 1.6, 3.2, 4.4)],
+             e=[gate(115.0)], w=[window(115.0)])
     # the boathouse on the south quay (the extract): open on the water side
     bx0, bx1, bz0, bz1 = -46.0, -32.0, 156.0, 170.0
-    hall(bx0, bx1, bz0, bz1, 4.5, "wood", w=[door(167.5, 2.4)], n=[door(-34.0)], e=[(159.5, 5.0, 0.0, 3.6)], floor="wood")
-    # (0.33.2) screens inside, so neither the doors nor the water side look straight onto the zone
-    wall("z", -36.0, bz0, 162.5, SHORE, 3.0, "wood")
-    wall("z", -43.0, 164.0, bz1, SHORE, 3.0, "wood")
-    extracts.append(("Boathouse", "BOATHOUSE", -38.0, SHORE, 163.0))
-    labels.append(("BOATHOUSE", -39, 174, 0))
-    for x, z, yaw in [(-140.0, 150.0, 70), (-150.0, 164.0, 120), (-120.0, 172.0, 95)]:
-        obox(x, SHORE + 0.7, z, 2.6, 1.4, 7.0, yaw, "wood")
-    player_spawns.append((-150.0, SHORE, 172.0))
+    with kinded("boathouse"):
+        hall(bx0, bx1, bz0, bz1, 4.5, "wood", w=[door(167.5, 2.4)], n=[door(-34.0)], e=[(159.5, 5.0, 0.0, 3.6)], floor="wood")
+        # (0.33.2) screens inside, so neither the doors nor the water side look straight onto the zone
+        wall("z", -36.0, bz0, 162.5, SHORE, 3.0, "wood")
+        wall("z", -43.0, 164.0, bz1, SHORE, 3.0, "wood")
+    with kinded("timber"):
+        for x, z, yaw in [(-140.0, 150.0, 70), (-150.0, 164.0, 120), (-120.0, 172.0, 95)]:
+            obox(x, SHORE + 0.7, z, 2.6, 1.4, 7.0, yaw, "wood")
 
 
 def transit_sheds():
@@ -1029,10 +1060,16 @@ def transit_sheds():
     for x0, x1, z0, z1, lbl in [(-60.0, -42.0, -112.0, -72.0, "SHED 1"), (-60.0, -42.0, -64.0, -24.0, "SHED 2"),
                                 (-62.0, -44.0, 64.0, 104.0, "SHED 3")]:
         zm = (z0 + z1) / 2
-        hall(x0, x1, z0, z1, 7.0, "wall", n=[gate((x0 + x1) / 2)], s=[gate((x0 + x1) / 2)],
-             w=[gate(zm - 10.0), door(zm + 12.0)], e=[gate(zm + 8.0), door(zm - 14.0), window(zm, 3.0, 4.0, 5.6)])
-        for i, z in enumerate((zm - 12.0, zm + 2.0, zm + 14.0)):   # pallets and crates inside
-            box(x0 + 4.0 + 6.0 * (i % 2), SHORE, z - 1.5, x0 + 8.0 + 6.0 * (i % 2), SHORE + 1.6, z + 1.5, "wood")
+        # (0.39.10, shore art pass 3b: model `south_port`) high windows down the port side (it had one, onto the quay)
+        hw = lambda z: window(z, 2.4, 4.2, 5.8)     # noqa: E731
+        with modeled("south_port", -90.0, 110.0):
+            with kinded("tshed"):
+                hall(x0, x1, z0, z1, 7.0, "wall", n=[gate((x0 + x1) / 2)], s=[gate((x0 + x1) / 2)],
+                     w=[gate(zm - 10.0), door(zm + 12.0), hw(zm - 17.0), hw(zm + 2.0), hw(zm + 17.0)],
+                     e=[gate(zm + 8.0), door(zm - 14.0), window(zm, 3.0, 4.0, 5.6)])   # (none more on the ship's side)
+            with kinded("pallets"):
+                for i, z in enumerate((zm - 12.0, zm + 2.0, zm + 14.0)):   # pallets and crates inside
+                    box(x0 + 4.0 + 6.0 * (i % 2), SHORE, z - 1.5, x0 + 8.0 + 6.0 * (i % 2), SHORE + 1.6, z + 1.5, "wood")
         labels.append((lbl, (x0 + x1) / 2, zm, 0))
         add_loot("Depot", "crate", x0 + 1.5, SHORE, z0 + 1.5)
         add_loot("Depot", "crate", x1 - 1.5, SHORE, z1 - 1.5, table="field")

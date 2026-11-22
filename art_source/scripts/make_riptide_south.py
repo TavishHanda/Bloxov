@@ -1,0 +1,261 @@
+"""Riptide shore art, pass 3b (owner 2026-11-20: "keep going with the art pass"; the tester's "badly placed windows"):
+`south_port`. Origin (-90, 0, 110); like make_riptide_north.py this works in world metres and borrows
+make_riptide_plaza.py's wall, band and frame code (its module settings are swapped for this model's while it runs).
+
+The grain terminal (the slip-formed silo bank and its conveyor, the headhouse, the grain store in buff block with its
+heaps of grain, the hopper wagons on the siding), the shipyard (the unfinished hull on the slipway with its frames,
+half deck and scaffold, the fab shed in corrugated sheet, the block workshop, the plank boathouse, timber stacks) and
+the three transit sheds on the quay (corrugated sheet, pallets inside). Uses only the textures already on Riptide's
+sheet.
+
+    python3 art_source/scripts/make_riptide.py south_port
+"""
+import json
+import os
+import random
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_riptide as R          # noqa: E402
+import make_riptide_quay as Q     # noqa: E402
+import make_riptide_plaza as P    # noqa: E402  (walls, bands, frames; the rs_* kits)
+import make_riptide_north as N    # noqa: E402  (rs_clad and the sign helper)
+import make_building as mb        # noqa: E402
+import bake_light                 # noqa: E402
+from make_building import Texture, uv_world   # noqa: E402
+from make_riptide import Model, mat, KIT   # noqa: E402
+
+ROOT = mb.ROOT
+OX, OZ = -90.0, 110.0
+SHORE = 2.5
+
+# name: (footprints [(x0, x1, z0, z1)], outside, walls inside, floor, ceiling, ground floor overlay)
+BUILDINGS = {
+    "grainstore": ([(-112.0, -72.0, 64.0, 92.0)], "rs_block_buff", "rq_conc", "rq_conc", "rip_steel_in", None),
+    "headhouse": ([(-46.0, -38.0, 42.0, 56.0)], "rq_conc", "rq_conc", "rq_conc", "rq_conc", None),
+    "fabshed": ([(-152.0, -120.0, 104.0, 128.0)], "rs_clad", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "workshop": ([(-104.0, -84.0, 106.0, 124.0)], "rs_block_grey", "rip_panel", "rq_conc", "rip_ceiling", None),
+    "tshed1": ([(-60.0, -42.0, -112.0, -72.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "tshed2": ([(-60.0, -42.0, -64.0, -24.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+    "tshed3": ([(-62.0, -44.0, 64.0, 104.0)], "rq_corr", "rq_corr", "rq_conc", "rip_steel_in", None),
+}
+TOPS = {"grainstore": SHORE + 8.0, "headhouse": 34.0, "fabshed": SHORE + 12.0, "workshop": SHORE + 5.0,
+        "tshed1": SHORE + 7.0, "tshed2": SHORE + 7.0, "tshed3": SHORE + 7.0}
+LEVELS = [SHORE, 5.0, 8.0, 11.0, 14.0]        # (floors a doorway can stand on: their openings get no sill)
+
+
+def top_of(kind):
+    return TOPS.get(kind, 99.0)
+
+
+def band_list(kind, outside):
+    if kind == "headhouse":
+        return [(-99.0, SHORE + 0.5, "rs_plinth"), (SHORE + 0.5, 99.0, "rq_conc")]
+    if outside == "rq_corr" or outside == "rs_clad":
+        return [(-99.0, SHORE + 0.9, "rs_plinth"), (SHORE + 0.9, 99.0, outside)]   # (sheet on a block plinth)
+    return [(-99.0, SHORE + 0.5, "rs_plinth"), (SHORE + 0.5, 99.0, outside)]
+
+
+def use_plaza_helpers():
+    P.OX, P.OZ = OX, OZ
+    P.BUILDINGS = BUILDINGS
+    P.top_of = top_of
+    P.band_list = band_list
+    P.TOWER_FLOORS = LEVELS
+    P.TOWER_TOP = 34.0
+    N.OX, N.OZ = OX, OZ
+
+
+SIGN_NAMES = ("GRAIN STORE", "FAB SHED", "WORKSHOP", "BOATHOUSE", "SHED 1", "SHED 2", "SHED 3", "GRAIN TERMINAL")
+
+
+def south_decals(rng):
+    real = R.Atlas
+    R.Atlas = lambda size=256: real(1024)
+    try:
+        a = R.tower_decals(rng)
+    finally:
+        R.Atlas = real
+    for name in SIGN_NAMES:
+        w, h, p = R._sign(name, "rw_white", "rx_black", 3)
+        a.add("n_" + name, w, h, p)
+    return a
+
+
+# ------------------------------------------------------------------------------------------------ pieces
+def silo(m, row):
+    """A slip-formed concrete bin: bare concrete, a dark band of a walkway round its top, the roof felted."""
+    c, s = row["pos"], row["size"]
+    top = c[1] + s[1] / 2
+
+    def style(n, mid, q):
+        if n[1] < -0.7:
+            return None
+        if n[1] > 0.7:
+            return "rip_roof"
+        return "rq_conc"
+    m.box(c, s, style)
+    m.box((c[0], top - 0.6, c[2]), (s[0] + 0.12, 0.5, s[2] + 0.12),
+          lambda n, mid, q: None if abs(n[1]) > 0.7 else "rip_iron")     # (the band round the top)
+    for k in range(1, 6):                                                  # (pour lines every 5 m)
+        y = SHORE + 5.0 * k
+        m.box((c[0], y, c[2]), (s[0] + 0.04, 0.06, s[2] + 0.04), lambda n, mid, q: None if abs(n[1]) > 0.7 else "rs_plinth")
+    # the joint between this bin and the next (west), a dark recess down the long faces
+    m.box((c[0] - s[0] / 2, c[1] - 0.6, c[2]), (0.3, s[1] - 1.2, s[2] + 0.06),
+          lambda n, mid, q: "rs_plinth" if abs(n[2]) > 0.7 else None)
+
+
+def conveyor(m, row):
+    """The covered conveyor over the silos to the headhouse: corrugated sides, a roof, iron underneath."""
+    m.box(row["pos"], row["size"], lambda n, mid, q: "rip_iron" if n[1] < -0.7 else ("rip_roof" if n[1] > 0.7 else "rq_corr"))
+
+
+def wagon(m, row):
+    """A hopper wagon: the body in the container colour, iron frame and bogies under it, hoppers below the body."""
+    c, s = row["pos"], row["size"]
+    y0, y1 = c[1] - s[1] / 2, c[1] + s[1] / 2
+    m.box((c[0], (y0 + 1.2 + y1) / 2, c[2]), (s[0], y1 - y0 - 1.2, s[2]),
+          lambda n, mid, q: "rip_iron" if n[1] > 0.7 else ("rip_cont_c" if n[1] > -0.7 else None))
+    m.box((c[0], y0 + 0.6, c[2]), (s[0] - 0.4, 1.2, s[2] - 0.3), lambda n, mid, q: None if n[1] < -0.7 else "rip_iron")
+
+
+def heap(m, row):
+    m.box(row["pos"], row["size"], lambda n, mid, q: None if n[1] < -0.7 else "rip_card", yaw=row["yaw"])
+
+
+def slip_hull(m, row):
+    """The unfinished hull's plating: painted hull outside, bare steel inside, the boot topping low down."""
+    c, s = row["pos"], row["size"]
+    hx, hz = -85.0 - OX, 149.0 - OZ          # (the hull's middle, in the model's space)
+
+    def style(n, mid, q):
+        if n[1] < -0.7:
+            return None
+        if n[1] > 0.7:
+            return "rip_iron"
+        out = n[0] * (mid[0] - hx) + n[2] * (mid[2] - hz) > 0
+        if not out:
+            return "rip_steel_in"
+        return "rip_boot" if mid[1] < SHORE + 1.2 else "rip_hull"
+    m.box(c, s, style)
+
+
+def boathouse(m, row):
+    c, s = row["pos"], row["size"]
+    if s[1] < 0.5:                       # (the floor and the roof)
+        m.box(c, s, lambda n, mid, q: ("rip_roof" if c[1] > SHORE + 2.0 else "rq_plank") if n[1] > 0.7 else
+              ("rq_plank" if n[1] < -0.7 and c[1] > SHORE + 2.0 else (None if n[1] < -0.7 else "rq_plank")))
+        return
+    m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else "rq_plank")
+
+
+def machine(m, row):
+    c, s = row["pos"], row["size"]
+    m.box(c, s, lambda n, mid, q: None if n[1] < -0.7 else ("rip_iron" if n[1] > 0.7 else "rip_machine"))
+    m.box((c[0], c[1] + s[1] / 2 - 0.1, c[2] + s[2] / 2 - 0.05), (s[0], 0.08, 0.06), mat("rip_yellow"), cull=False)
+
+
+def details(m):
+    X = lambda x: x - OX    # noqa: E731
+    Z = lambda z: z - OZ    # noqa: E731
+    for x in (-104.0, -92.0, -80.0):          # the grain store's high-bay lamps
+        for z in (70.0, 86.0):
+            R.t_lamp(m, X(x), SHORE + 8.0, Z(z), 1.6, 0.5)
+    for x in (-144.0, -128.0):                # the fab shed's
+        for z in (110.0, 122.0):
+            R.t_lamp(m, X(x), SHORE + 12.0, Z(z), 1.6, 0.5)
+    R.t_lamp(m, X(-94.0), SHORE + 5.0, Z(115.0))
+    for x0, x1, z0, z1 in [BUILDINGS[k][0][0] for k in ("tshed1", "tshed2", "tshed3")]:
+        for z in (z0 + 10.0, z1 - 10.0):
+            R.t_lamp(m, X((x0 + x1) / 2), SHORE + 7.0, Z(z), 1.6, 0.5)
+    sign = N.sign
+    sign(m, "n_GRAIN STORE", (0, 0, 1), 92.0 + 0.15, -100.0, SHORE + 6.4, 5.0)
+    sign(m, "n_GRAIN STORE", (0, 0, -1), 64.0 - 0.15, -92.0, SHORE + 6.4, 5.0)
+    sign(m, "n_GRAIN TERMINAL", (1, 0, 0), -38.0 + 0.15, 49.0, SHORE + 20.0, 6.0)
+    sign(m, "n_FAB SHED", (0, 0, -1), 104.0 - 0.15, -136.0, SHORE + 9.6, 5.0)
+    sign(m, "n_FAB SHED", (0, 0, 1), 128.0 + 0.15, -136.0, SHORE + 9.6, 5.0)
+    sign(m, "n_WORKSHOP", (0, 0, -1), 106.0 - 0.15, -98.0, SHORE + 3.0, 2.6)
+    sign(m, "n_BOATHOUSE", (0, 0, -1), 156.0 - 0.15, -39.0, SHORE + 3.4, 3.2)
+    for k, (x0, x1, z0, z1) in enumerate([BUILDINGS[k][0][0] for k in ("tshed1", "tshed2", "tshed3")]):
+        name = "n_SHED %d" % (k + 1)
+        sign(m, name, (0, 0, -1), z0 - 0.15, (x0 + x1) / 2, SHORE + 4.6, 3.6)
+        sign(m, name, (0, 0, 1), z1 + 0.15, (x0 + x1) / 2, SHORE + 4.6, 3.6)
+        sign(m, name, (1, 0, 0), x1 + 0.15, (z0 + z1) / 2 - 6.0, SHORE + 5.9, 3.0)
+
+
+def build_south(name="south_port"):
+    use_plaza_helpers()
+    mb.BUILDING_NAME[0] = name
+    with open(os.path.join(ROOT, "art_source", "buildings", name + ".json")) as f:
+        data = json.load(f)
+    assert data.get("map") == "riptide", f"{name}: not a Riptide model"
+    textures, mat_info = {}, {}
+    for kit, painter in KIT.items():
+        textures["kit_" + kit] = Texture("kit_" + kit, os.path.join(R.KIT_DIR, kit + ".png"), painter, random.Random(kit))
+    atlas = south_decals(random.Random(name))
+    decal_png = os.path.join(ROOT, "art_source", "textures", name + "_decals.png")
+    if os.path.exists(decal_png):
+        os.remove(decal_png)
+    textures[name + "_decals"] = Texture(name + "_decals", os.path.join("art_source", "textures", name + "_decals.png"),
+                                         lambda r: atlas.c, random.Random(name))
+    mat_info["decals"] = (name + "_decals", False, False)
+    mat_info["graffiti"] = (name + "_decals", True, False)
+    m = Model(data, atlas)
+    m.rng = random.Random(name)
+    P._M[0] = m
+    R._against = P.against
+    outside = []
+    for row in data["boxes"]:
+        kind = row.get("kind") or ""
+        if kind == "pallets":
+            R.t_prop(m, dict(row, kind="crates"))
+        elif kind == "silo":
+            silo(m, row)
+        elif kind == "conveyor":
+            conveyor(m, row)
+        elif kind == "wagon":
+            wagon(m, row)
+        elif kind == "heap":
+            heap(m, row)
+        elif kind == "slip_hull":
+            slip_hull(m, row)
+        elif kind == "slip_frame":
+            m.box(row["pos"], row["size"], lambda n, mid, q: None if n[1] < -0.7 else "rip_steel_in")
+        elif kind == "slip_deck":
+            m.box(row["pos"], row["size"], lambda n, mid, q: "rip_deck" if n[1] > 0.7 else "rip_steel_in")
+        elif kind == "scaffold":
+            m.box(row["pos"], row["size"], Q.plank_style, yaw=row["yaw"], pitch=row["pitch"])
+        elif kind == "post":
+            m.box(row["pos"], row["size"], mat("rip_yellow"))
+        elif kind in ("timber",):
+            m.box(row["pos"], row["size"], lambda n, mid, q: None if n[1] < -0.7 else "rq_plank", yaw=row["yaw"])
+        elif kind == "machine":
+            machine(m, row)
+        elif kind == "boathouse":
+            boathouse(m, row)
+        elif kind == "tshed":
+            x = row["pos"][0] + OX
+            z = row["pos"][2] + OZ
+            P.building_piece(m, row, "tshed1" if z < -68.0 else ("tshed2" if z < 0 else "tshed3"), outside)
+        elif kind in BUILDINGS:
+            P.building_piece(m, row, kind, outside)
+        else:
+            m.box(row["pos"], row["size"], mat("rip_iron"), yaw=row["yaw"], pitch=row["pitch"])
+    P.outside_bands(m, outside)
+    for o in data["openings"]:
+        if o["t"] >= 0.35:                    # (the hull's plating and its frames: cut edges, no frames)
+            continue
+        P.frame(m, o)
+    details(m)
+    b = m.b
+    bake_light.CELL = 3.0
+    bake_light.DARK = 0.6
+    bake_light.bake(b, [r for r in data["boxes"] if not r["pitch"] and not r["yaw"]])
+    cells = R.riptide_atlas()
+    tris = sum(len(f) - 2 for f in b.faces)
+    print(f"{name}: {tris} triangles, {len(set('riptide_atlas' if mn in cells else mn for mn in b.mat_names))} materials")
+    out = os.path.join(ROOT, "assets", "models", "buildings", name + ".glb")
+    mb.write_glb(out, b, textures, mat_info, atlas=cells, atlas_name="riptide_atlas")
+    mb.set_import_script(out)
+    print("exported", out)
+    return tris

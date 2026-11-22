@@ -2391,6 +2391,9 @@ if __name__ == "__main__":
     elif name == "north_point":
         import make_riptide_north
         make_riptide_north.build_north(name)
+    elif name == "south_port":
+        import make_riptide_south
+        make_riptide_south.build_south(name)
     elif name == "harbor_plaza":
         import make_riptide_plaza
         make_riptide_plaza.build_plaza(name)

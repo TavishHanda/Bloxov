@@ -11,7 +11,7 @@ const MODELS := "res://assets/models/buildings/"
 ## Leviathan's hull is 214 m long with its hold and Site Zero inside it, so you can stand in it 100 m from its
 ## middle; its far mesh (only what's seen from outside) would drop the hull's insides around you. It has no rooms
 ## to trim anyway, so a far mesh would save little.
-const NO_FAR := ["leviathan_hull", "bridge_tower", "below_decks", "site_zero", "quay_front", "harbor_plaza", "north_point"]
+const NO_FAR := ["leviathan_hull", "bridge_tower", "below_decks", "site_zero", "quay_front", "harbor_plaza", "north_point", "south_port"]
 const FAR := "res://assets/models/far/"
 
 
