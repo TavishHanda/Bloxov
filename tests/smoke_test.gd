@@ -383,8 +383,11 @@ func _section_ttk() -> void:
 		and hits_to_kill.call(raider_health.max_health, ak_damage * (1.0 - ItemDB.item(raider_probe.armor)["reduction"])) == 5,
 		"Raiders wear light armor and an old helmet: 5 AK body shots")
 	var pistol_data := ItemDB.item("pistol")
-	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 6 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 3,
-		"pistol: 6 body shots or 3 headshots")
+	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 8 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 4,
+		"pistol: 8 body shots or 4 headshots (0.39.21 nerf)")
+	var viper_data := ItemDB.item("viper")
+	_check(hits_to_kill.call(scav_hp, viper_data["damage"]) == 5 and hits_to_kill.call(scav_hp, viper_data["damage"] * viper_data["head"]) == 3,
+		"Viper: 5 body shots or 3 headshots (0.39.21 nerf)")
 	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
 	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
@@ -5820,7 +5823,7 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "pistol")
 	await _until(func() -> bool: return got["hits"].size() >= 3)
-	_check(got["hits"].size() == 3 and got["hits"][2] == [17, false], "pistol body shot: 17")
+	_check(got["hits"].size() == 3 and got["hits"][2] == [14, false], "pistol body shot: 14")
 	# The new guns online (0.15.17): Wasp and Lancer body shots, a Lancer headshot.
 	var head_dir := (Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()
 	var body_dir := (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()

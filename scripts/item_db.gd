@@ -43,7 +43,7 @@ const ITEMS := {
 		"bloom": 0.12, "max_bloom": 1.2, "recoil": 1.15, "recoil_yaw": 0.42, "noise": 35.0, "falloff": [30.0, 80.0, 0.65],
 		"slots": ["scope", "barrel", "grip", "mag"]},
 	"pistol": {"name": "Stinger", "desc": "Small sidearm. Quick to aim, one shot per click.", "kind": "weapon", "slot": "secondary", "rarity": "common", "w": 2, "h": 1, "stack": 1, "value": 3000, "durability": 800,
-		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 17, "head": 2.5, "rpm": 360, "mag": 12, "reload": 1.2,
+		"model": "pistol", "ammo": "pistol_ammo", "auto": false, "damage": 14, "head": 1.8, "rpm": 360, "mag": 12, "reload": 1.2,
 		"spread": 0.3, "hip_spread": 0.5, "move_spread": 1.0, "ads_time": 0.16, "ads_fov": 66.0,
 		"bloom": 0.3, "max_bloom": 1.5, "recoil": 1.2, "recoil_yaw": 0.3, "noise": 25.0, "falloff": [15.0, 40.0, 0.6],
 		"slots": ["barrel", "sight"]},
@@ -70,7 +70,7 @@ const ITEMS := {
 	# The second gun of each type (0.36.42, owner 2026-11-20: "2 of each weapon type", names OK'd; numbers are a start,
 	# tuned after playing). They use the ammo of the gun of their type, and that gun's shot sound at their own pitch.
 	"viper": {"name": "Viper", "desc": "Heavy sidearm. Hits almost twice as hard as the Stinger, holds 7 and kicks.", "short": "Viper", "kind": "weapon", "slot": "secondary", "rarity": "uncommon", "w": 2, "h": 1, "stack": 1, "value": 6500, "durability": 700,
-		"model": "viper", "ammo": "pistol_ammo", "auto": false, "damage": 30, "head": 2.5, "rpm": 200, "mag": 7, "reload": 1.4,
+		"model": "viper", "ammo": "pistol_ammo", "auto": false, "damage": 24, "head": 1.8, "rpm": 170, "mag": 7, "reload": 1.4,
 		"spread": 0.3, "hip_spread": 0.55, "move_spread": 1.1, "ads_time": 0.18, "ads_fov": 66.0,
 		"bloom": 0.5, "max_bloom": 1.8, "recoil": 2.4, "recoil_yaw": 0.45, "noise": 30.0, "falloff": [15.0, 40.0, 0.6], "flash": 1.2, "shot_pitch": 0.8,
 		"slots": ["barrel", "sight"]},
