@@ -357,7 +357,7 @@ func _section_recoil() -> void:
 
 
 func _section_ttk() -> void:
-	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 3 headshots up close (0.39.21: full-auto
+	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 3 headshots up close (0.39.22: full-auto
 	# heads 1.6x); you die in ~7 scav hits.
 	var ak_damage: int = ItemDB.item("ak")["damage"]
 	var scav_probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
@@ -367,7 +367,7 @@ func _section_ttk() -> void:
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
 	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 3,
 		"scav: 4 AK body shots or 3 headshots")
-	# Damage drop-off (0.39.21, owner): every gun but the shotguns' own gets weaker with distance; full-auto heads 1.6x.
+	# Damage drop-off (0.39.22, owner): every gun but the shotguns' own gets weaker with distance; full-auto heads 1.6x.
 	var ak := ItemDB.item("ak")
 	_check(ItemDB.falloff_mult(ak["falloff"], 20.0) == 1.0 and is_equal_approx(ItemDB.falloff_mult(ak["falloff"], 200.0), 0.65)
 		and is_equal_approx(float(ak["head"]), 1.6), "Hound: full damage to 30 m, 65% from 80 m, heads 1.6x")
@@ -384,10 +384,10 @@ func _section_ttk() -> void:
 		"Raiders wear light armor and an old helmet: 5 AK body shots")
 	var pistol_data := ItemDB.item("pistol")
 	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 8 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 4,
-		"pistol: 8 body shots or 4 headshots (0.39.21 nerf)")
+		"pistol: 8 body shots or 4 headshots (0.39.22 nerf)")
 	var viper_data := ItemDB.item("viper")
 	_check(hits_to_kill.call(scav_hp, viper_data["damage"]) == 5 and hits_to_kill.call(scav_hp, viper_data["damage"] * viper_data["head"]) == 3,
-		"Viper: 5 body shots or 3 headshots (0.39.21 nerf)")
+		"Viper: 5 body shots or 3 headshots (0.39.22 nerf)")
 	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
 	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
@@ -5790,7 +5790,7 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return got["hits"].size() >= 2)
-	_check(got["hits"].size() == 2 and got["hits"][1] == [45, true], "a headshot does 1.6x (0.39.21: %s)" % str(got["hits"]))
+	_check(got["hits"].size() == 2 and got["hits"][1] == [45, true], "a headshot does 1.6x (0.39.22: %s)" % str(got["hits"]))
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([Vector3(1, 0, 0)]), "ak")
 	OS.delay_msec(60)
