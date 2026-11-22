@@ -399,7 +399,12 @@ func _process(delta: float) -> void:
 			eye = prone_eye_height if is_prone else crouch_eye_height
 		if downed:
 			eye = downed_eye_height
+		if _swimming:
+			eye = stand_eye_height   # (0.39.24: afloat you're always upright, even downed)
 		head.position.y = lerpf(head.position.y, eye, minf(delta * 10.0, 1.0))
+		if _swimming:
+			# Never under the water (0.39.24): the eyes stay just above the surface, even sinking after a plunge.
+			head.position.y = maxf(head.position.y, _swim_surface + SWIM_EYE_CLEAR - global_position.y)
 		# Prone, the eyes are in the lying body's head (0.25.26, owner): where others see it, ahead of your middle.
 		head.position.z = lerpf(head.position.z, prone_eye_z() if is_prone else 0.0, minf(delta * 10.0, 1.0))
 	_update_lean(delta)
