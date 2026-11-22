@@ -159,8 +159,7 @@ func _fight(delta: float, sees: bool, to_target: Vector3, dist: float) -> Vector
 				_bark("lost", 0.6)
 				return Vector3.ZERO
 			if holds_position or is_hurt() or _strays_from_guards(_last_seen):   # (badly hurt: it doesn't come after you, it waits for you to show; Bon: not away from his guards)
-				_face(_flat(_last_seen - global_position), delta)
-				return Vector3.ZERO
+				return _wait_for_target(delta)
 			if _flat(_last_seen - global_position).length() > shoot_range:
 				return _close_in(delta, _last_seen, _flat(_last_seen - global_position))
 			var move := _path_velocity(_last_seen, move_speed)
@@ -527,8 +526,7 @@ func _find_cover(radius := -1.0, farther := 0.0) -> Vector3:
 			var spot := AINav.closest(self, global_position + dir * ring)
 			if spot == Vector3.ZERO or _flat(spot - global_position).length() > ring + 1.0:
 				continue
-			var query := PhysicsRayQueryParameters3D.create(eyes, spot + Vector3(0, 1.3, 0), 1)
-			if space.intersect_ray(query).is_empty() or _spot_taken(spot) or _flat(spot - _target.global_position).length() < my_dist + farther:
+			if _hides_at(space, eyes, spot) != 2 or _spot_taken(spot) or _flat(spot - _target.global_position).length() < my_dist + farther:
 				continue  # the target could see it there, or a friend is already hiding there
 			# Judge by walking distance: a spot inside a building may be close in a straight line but far around.
 			var walk := AINav.path_length(AINav.path(self, global_position, spot))
@@ -538,6 +536,19 @@ func _find_cover(radius := -1.0, farther := 0.0) -> Vector3:
 		if best != Vector3.INF:
 			break
 	return best
+
+
+## Lost sight of you and won't come after you (holds its spot, badly hurt, or Bon at his guard leash): it waits
+## where it is, watching where it last saw you. (0.39.14: AI PMCs override it: hurt, they get into cover first.)
+func _wait_for_target(delta: float) -> Vector3:
+	_face(_flat(_last_seen - global_position), delta)
+	return Vector3.ZERO
+
+
+## Shoots while it runs to cover (the AI do only out in the open after trading shots, `_strafe_to_cover`; AI PMCs
+## always do, 0.39.14).
+func _fires_on_cover_runs() -> bool:
+	return false
 
 
 ## A friend is at (or heading to) cover within 2 m of `spot`: each AI gets its own spot, so they don't bunch up
@@ -591,7 +602,7 @@ func _update_cover(delta: float, sees: bool, to_target: Vector3, dist: float) ->
 		# walking to cover while shooting at you). The last step in it turns to face you.
 		# Except out in the open after trading shots (0.12.37, owner: "they shoot a few times then run to cover,
 		# which is unrealistic"): there it strafes over still shooting at you.
-		if _strafe_to_cover and sees and dist <= shoot_range:
+		if (_strafe_to_cover or _fires_on_cover_runs()) and sees and dist <= shoot_range:
 			var strafe := _path_velocity(_cover_point, move_speed * 0.85)
 			_face(to_target, delta)
 			_update_shooting(delta, dist)
