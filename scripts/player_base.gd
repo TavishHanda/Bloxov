@@ -171,6 +171,8 @@ var _climbing: Ladder = null
 ## The deep water we're in (SwimZone, 0.33.6) and whether we're swimming in it now.
 var _swim_zones: Array[SwimZone] = []
 var _swimming := false
+## The water's surface while swimming (world Y), to keep the eyes above it.
+var _swim_surface := -INF
 
 
 func controls_locked() -> bool:

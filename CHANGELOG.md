@@ -22,6 +22,17 @@ so much that new players can't win.
   to place again.
 - **AI PMCs** get 1 point per level like a player (levels 5-15, so 5-15 points), placed at random.
 - Net version 31 (the server's point check changed).
+## 0.39.24 (No crouching or lying down while swimming)
+The owner found you could crouch and go prone in deep water, and doing it dropped your eyes under the surface so you
+could see under the water. Now, afloat:
+- Crouch and prone do nothing, and going into the water always stands you straight up (no ceiling check, so being
+  crouched under a pier doesn't keep you low).
+- Your eyes stay at standing height, even downed, and never go less than 0.15 m above the surface (also while you sink
+  for a moment after jumping in).
+- Smoke test (riptide): crouch and prone afloat are refused and the camera stays above the water (before the fix it
+  was 0.87 m under).
+- Smoke test (sound): the far-boom check now counts from an empty sound mix, so sounds still playing from earlier
+  sections on a slow runner (46 on Windows CI) can't make the crowd limit skip the boom.
 ## 0.39.23 (A triangle stock on the Hound)
 Owner, 2026-11-22: "The back of the hound still looks so ugly, it needs to be more triangle, its like droopy from
 the back". The owner picked look A of three (`/mnt/project-files/guns/models/hound-stock-options-2026-11-22.png`).
