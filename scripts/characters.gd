@@ -3,9 +3,10 @@ extends RefCounted
 ## The playable characters (0.37.0, owner 2026-11-20; the design: project file characters/roster-proposal-2026-11-20.html).
 ## Six REVENANT contractors, each with two upsides, two downsides and a passive with three ranks. A trait grows with the
 ## character's level: a quarter of its full size at level 1, full at level 20 (upsides AND downsides, owner's pick).
-## Upgrade points (2 at level 10, 3 at level 20, 2 per expedition escape up to 10) are the player's choice: +2% on an
-## upside (5 points at most each), a quarter off a downside (2 at most each, never removed), or a passive rank (2 points
-## per rank). An expedition resets the level (the points stay; level points only come the first time).
+## Upgrade points belong to each character (0.39.21, owner 2026-11-22): 1 per level, levels 1-20, the first time only,
+## and 2 per expedition escape (a prestige), MAX_POINTS (30) at most. They go on +1% steps of the two upsides (12 at most
+## each) or passive ranks 2 and 3 (3 points each), so a full build is exactly 30. Downsides only grow with level.
+## An expedition resets the level (the points stay; level points only come the first time).
 ## Health and damage are the same for everyone. Characters are earned (in-game money and a trader level), never sold
 ## for real money (docs/STORE_RULES.md).
 ## Pure data and rules: the server uses it too (OnlineProfile, NetAccounts), so like net.gd it must never lean on
@@ -14,13 +15,16 @@ extends RefCounted
 const MAX_LEVEL := 20
 ## A trait at level 1 is this share of its full size; it grows evenly to 1.0 at MAX_LEVEL.
 const START_SHARE := 0.25
-## Points for reaching a level, the first time only.
-const LEVEL_POINTS := {10: 2, 20: 3}
+## Points (0.39.21, owner 2026-11-22): one per level reached (the first time only), EXPEDITION_POINTS per prestige,
+## MAX_POINTS per character (20 from levels + 10 from 5 prestiges). Each character's points are its own.
 const EXPEDITION_POINTS := 2
 const MAX_EXPEDITION_POINTS := 10
-const UPSIDE_STEP := 0.02
-const UPSIDE_MAX := 5
-const PASSIVE_RANK_COST := 2
+const MAX_POINTS := 30
+const UPSIDE_STEP := 0.01
+const UPSIDE_MAX := 12
+const PASSIVE_RANK_COST := 3
+## Saves before 0.39.21 (a shared pool, 2 points at level 10 and 3 at 20) are moved over once by `clean`.
+const POINTS_VERSION := 2
 ## Moving your points around (all of them back) costs this much.
 const RESET_COST := 25000
 ## Raid XP (numbers are a start, owner tunes): an extract, a raid you didn't get out of, and each kill you got out with.
@@ -120,7 +124,7 @@ static var last_raid := {}
 
 ## A new state: no starter picked yet (VEGA stands in until the player picks, `pick_starter`).
 static func fresh() -> Dictionary:
-	return {"selected": "vega", "unlocked": ["vega"], "picked": false, "skins": {}, "chars": {}}
+	return {"selected": "vega", "unlocked": ["vega"], "picked": false, "skins": {}, "chars": {}, "points_v": POINTS_VERSION}
 
 
 static func _num(value: Variant) -> bool:
@@ -146,10 +150,11 @@ static func clean(data: Variant) -> Dictionary:
 			if id is String and LIST.has(id) and not unlocked.has(id):
 				unlocked.append(id)
 	var chars: Dictionary = out["chars"]
+	var old_points := not (_num(data.get("points_v")) and int(data["points_v"]) >= POINTS_VERSION)
 	if data.get("chars") is Dictionary:
 		for id: Variant in data["chars"]:
 			if id is String and LIST.has(id) and data["chars"][id] is Dictionary:
-				chars[id] = _clean_char(data["chars"][id])
+				chars[id] = _clean_char(_old_points(data["chars"][id]) if old_points else data["chars"][id])
 	if unlocked.is_empty():
 		unlocked.append("vega")
 	if data.get("skins") is Dictionary:
@@ -165,15 +170,33 @@ static func clean(data: Variant) -> Dictionary:
 	return out
 
 
+## A character from a save before 0.39.21 (owner 2026-11-22): its level points become the highest level it reached (the
+## old 2 at level 10 and 3 at 20 say how far it got before an expedition reset it), and every spent point comes back
+## free to place again (the shared pool is gone, so points another character spent come home too).
+static func _old_points(c: Dictionary) -> Dictionary:
+	var out := c.duplicate(true)
+	var xp := maxi(int(c["xp"]), 0) if _num(c.get("xp")) else 0
+	var old := int(c["lvl_points"]) if _num(c.get("lvl_points")) else 0
+	var reached := level_of_xp(xp)
+	if old >= 5:
+		reached = MAX_LEVEL
+	elif old >= 2:
+		reached = maxi(reached, 10)
+	out["lvl_points"] = reached
+	out["spent"] = {}
+	return out
+
+
 static func _clean_char(c: Dictionary) -> Dictionary:
 	var out := {"xp": maxi(int(c["xp"]), 0) if _num(c.get("xp")) else 0,
-		"lvl_points": clampi(int(c["lvl_points"]), 0, 5) if _num(c.get("lvl_points")) else 0,
+		"lvl_points": clampi(int(c["lvl_points"]), 0, MAX_LEVEL) if _num(c.get("lvl_points")) else 0,
 		"exp_points": clampi(int(c["exp_points"]), 0, MAX_EXPEDITION_POINTS) if _num(c.get("exp_points")) else 0,
 		"spent": {}}
 	var spent: Dictionary = c.get("spent", {}) if c.get("spent") is Dictionary else {}
 	for key in SPEND_KEYS:
 		var cap := UPSIDE_MAX if key.begins_with("u") else 2
 		out["spent"][key] = clampi(int(spent[key]), 0, cap) if _num(spent.get(key)) else 0
+	out["lvl_points"] = maxi(int(out["lvl_points"]), level_of_xp(int(out["xp"])))
 	return out
 
 
@@ -211,12 +234,18 @@ static func level(state: Dictionary, id: String) -> int:
 	return level_of_xp(int(char_of(state, id)["xp"]))
 
 
-## Upgrade points are one pool for the whole account (owner, 2026-11-20): each character earns them (its levels 10
-## and 20 the first time, and 2 per expedition escape up to 10 per character, owner 0.38.2), spent on any unlocked one.
+## One character's points (0.39.21, owner 2026-11-22): 1 per level it has reached (lvl_points keeps the highest, so
+## an expedition's reset takes none away) and its expedition points, MAX_POINTS at most.
+static func char_earned(c: Dictionary) -> int:
+	var levels := maxi(int(c["lvl_points"]), level_of_xp(int(c["xp"])))
+	return mini(levels + int(c["exp_points"]), MAX_POINTS)
+
+
+## Every character's points added up (the expedition cutscene counts what one escape earned with it).
 static func points_earned(state: Dictionary) -> int:
 	var total := 0
 	for id: String in state.get("chars", {}):
-		total += int(state["chars"][id]["lvl_points"]) + int(state["chars"][id]["exp_points"])
+		total += char_earned(state["chars"][id])
 	return total
 
 
@@ -236,8 +265,10 @@ static func points_spent(state: Dictionary) -> int:
 	return total
 
 
-static func points_left(state: Dictionary) -> int:
-	return points_earned(state) - points_spent(state)
+## Points `id` has left to place (each character spends only its own).
+static func points_left(state: Dictionary, id: String) -> int:
+	var c := char_of(state, id)
+	return char_earned(c) - char_spent(c)
 
 
 ## The passive's rank (1-3).
@@ -257,22 +288,22 @@ static func trait_value(id: String, c: Dictionary, index: int) -> float:
 
 
 ## Whether one more point can go on `key` ("u0", "u1", "p").
-static func can_spend(state: Dictionary, c: Dictionary, key: String) -> bool:
+static func can_spend(c: Dictionary, key: String) -> bool:
 	var cost := PASSIVE_RANK_COST if key == "p" else 1
 	var cap := UPSIDE_MAX if key.begins_with("u") else 2
-	return SPEND_KEYS.has(key) and points_left(state) >= cost and int(c["spent"].get(key, 0)) < cap
+	return SPEND_KEYS.has(key) and char_earned(c) - char_spent(c) >= cost and int(c["spent"].get(key, 0)) < cap
 
 
 static func spend(state: Dictionary, id: String, key: String) -> bool:
 	var c := char_of(state, id)
 	# (owner 2026-11-22: never on a character you don't own; the server refuses it too, `changes`)
-	if not state.get("picked", true) or not (state.get("unlocked", []) as Array).has(id) or not can_spend(state, c, key):
+	if not state.get("picked", true) or not (state.get("unlocked", []) as Array).has(id) or not can_spend(c, key):
 		return false
 	c["spent"][key] = int(c["spent"].get(key, 0)) + 1
 	return true
 
 
-## Every point on `id` back to the pool (costs RESET_COST, taken by the caller).
+## Every point on `id` back to place again (costs RESET_COST, taken by the caller).
 static func reset_points(state: Dictionary, id: String) -> void:
 	var c := char_of(state, id)
 	for key in SPEND_KEYS:
@@ -338,7 +369,7 @@ static func unlock_problem(state: Dictionary, id: String, money: int, trader_lev
 	return ""
 
 
-## The expedition: `id` escaped. It earns points for the shared pool, up to the cap for that character;
+## The expedition: `id` escaped. It earns points for itself, up to MAX_EXPEDITION_POINTS;
 ## the expedition also calls `reset_level` for it.
 static func add_expedition_points(state: Dictionary, id: String, amount := EXPEDITION_POINTS) -> void:
 	var c := char_of(state, id)
@@ -346,7 +377,9 @@ static func add_expedition_points(state: Dictionary, id: String, amount := EXPED
 
 
 static func reset_level(state: Dictionary, id: String) -> void:
-	char_of(state, id)["xp"] = 0
+	var c := char_of(state, id)
+	c["lvl_points"] = maxi(int(c["lvl_points"]), level_of_xp(int(c["xp"])))
+	c["xp"] = 0
 
 
 ## Adds raid XP to the picked character; level points for levels reached the first time. Returns levels gained.
@@ -355,11 +388,7 @@ static func add_xp(state: Dictionary, id: String, xp: int) -> int:
 	var before := level_of_xp(int(c["xp"]))
 	c["xp"] = int(c["xp"]) + maxi(xp, 0)
 	var after := level_of_xp(int(c["xp"]))
-	var owed := 0
-	for lv: int in LEVEL_POINTS:
-		if after >= lv:
-			owed += int(LEVEL_POINTS[lv])
-	c["lvl_points"] = maxi(int(c["lvl_points"]), owed)
+	c["lvl_points"] = maxi(int(c["lvl_points"]), after)
 	return after - before
 
 
@@ -425,14 +454,10 @@ static func ai_pick(seed_value: int) -> Dictionary:
 	var xp := 0
 	for l in range(1, lv):
 		xp += xp_to_next(l)
-	var points := 0
-	for at: int in LEVEL_POINTS:
-		if lv >= at:
-			points += int(LEVEL_POINTS[at])
-	var state := {"selected": id, "unlocked": [id], "chars": {id: {"xp": xp, "lvl_points": points, "exp_points": 0, "spent": {}}}}
+	var state := {"selected": id, "unlocked": [id], "chars": {id: {"xp": xp, "lvl_points": lv, "exp_points": 0, "spent": {}}}}
 	var c := char_of(state, id)
-	while points_left(state) > 0:
-		var options := SPEND_KEYS.filter(func(key: String) -> bool: return can_spend(state, c, key))
+	while points_left(state, id) > 0:
+		var options := SPEND_KEYS.filter(func(key: String) -> bool: return can_spend(c, key))
 		if options.is_empty():
 			break
 		spend(state, id, options[rng.randi_range(0, options.size() - 1)])
@@ -571,6 +596,6 @@ static func changes(old: Dictionary, new: Dictionary) -> Dictionary:
 				lowered = true
 		if lowered:
 			cost += RESET_COST
-	if points_spent(b) > points_earned(b):
-		return {"error": "upgrade points overspent", "money": 0}
+		if char_spent(cb) > char_earned(cb):
+			return {"error": "character %s points overspent" % id, "money": 0}
 	return {"error": "", "money": cost, "used": used}

@@ -104,7 +104,7 @@ func _build_side() -> Control:
 	inner.add_child(_status)
 	_haven = _small()
 	inner.add_child(_haven)
-	inner.add_child(_small("Leaving starts this stash over: stash, materials locker, money, loadouts, traders, jobs and the workbench, and the character who goes is back to level 1. You keep your settings, looks, hideout, record, unlocked characters and upgrade points, and the character who goes earns %d more to spend on any character (up to %d per character from expeditions)." % [Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS], Color(1, 1, 1, 0.8)))
+	inner.add_child(_small("Leaving starts this stash over: stash, materials locker, money, loadouts, traders, jobs and the workbench, and the character who goes is back to level 1. You keep your settings, looks, hideout, record, unlocked characters and upgrade points, and the character who goes earns %d more points of its own (up to %d from expeditions)." % [Expedition.POINTS, Characters.MAX_EXPEDITION_POINTS], Color(1, 1, 1, 0.8)))
 	_leave = _button("LEAVE ON EXPEDITION", 0, _ask_leave)
 	_leave.name = "LeaveButton"
 	inner.add_child(_leave)

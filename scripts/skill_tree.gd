@@ -2,12 +2,15 @@ class_name SkillTree
 extends Control
 ## The upgrade points as a skill tree in its own menu (owner 2026-11-20: "the traits screen to kinda be like a skill
 ## tree in its own menu"), opened from the CHARACTERS screen (CharacterScreen.open_tree). Three branches grow up from
-## the character: its two upsides (5 steps of +2% each) and its passive (rank 1 free, ranks 2 and 3 for 2 points each).
+## the character: its two upsides (12 steps of +1% each) and its passive (rank 1 free, ranks 2 and 3 for 3 points each;
+## 0.39.21: each character's points are its own, 30 at most, exactly a full tree).
 ## Its downsides only grow with level (0.39.16, owner 2026-11-22), shown in red beside the character. A branch is bought from the bottom up (Characters.spend,
 ## through CharacterScreen.spend so the pockets and the save follow). Bought nodes are lit, the next one you can buy
 ## has a bright edge, the rest are dim. Same rules as before: only the look of the screen is new.
 
 const NODE := 58.0
+## The nodes' size now (NODE, or smaller when the screen is short).
+var _node := NODE
 const BRANCHES: Array[String] = ["u0", "p", "u1"]
 const COLUMNS := [0.2, 0.5, 0.8]
 const LINE_ON := Color("e2a83e")
@@ -135,7 +138,7 @@ static func _count(key: String) -> int:
 
 func open() -> void:
 	visible = true
-	_info.text = "Points are shared by all your characters. Buy a branch from the bottom up."
+	_info.text = "Each character has its own points: 1 per level, 2 per expedition escape, %d at most. Buy a branch from the bottom up." % Characters.MAX_POINTS
 	refresh()
 	_layout.call_deferred()
 
@@ -164,7 +167,7 @@ func refresh() -> void:
 	var info: Dictionary = Characters.LIST[id]
 	var c := Characters.char_of(state, id)
 	_title.text = "%s  SKILL TREE" % info["name"]
-	_points.text = "%d POINTS LEFT" % Characters.points_left(state)
+	_points.text = "%d POINTS LEFT  (%d / %d EARNED)" % [Characters.points_left(state, id), Characters.char_earned(c), Characters.MAX_POINTS]
 	_root.text = "%s\nLEVEL %d" % [info["name"], Characters.level(state, id)]
 	_style(_root, HudStyle.FACE_HI, HudStyle.BRASS)
 	var downs: Array[String] = []
@@ -180,7 +183,7 @@ func refresh() -> void:
 		for i in list.size():
 			var node: Button = list[i]
 			node.text = _node_text(key, i)
-			var next := i == owned and _unlocked() and Characters.can_spend(state, c, key)
+			var next := i == owned and _unlocked() and Characters.can_spend(c, key)
 			if i < owned:
 				_style(node, color.darkened(0.35), color)
 			elif next:
@@ -196,7 +199,7 @@ func refresh() -> void:
 func _node_text(key: String, i: int) -> String:
 	if key == "p":
 		return "R%d" % (i + 1)
-	return "+2%"
+	return "+%d%%" % roundi(Characters.UPSIDE_STEP * 100.0)
 
 
 func _stat(id: String, key: String) -> String:
@@ -227,7 +230,7 @@ func _describe(key: String, i: int) -> void:
 	var trial := c.duplicate(true)
 	trial["spent"][key] = i + 1
 	var after := Characters.trait_value(id, trial, index)
-	var what := "2% more"
+	var what := "%d%% more" % roundi(Characters.UPSIDE_STEP * 100.0)
 	_info.text = "%s: %s, %s%.1f%% at this step.%s" % [_stat(id, key), what, "+" if after >= 0.0 else "", after * 100.0,
 		"  (owned)" if i < owned else "  Costs 1 point."]
 
@@ -243,8 +246,8 @@ func buy(key: String, i: int) -> void:
 	if i > _owned(c, key):
 		_info.text = "Buy the ones below it first."
 		return
-	if not Characters.can_spend(Profile.characters, c, key):
-		_info.text = "Not enough points. Earn them at levels 10 and 20 and on expedition escapes."
+	if not Characters.can_spend(c, key):
+		_info.text = "Not enough points. %s earns 1 per level and 2 per expedition escape." % Characters.LIST[_id()]["name"]
 		return
 	screen.spend(key)
 	refresh()
@@ -273,13 +276,19 @@ func _layout() -> void:
 	_downsides.size = Vector2(minf(w * 0.5 - _root.size.x / 2.0 - 24.0, 300.0), 0)
 	_downsides.position = Vector2(w * 0.5 + _root.size.x / 2.0 + 16.0, h - 80.0)
 	var bottom := _root.position.y - 40.0
-	var step := clampf((bottom - 60.0) / float(Characters.UPSIDE_MAX), 50.0, 90.0)
+	# (0.39.21: 12 steps a branch, so the nodes shrink to fit a short screen)
+	var step := clampf((bottom - 70.0) / float(Characters.UPSIDE_MAX), 28.0, 90.0)
+	_node = minf(NODE, step - 4.0)
 	for k in BRANCHES.size():
 		var key: String = BRANCHES[k]
 		var x: float = w * COLUMNS[k]
 		var list: Array = _nodes[key]
 		for i in list.size():
-			(list[i] as Button).position = Vector2(x - NODE / 2.0, bottom - NODE - i * step)
+			var node: Button = list[i]
+			node.custom_minimum_size = Vector2(_node, _node)
+			node.size = Vector2(_node, _node)
+			node.add_theme_font_size_override("font_size", 16 if _node >= 44.0 else 12)
+			node.position = Vector2(x - _node / 2.0, bottom - _node - i * step)
 		var head: Label = _heads[key]
 		head.size = Vector2(170, 0)
 		var top := (list[list.size() - 1] as Button).position.y
@@ -294,14 +303,14 @@ func _draw_lines() -> void:
 		var list: Array = _nodes[key]
 		var owned := _owned(c, key)
 		var first: Button = list[0]
-		var start := first.position + Vector2(NODE / 2.0, NODE)
+		var start := first.position + Vector2(_node / 2.0, _node)
 		var bend := Vector2(start.x, from.y - 18.0)
 		var color := LINE_ON if owned > 0 else LINE_OFF
 		_area.draw_polyline(PackedVector2Array([from, Vector2(from.x, bend.y), bend, start]), color, 4.0)
 		for i in range(1, list.size()):
 			var below: Button = list[i - 1]
 			var above: Button = list[i]
-			_area.draw_line(below.position + Vector2(NODE / 2.0, 0.0), above.position + Vector2(NODE / 2.0, NODE),
+			_area.draw_line(below.position + Vector2(_node / 2.0, 0.0), above.position + Vector2(_node / 2.0, _node),
 				LINE_ON if i < owned else LINE_OFF, 4.0)
 
 
