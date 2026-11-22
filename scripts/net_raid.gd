@@ -379,7 +379,7 @@ func _on_kill_confirmed(target: String) -> void:
 	# (the hit that killed it came just before: its point on the victim gives the distance, 0.35.5, so the tracker
 	# shows far kills too)
 	var weapon := player.gun.weapon
-	var quiet := weapon != null and weapon.attachments.values().has("suppressor")
+	var quiet := ItemDB.has_suppressor(weapon)
 	Quests.record_kill(target, weapon.id if weapon != null else "", Quests.kill_tags(player.global_position, _last_hit_at, quiet))
 	Effects.sound(get_tree().current_scene, Gun.KILL_SOUND, -2.0, 0.0)
 	player.gun.hit_confirmed.emit(true, false)

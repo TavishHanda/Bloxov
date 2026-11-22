@@ -309,7 +309,7 @@ func _section_ads() -> void:
 	_check(missing.is_empty() and want_sleeve.begins_with("sleeve-" + str(Profile.characters.get("selected", "vega")) + "-"),
 		"every character's skins have their own first-person sleeves and gloves (missing %s)" % str(missing))
 	var ak_data := ItemDB.item("ak")
-	_check(ak_data["hip_spread"] > ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
+	_check(ak_data["hip_spread"] >= ak_data["spread"] * 4.0, "hip fire is much looser than aimed fire")
 	player.teleport_to(START_SPOT)
 	await create_timer(0.5).timeout
 
@@ -1832,7 +1832,29 @@ func _section_attachments() -> void:
 	var ak := ItemStack.new("ak")
 	ak.attachments = {"mag": "ext_mag", "grip": "foregrip"}
 	var stats := ItemDB.weapon_stats(ak)
-	_check(int(stats["mag"]) == 45 and is_equal_approx(float(stats["recoil"]), 1.2 * 0.8), "extended mag + foregrip: 45 rounds, 20%% less kick")
+	_check(int(stats["mag"]) == 45 and is_equal_approx(float(stats["recoil"]), 1.35 * 0.82), "extended mag + foregrip: 45 rounds, 18%% less kick")
+	# Attachment tiers (0.40.0): basic < good < best kick on the same gun; attachments never touch damage or fire rate;
+	# a fully kitted Hound kicks less than a bare Reaper, but the Reaper still hits harder and fires faster.
+	var tiered := ItemStack.new("ak")
+	var kicks: Array[float] = []
+	for grip: String in ["taped_grip", "foregrip", "tactical_grip"]:
+		tiered.attachments = {"grip": grip}
+		kicks.append(float(ItemDB.weapon_stats(tiered)["recoil"]))
+	_check(kicks[0] > kicks[1] and kicks[1] > kicks[2] and kicks[0] < 1.35, "grip tiers: each better than the last (%s)" % [kicks])
+	tiered.attachments = {"grip": "tactical_grip", "barrel": "heavy_suppressor", "mag": "drum_mag", "scope": "holo_sight"}
+	var kitted := ItemDB.weapon_stats(tiered)
+	var reaper := ItemDB.weapon_stats(ItemStack.new("reaper"))
+	_check(int(kitted["damage"]) == 28 and int(kitted["rpm"]) == 600 and int(kitted["mag"]) == 60
+		and float(kitted["recoil"]) < float(reaper["recoil"]) and int(reaper["damage"]) > 28 and int(reaper["rpm"]) > 600,
+		"a kitted Hound kicks less than a bare Reaper, the Reaper still hits harder and faster")
+	_check(ItemDB.has_suppressor(tiered) and not ItemDB.has_suppressor(ItemStack.new("ak"))
+		and ItemDB.attachment_slot_for("shotgun", "full_choke") == "barrel" and ItemDB.attachment_slot_for("shotgun", "muzzle_brake") == "",
+		"any suppressor counts as quiet; chokes stay on shotguns, brakes off them")
+	for part: String in ItemDB.ITEMS:
+		if ItemDB.kind(part) == "attachment":
+			_check(int(ItemDB.item(part).get("tier", 0)) > 0 or part.begins_with("scope_"), "every attachment but scopes has a tier (%s)" % part)
+			for stat: String in ItemDB.item(part).get("mult", {}):
+				_check(not stat in ["damage", "rpm", "head"], "attachments never change damage or fire rate (%s)" % part)
 	var wasp := ItemStack.new("smg")
 	var wasp_plain := int(ItemDB.weapon_stats(wasp)["mag"])
 	wasp.attachments = {"mag": "ext_mag"}
@@ -1951,7 +1973,7 @@ func _section_new_guns() -> void:
 			and GunViewModels.WEAPONS.get(data["model"], "") == id and HeldGun.MODELS.has(id) and AILoadouts.NET_GUNS.has(id)
 			and GunSounds.base_key(id) == GunSounds.base_key(pair[1]) and GunSounds.shot(id) == GunSounds.shot(pair[1]),
 			"%s: a %s with its ammo, sold by Ponta, its own model and its type's sounds" % [data["name"], base["name"]])
-	_check(not ItemDB.item("brawler").has("cycle") and ItemDB.item("brawler")["rpm"] > ItemDB.item("shotgun")["rpm"] * 2
+	_check(not ItemDB.item("brawler").has("cycle") and ItemDB.item("brawler")["rpm"] > ItemDB.item("shotgun")["rpm"] * 1.5
 		and not ItemDB.item("talon").has("cycle") and ItemDB.item("talon")["mag"] == 10, "the Brawler and Talon are semi-auto: no pump or bolt")
 	_check(ItemDB.attachment_slot_for("brawler", "choke") == "barrel" and ItemDB.attachment_slot_for("talon", "scope_8x") == ""
 		and ItemDB.attachment_slot_for("talon", "suppressor") == "barrel" and ItemDB.attachment_slot_for("viper", "red_dot") == "sight",

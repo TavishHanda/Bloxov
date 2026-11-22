@@ -632,14 +632,16 @@ func _shot(from: Vector3, dirs: PackedVector3Array, weapon: String, view_time: f
 			targets[key] = [hit, 0.0]
 		targets[key][1] += amount
 		targets[key][0]["headshot"] = targets[key][0]["headshot"] or hit["headshot"]
-	var noise := float(stats.get("noise", 25.0)) * (float(ItemDB.item("suppressor")["mult"]["noise"]) if suppressed else 1.0)
+	# (the shot only says "suppressed": a Heavy Suppressor counts as the quieter one when they carry one, 0.40.0)
+	var can := "heavy_suppressor" if int(carried.get("heavy_suppressor", 0)) >= 1 else "suppressor"
+	var noise := float(stats.get("noise", 25.0)) * (float(ItemDB.item(can)["mult"]["noise"]) if suppressed else 1.0)
 	world.shot_noise(from, noise_end, noise, me[0])
 	# Everyone else in the raid hears it (0.15.28, owner: other players' shots were silent).
 	for other in _raid_peers(matchmaker.players[peer]["raid"]):
 		if other != peer and _peer_open(other):
 			_player_fired.rpc_id(other, peer, from, noise_end, weapon, suppressed)
 	# (a suppressor only counts for quests if the server counts one on them)
-	var quiet := suppressed and int(carried.get("suppressor", 0)) >= 1
+	var quiet := suppressed and (int(carried.get("suppressor", 0)) >= 1 or int(carried.get("heavy_suppressor", 0)) >= 1)
 	for key: Variant in targets:
 		_damage(peer, targets[key][0], roundi(targets[key][1]), me[0], weapon, quiet)
 

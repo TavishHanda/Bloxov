@@ -28,6 +28,11 @@ const C := {
 
 ## The model for item `id`, or null if it has none.
 static func build(id: String) -> Node3D:
+	var data: Dictionary = ItemDB.ITEMS.get(id, {})
+	if data.has("look") and GUNS.has(data["look"]):   # (0.40.0) a tiered attachment: another's model in its finish
+		var tiered := build(data["look"])
+		GunViewModels.apply_finish(tiered, data.get("finish", ""))
+		return tiered
 	if GUNS.has(id):
 		var scene := load("res://assets/models/guns/%s.glb" % GUNS[id]) as PackedScene
 		var gun := scene.instantiate() as Node3D
@@ -48,6 +53,15 @@ static func build(id: String) -> Node3D:
 		"smg_ammo": _ammo(m, "steel_dk", "brass", 0.022, 0.0042, 6, "steel_lt")
 		"shells": _shells(m)
 		"sniper_ammo": _ammo(m, "navy", "brass", 0.07, 0.0055, 4, "copper")
+		"fast_mag":
+			box(m, Vector3(0.045, 0.16, 0.024), Vector3(0, 0, 0), "black", Vector3(0, 0, 12))
+			box(m, Vector3(0.05, 0.03, 0.028), Vector3(0.017, -0.08, 0), "steel_dk", Vector3(0, 0, 12))
+			box(m, Vector3(0.018, 0.05, 0.03), Vector3(0.03, -0.11, 0), "orange", Vector3(0, 0, 12))   # the pull tab
+		"drum_mag":
+			cyl(m, 0.09, 0.07, Vector3(0, -0.04, 0), "black", Vector3(90, 0, 0))
+			cyl(m, 0.035, 0.075, Vector3(0, -0.04, 0), "steel_dk", Vector3(90, 0, 0))
+			box(m, Vector3(0.045, 0.1, 0.03), Vector3(0, 0.08, 0), "black")
+			box(m, Vector3(0.03, 0.012, 0.012), Vector3(0, 0.135, 0), "brass")
 		"ext_mag":
 			box(m, Vector3(0.045, 0.24, 0.024), Vector3(0, 0, 0), "black", Vector3(0, 0, 12))
 			box(m, Vector3(0.05, 0.03, 0.028), Vector3(0.025, -0.12, 0), "steel_dk", Vector3(0, 0, 12))
