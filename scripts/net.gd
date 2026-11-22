@@ -115,7 +115,7 @@ const REVIVE_HEALTH := 30
 ## How long a player may stay up on the server's count of 0 health before it calls them dead (their game's
 ## "I'm down" takes a moment to arrive; a heal they finished may still be on its way).
 const GOD_GRACE := 1.5
-## Quieter noises a player makes that only the AI PMCs listen for (0.39.19, owner approved; PmcAI.hear_player_noise):
+## Quieter noises a player makes that only the AI PMCs listen for (0.39.21, owner approved; PmcAI.hear_player_noise):
 ## how far each carries, in meters. A shut door between halves less than that (PmcAI.THROUGH_WALL).
 const NOISE_RELOAD := 0
 const NOISE_HEAL := 1
@@ -206,7 +206,7 @@ var _hits_out := {}
 var _player_kills := {}
 ## peer -> server time of their last shot (to ignore impossible fire rates).
 var _last_shot := {}
-## Server: when each peer last reported a reload or heal noise (0.39.19, `_made_noise`).
+## Server: when each peer last reported a reload or heal noise (0.39.21, `_made_noise`).
 var _last_noise := {}
 ## peer -> [shots they can still fire right now, server time it was worked out] (0.15.28): shots can arrive
 ## bunched up over the internet, so the fire-rate check allows a short burst instead of a fixed gap.
@@ -896,7 +896,7 @@ func _healed(item: String) -> void:
 	hp[0] = minf(hp[0] + float(ItemDB.item(item)["heal"]), float(MAX_HEALTH))
 
 
-## A player started a reload or a heal (0.39.19): the AI PMCs close by hear it (`QUIET_NOISES`, from where the server
+## A player started a reload or a heal (0.39.21): the AI PMCs close by hear it (`QUIET_NOISES`, from where the server
 ## has them, never where they say).
 @rpc("any_peer", "call_remote", "reliable")
 func _made_noise(kind: int) -> void:
@@ -1494,7 +1494,7 @@ func report_heal(item: String) -> void:
 		_healed.rpc_id(1, item)
 
 
-## We started a reload or a heal (0.39.19): online the server tells the AI PMCs near us; offline they hear it here.
+## We started a reload or a heal (0.39.21): online the server tells the AI PMCs near us; offline they hear it here.
 func report_noise(from: Node, kind: int, pos: Vector3) -> void:
 	if in_online_raid():
 		_made_noise.rpc_id(1, kind)

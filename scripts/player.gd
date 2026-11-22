@@ -289,7 +289,7 @@ func use_item(grid: GridInventory, stack: ItemStack) -> void:
 		hand.show_item(stack.id)
 	heal_duration = ItemDB.item(stack.id)["use_time"] * Characters.mult("heal_time")
 	heal_time_left = heal_duration
-	Network.main.report_noise(self, Network.NOISE_HEAL, global_position)   # (0.39.19: AI PMCs close by hear it)
+	Network.main.report_noise(self, Network.NOISE_HEAL, global_position)   # (0.39.21: AI PMCs close by hear it)
 	Effects.sound(get_tree().current_scene, HEAL_SOUND, -4.0)
 	if WorldSounds.ITEMS.has(stack.id):
 		WorldSounds.own(self, WorldSounds.ITEMS[stack.id], -8.0)
@@ -882,7 +882,7 @@ func apply_net_state(state: Array) -> void:
 	if is_prone or downed or out_of_fight():
 		return
 	if is_crouching:
-		# Crouch-walking (0.39.19): only the AI PMCs hear it, right next to them (PmcAI.PLAYER_STEP_HEARING); scavs
+		# Crouch-walking (0.39.21): only the AI PMCs hear it, right next to them (PmcAI.PLAYER_STEP_HEARING); scavs
 		# hear nothing, as before.
 		_stride_left -= moved
 		if _stride_left <= 0.0 and moved > 0.01:

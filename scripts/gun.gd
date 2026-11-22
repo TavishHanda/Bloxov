@@ -555,7 +555,7 @@ func start_reload() -> void:
 	if weapon == null or is_reloading or in_mag >= mag_size or reserve <= 0:
 		return
 	is_reloading = true
-	Network.main.report_noise(self, Network.NOISE_RELOAD, player.global_position)   # (0.39.19: AI PMCs close by hear it)
+	Network.main.report_noise(self, Network.NOISE_RELOAD, player.global_position)   # (0.39.21: AI PMCs close by hear it)
 	_reload_empty = in_mag == 0 and not load_one
 	_reload_left = reload_time
 	_reload_t = -1.0

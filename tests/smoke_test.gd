@@ -7731,7 +7731,7 @@ func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -
 
 
 func _section_pmc_ears() -> void:
-	# AI PMCs' sharp ears (0.39.19, owner approved 2026-11-22): a player's noises carry farther to a bot (shots 2.5x,
+	# AI PMCs' sharp ears (0.39.21, owner approved 2026-11-22): a player's noises carry farther to a bot (shots 2.5x,
 	# steps 2x, crouch 3 m, prone nothing), reloads/doors/heals only bots hear, steps coming its way make it stop and
 	# watch; other AI's noises and scavs' hearing are as before.
 	for node in RaidScope.nodes(main, &"enemies"):

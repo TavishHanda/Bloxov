@@ -707,6 +707,106 @@ def hull_pipes(m):
             b.group = None
 
 
+def passage_detail(m):
+    """(ship detail pass, owner 2026-11-22: "more noise in that boat") the side passages: the hull's frames down its
+    inside every 3 m (5 cm proud: looks only), a cable tray along each bulkhead over the doors and their signs, and
+    the walkway's yellow edge lines on the floor."""
+    b = m.b
+    skip = {-1: [(2.0, 9.0), (-61.0, -59.0), (49.0, 51.0)], 1: [(-85.5, -82.5), (42.5, 45.5), (-61.0, -59.0), (49.0, 51.0)]}
+    for side in (-1, 1):
+        t_item(m)
+        z = -88.0
+        while z < 73.0:
+            if G.hull_half(z) >= 17.99 and not any(a <= z <= c for a, c in skip[side]):
+                x = side * (17.75 - 0.05)
+                m.box((x, (A + DECK - SLAB) / 2, z), (0.1, DECK - SLAB - A, 0.28), mat("rip_steel_in"), cull=False)
+                m.box((side * (17.75 - 0.11), (A + DECK - SLAB) / 2, z), (0.02, DECK - SLAB - A, 0.1), mat("rip_iron"), cull=False)
+            z += 3.0
+        b.group = None
+        # the deck's beams across the passage every 6 m between the lamps, from the frame to the bulkhead (not over the
+        # companionways' holes)
+        t_item(m)
+        for z in [-85.0 + 6.0 * k for k in range(27)]:
+            if z > 73.0 or side == -1 and -59.5 <= z <= -38.5 or side == 1 and 52.5 <= z <= 73.5:
+                continue
+            if any(lo <= z <= hi for lo, hi in skip[side]):
+                continue                                  # (over the pier platform and the boat doors' landings)
+            x0, x1 = side * (HOLD_X + 0.15), side * (17.75 - 0.1)
+            m.box(((x0 + x1) / 2, DECK - SLAB - 0.2, z), (abs(x1 - x0), 0.4, 0.22), mat("rip_steel_in"), cull=False)
+            m.box(((x0 + x1) / 2, DECK - SLAB - 0.41, z), (abs(x1 - x0), 0.03, 0.3), mat("rip_iron"), cull=False)
+            for xk in (x0 + side * 0.3, x1 - side * 0.3):          # knee plates at both ends
+                m.box((xk, DECK - SLAB - 0.7, z), (0.6, 0.6, 0.04), mat("rip_steel_in"), cull=False)
+        b.group = None
+        # along each bulkhead, over the doors: a cable tray (three cables in it) and a bundle of three pipes higher
+        # up, broken where a ramp comes down past the bulkhead (the pier's on the west, the boat doors' on the east)
+        gaps = [(2.5, 24.0)] if side == -1 else [(-83.5, -64.5), (24.5, 43.5)]
+        cuts = [-91.7] + [v for g in gaps for v in g] + [73.7]
+        for za, zb in zip(cuts[0::2], cuts[1::2]):
+            t_item(m)
+            xt = side * (HOLD_X + 0.15 + 0.25)
+            y = A + 3.3
+            m.box((xt, y, (za + zb) / 2), (0.5, 0.04, zb - za), mat("rip_iron"), cull=False)
+            m.box((xt + side * 0.24, y + 0.06, (za + zb) / 2), (0.03, 0.12, zb - za), mat("rip_iron"), cull=False)
+            for dx, r, mt in ((-0.12, 0.04, "rip_iron"), (0.0, 0.035, "rip_red"), (0.12, 0.04, "rip_pipe")):
+                m.box((xt + side * dx, y + 0.02 + r, (za + zb) / 2), (2 * r, 2 * r, zb - za), mat(mt), cull=False)
+            for dx, r, yy, mt in ((0.2, 0.14, A + 4.7, "rip_yellow"), (0.5, 0.11, A + 4.75, "rip_pipe"), (0.25, 0.09, A + 5.1, "rip_red")):
+                cyl(b, (side * (HOLD_X + 0.15 + dx), yy, (za + zb) / 2), r, zb - za, mt, "rip_iron", axis="z", sides=6)
+            zz = za + 0.5
+            while zz < zb:
+                m.box((xt, y - 0.06, zz), (0.5, 0.08, 0.06), mat("rip_iron"), cull=False)
+                m.box((side * (HOLD_X + 0.15 + 0.35), A + 4.52, zz), (0.7, 0.06, 0.08), mat("rip_iron"), cull=False)
+                zz += 2.5
+            b.group = None
+        # the walkway's lines: 0.9 m in from the bulkhead, painted yellow, broken at the doors
+        x = side * (HOLD_X + 0.15 + 0.9)
+        yy = A + 0.012
+        cuts = [-91.0] + [v for d in (-80.0, -57.0, -36.0, -18.0, 16.0, 40.0, 60.0) for v in (d - 1.4, d + 1.4)] + [73.0]
+        for zA, zB in zip(cuts[0::2], cuts[1::2]):
+            b.poly([(x - 0.05, yy, zA), (x + 0.05, yy, zA), (x + 0.05, yy, zB), (x - 0.05, yy, zB)], (0, 1, 0), "rip_yellow", uv_world(1.0))
+    # on the walls at eye height, never behind the stores standing against them (they are the passage's solid boxes)
+    used = {(-1, "hull"): [], (1, "hull"): [], (-1, "bulk"): [], (1, "bulk"): []}
+    for row in m.data["boxes"]:
+        c, sz = row["pos"], row["size"]
+        if row.get("kind") is None or abs(c[1] - (A + sz[1] / 2)) > 0.05:
+            continue
+        side = 1 if c[0] > 0 else -1
+        wall = "hull" if abs(c[0]) > 16.0 else ("bulk" if abs(c[0]) < 14.0 and abs(c[0]) > 12.0 else None)
+        if wall:
+            used[(side, wall)].append((c[2] - sz[2] / 2 - 0.6, c[2] + sz[2] / 2 + 0.6))
+    doors = (-80.0, -57.0, -36.0, -18.0, 16.0, 40.0, 60.0)
+    for side in (-1, 1):
+        # valve stations on the hull side: a pipe down from the run overhead to the floor, a red wheel at 1.3 m
+        t_item(m)
+        for z in [-87.0 + 6.0 * k for k in range(27)]:
+            if any(a <= z <= c for a, c in skip[side] + used[(side, "hull")]) or G.hull_half(z) < 17.99:
+                continue
+            if side == -1 and -60.0 <= z <= -38.0 or side == 1 and 52.0 <= z <= 74.0:
+                continue                                  # (the companionways' rails)
+            if (k := round((z + 87.0) / 6.0)) % 2:
+                x = side * (17.75 - 0.2)
+                cyl(b, (x, (A + A + 3.0) / 2, z + 1.4), 0.07, 3.0, "rip_pipe", "rip_iron", axis="y", sides=6)
+                cyl(b, (side * (17.75 - 0.36), A + 1.3, z + 1.4), 0.2, 0.04, "rip_red", "rip_red", axis="x", sides=8)
+                m.box((side * (17.75 - 0.28), A + 1.3, z + 1.4), (0.16, 0.06, 0.06), mat("rip_iron"), cull=False)
+            else:                                         # a fire hose box, red, with its white stencil band
+                m.box((side * (17.75 - 0.1), A + 1.25, z), (0.2, 0.9, 0.7), mat("rip_red"), cull=False)
+                m.box((side * (17.75 - 0.205), A + 1.5, z), (0.01, 0.12, 0.6), mat("rip_white"), cull=False)
+        b.group = None
+        # junction boxes on the bulkhead side, a conduit up from each to the cable tray
+        t_item(m)
+        for z in [-88.0 + 9.0 * k for k in range(18)]:
+            if any(abs(z - d) < 2.4 for d in doors) or any(a <= z <= c for a, c in used[(side, "bulk")]):
+                continue
+            if side == -1 and 2.0 <= z <= 24.0:
+                continue                                  # (the pier's ramp)
+            if side == 1 and (-83.0 <= z <= -65.0 or 25.0 <= z <= 43.0):
+                continue                                  # (the boat doors' ramps)
+            xf = side * (HOLD_X + 0.15)
+            m.box((xf + side * 0.08, A + 1.5, z), (0.16, 0.6, 0.45), mat("rip_steel_in"), cull=False)
+            m.box((xf + side * 0.165, A + 1.62, z), (0.01, 0.12, 0.2), mat("rip_yellow"), cull=False)
+            m.box((xf + side * 0.05, (A + 1.8 + A + 3.3) / 2, z), (0.05, 1.5, 0.05), mat("rip_iron"), cull=False)
+        b.group = None
+
+
 def overhead_pipes(m):
     """Pipe runs under the hold's floor down the engine room deck (3.3 m up: out of reach), broken where the ceiling
     has a hole; brackets every 3 m."""
@@ -898,6 +998,7 @@ def build_below(name="below_decks"):
     lamps(m, hull_rows)
     hold_beams(m, hull_rows)
     hull_pipes(m)
+    passage_detail(m)
     overhead_pipes(m)
     floor_marks(m)
     wall_signs(m)

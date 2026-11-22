@@ -268,7 +268,7 @@ func set_door(id: String, state: int) -> void:
 			quiet_noise((door as Node3D).global_position, Network.QUIET_NOISES[Network.NOISE_DOOR])
 
 
-## A player's quieter noise (0.39.19: a reload, a heal, a door) that only this raid's AI PMCs hear, `reach` m at most.
+## A player's quieter noise (0.39.21: a reload, a heal, a door) that only this raid's AI PMCs hear, `reach` m at most.
 func quiet_noise(pos: Vector3, reach: float) -> void:
 	RaidScope.call_all(raid, &"pmc_bots", &"hear_player_noise", [pos, reach])
 

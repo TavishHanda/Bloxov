@@ -95,7 +95,7 @@ const HURRY_TIME := 6.0
 const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
 const SHOT_CARE_RANGE := 80.0    # gunshots this close: curious bots go, cautious ones steer away
 const CURIOUS_CHANCE := 0.5
-## Awareness (0.39.19, owner approved 2026-11-22; PMC bots only, noises a PLAYER made). Gunshots reach PLAYER_SHOT_HEARING
+## Awareness (0.39.21, owner approved 2026-11-22; PMC bots only, noises a PLAYER made). Gunshots reach PLAYER_SHOT_HEARING
 ## times the gun's noise (AK 35 -> ~88 m, sniper 60 -> 150 m, a suppressor halves it); steps PLAYER_STEP_HEARING times
 ## (walk 20 m, sprint 56 m, crouch 3 m; under SILENT_BELOW, prone, nothing). Reloads, doors and heals: Network.QUIET_NOISES.
 const PLAYER_SHOT_HEARING := 2.5
@@ -185,7 +185,7 @@ var _indoor_left := 0.0
 var _seen_state := State.IDLE
 var _shot_at := Vector3.INF
 var _shot_age := 0.0
-## Awareness (0.39.19): its own dice (not the global ones), where it last heard a player and for how long it's sharp that
+## Awareness (0.39.21): its own dice (not the global ones), where it last heard a player and for how long it's sharp that
 ## way, the last step's distance, and the spot it's stopped to watch.
 var _ears := RandomNumberGenerator.new()
 var _ear_at := Vector3.ZERO
@@ -230,7 +230,7 @@ func apply_character(mult: Dictionary) -> void:
 	var m := func(stat: String) -> float: return float(mult.get(stat, 1.0))
 	move_speed *= m.call("move") * m.call("sprint")   # (its move speed is its run; walking and patrol are shares of it)
 	hearing_mult *= m.call("hearing")
-	_step_trait = m.call("hearing")   # (0.39.19: a player's steps too)
+	_step_trait = m.call("hearing")   # (0.39.21: a player's steps too)
 	aim_time *= m.call("ads")
 	# More recoil / spread = fewer hits: its hit chance goes down by the same share (and up for less).
 	accuracy_near = minf(accuracy_near / (m.call("recoil") * m.call("hip_spread")), 1.0)
@@ -302,7 +302,7 @@ func _ready() -> void:
 	super()
 	if puppet:
 		return
-	_ears.seed = hash(character_seed) ^ 0x5eed   # (0.39.19: its hearing's own dice)
+	_ears.seed = hash(character_seed) ^ 0x5eed   # (0.39.21: its hearing's own dice)
 	add_to_group(&"pmc_bots")   # (0.36.10: how every other AI finds the bots it may fight, Scav._closest_rival)
 	curious = randf() < CURIOUS_CHANCE
 	_places_left = randi_range(PLACES_MIN, PLACES_MAX)
@@ -370,7 +370,7 @@ func out_of_fight() -> bool:
 
 ## A noise it hears (0.36.11: shots from every other AI too). Curious bots go and look like any scav; cautious ones, and
 ## any on their way out, note where it was and steer away from there when they pick a place.
-## 0.39.19 (owner: "really good awareness"): a noise a PLAYER made goes to `_hear_player` instead (sharper ears, see
+## 0.39.21 (owner: "really good awareness"): a noise a PLAYER made goes to `_hear_player` instead (sharper ears, see
 ## "Awareness"); noises from other AI are heard exactly as before.
 func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
@@ -393,14 +393,14 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	super(pos, radius, gunshot)
 
 
-## A player's quieter noise that only the AI PMCs listen for (0.39.19): a reload, a door, a heal. `reach` is in meters.
+## A player's quieter noise that only the AI PMCs listen for (0.39.21): a reload, a door, a heal. `reach` is in meters.
 func hear_player_noise(pos: Vector3, reach: float) -> void:
 	if puppet:
 		return
 	_hear_player(pos, reach, false)
 
 
-# --- Awareness (0.39.19, owner approved 2026-11-22): what it does with a noise a player made --------------------------
+# --- Awareness (0.39.21, owner approved 2026-11-22): what it does with a noise a player made --------------------------
 
 ## A player is standing where the noise came from (their steps, shots, knife; the server's proxies count).
 func _player_made(pos: Vector3) -> bool:
@@ -1238,7 +1238,7 @@ func _keep_apart() -> void:
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or plan == Plan.FLEE:
 		return
 	if _ear_left > 0.0 and state != State.IDLE:
-		return   # (0.39.19: hunting a player it heard beats keeping away from other AI)
+		return   # (0.39.21: hunting a player it heard beats keeping away from other AI)
 	var others := _others_at()
 	var threat := _nearest_threat(others)
 	_flee_wait_left -= CHECK_EVERY
