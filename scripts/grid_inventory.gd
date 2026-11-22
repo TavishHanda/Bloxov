@@ -11,6 +11,8 @@ var stacks: Array[ItemStack] = []
 ## A body's gear slot ("primary", "armor", ...): holds one item that goes in that slot, whatever its size
 ## (it sits at 0, 0). Empty = a normal grid.
 var slot := ""
+## The secure pocket (0.39.10, owner 2026-11-21): quest items (NINE's files) can't go in, so they're lost on death.
+var refuses_quest := false
 
 
 func _init(grid_title: String, grid_width: int, grid_height: int) -> void:
@@ -29,6 +31,8 @@ func fits(id: String, x: int, y: int, rotated: bool, ignore: ItemStack = null) -
 		# (a player's body's TAG slot holds their PMC dog tag, 0.15.28)
 		var goes_here := id == "player_tag" if slot == "tag" else ItemDB.equip_slot(id) == slot
 		return goes_here and stacks.all(func(stack: ItemStack) -> bool: return stack == ignore)
+	if refuses_quest and ItemDB.ITEMS.get(id, {}).get("quest", false):
+		return false
 	var size := ItemDB.rotated_size(id, rotated)
 	if x < 0 or y < 0 or x + size.x > width or y + size.y > height:
 		return false
