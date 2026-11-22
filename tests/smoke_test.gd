@@ -2895,7 +2895,7 @@ func _section_hideout_world() -> void:
 	_check(Profile.money == 0 and (Profile.characters["unlocked"] as Array).has("vega"), "the other starter is bought for $50,000")
 	Profile.money = money_chars
 	chars._on_action()
-	# The skill tree (owner 2026-11-20: the points in their own menu): five branches from the bottom up.
+	# The skill tree (owner 2026-11-20: the points in their own menu): three branches from the bottom up.
 	chars.open_tree()
 	await process_frame
 	var tree := chars.tree
@@ -2904,9 +2904,9 @@ func _section_hideout_world() -> void:
 	tree_c["lvl_points"] = 5
 	tree.refresh()
 	var nodes_ok: bool = tree.visible and (tree._nodes["u0"] as Array).size() == Characters.UPSIDE_MAX \
-		and (tree._nodes["d1"] as Array).size() == Characters.DOWNSIDE_MAX and (tree._nodes["p"] as Array).size() == 3
+		and not tree._nodes.has("d0") and (tree._nodes["p"] as Array).size() == 3 and tree._downsides.text.begins_with("DOWNSIDES")
 	_check(nodes_ok and (tree._nodes["u0"][0] as Button).get_meta("state") == "next" and (tree._nodes["u0"][1] as Button).get_meta("state") == "locked"
-		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 5 + 5 upside steps, the passive's 3 ranks, 2 + 2 downside steps")
+		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 5 + 5 upside steps and the passive's 3 ranks; the downsides shown, not bought")
 	tree.buy("u0", 2)
 	_check(int(tree_c["spent"]["u0"]) == 0, "a branch is bought from the bottom up")
 	tree.buy("u0", 0)
@@ -5134,10 +5134,12 @@ func _section_playables() -> void:
 		Characters.spend(state, "vega", "u0")
 	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.18),
 		"5 points at most on an upside: +18% speed")
-	Characters.spend(state, "vega", "d0")
-	Characters.spend(state, "vega", "d0")
-	_check(not Characters.spend(state, "vega", "d0") and is_equal_approx(Characters.trait_value("vega", c, 2), 0.125),
-		"a downside can be halved, never removed")
+	_check(not Characters.spend(state, "vega", "d0") and not Characters.spend(state, "sable", "u0") and Characters.points_left(state) == 2,
+		"points never go on a downside (it grows with level) or on a character you don't own (owner 2026-11-22)")
+	Characters.spend(state, "vega", "u1")
+	Characters.spend(state, "vega", "u1")
+	var refunded := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 2, "exp_points": 0, "spent": {"d0": 2}}}})
+	_check(Characters.points_left(refunded) == 2, "points an old save put on a downside come back")
 	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state) == 0, "no points left for a passive rank")
 	Characters.reset_points(state, "vega")
 	_check(Characters.points_left(state) == 7 and Characters.spend(state, "voss", "p") and Characters.passive_rank(Characters.char_of(state, "voss")) == 2
