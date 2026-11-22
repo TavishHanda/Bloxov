@@ -580,6 +580,29 @@ SOUTH_CHAIRS = [("chair_w", -150.7, -40.5, 0.0), ("chair_w", -148.7, 75.0, 0.0),
                 ("chair_e", -45.6, 119.0, 0.0)]
 
 
+# (ship detail pass, owner 2026-11-22: "ramps without railings ... there needs to be more noise in that boat") a rail
+# down every open side of the ship's ramps, 1 m over the slope, as the companionways have had since 0.36.29:
+# (x, y at the top end, z there, y at the low end, z there). All the ship's ramps run along z.
+def _ship_rails():
+    rails = [(32.97, PIER, 8.0, HULL_A, 23.0),                                   # the pier platform's ramp (hold)
+             (44.12, HULL_A, 96.0, BARGE, SZ1 - 0.6), (51.88, HULL_A, 96.0, BARGE, SZ1 - 0.6),   # the stern ramp
+             (34.28, DECK, -80.0, FORECASTLE, -93.5),                            # up to the forecastle
+             (31.32, DECK, -36.0, DRILL, -14.0), (34.68, DECK, -36.0, DRILL, -14.0),   # up to the drill floor
+             (61.32, DECK, 36.0, DRILL, 14.0), (64.68, DECK, 36.0, DRILL, 14.0),
+             (51.92, LAB2, -42.0, LAB1, -27.0), (55.08, LAB2, -42.0, LAB1, -27.0),    # Site Zero's inner ramp
+             (34.38, LAB1, 10.0, LAB2, 25.0)]                                    # the dock's freight ramp
+    for z in BOAT_DOORS:     # the hull doors' ramps: the flat guard covers the first 5.5 m, the rail the rest
+        dz = 1 if z < 0 else -1
+        rails.append((63.13, BOAT + (HULL_A - BOAT) * 5.5 / 15.0, z + 8.0 * dz, HULL_A, z + 17.5 * dz))
+    return rails
+
+
+def ship_rails():
+    with modeled("south_port", -90.0, 110.0), kinded("ramp_rail"):
+        for x, ya, za, yb, zb in _ship_rails():
+            ramp((x, ya + 1.0, za), (x, yb + 1.0, zb), 0.12, "rust", t=1.0)
+
+
 def south_props():
     with modeled("south_port", -90.0, 110.0):
         for kind, x0, x1, z0, z1, y, h in SOUTH_PROPS:
@@ -1578,11 +1601,23 @@ BELOW_PROPS = [
     ("shelves", 30.3, 30.9, -14.0, -9.0, HULL_A, 2.1), ("drums", 30.3, 31.1, 28.0, 31.0, HULL_A, 1.0),
     ("shelves", 30.3, 30.9, 34.0, 38.0, HULL_A, 2.1), ("crates", 30.3, 31.5, 60.0, 63.0, HULL_A, 1.4),
     ("tool_cab", 30.3, 30.9, 68.0, 70.4, HULL_A, 1.6),
+    # (ship detail pass, owner 2026-11-22: the passages were "big open hallways") stores along the bulkhead side too,
+    # never beside one across the passage (4 m to walk), clear of the doors, the companionway, the pier ramp's foot
+    ("shelves", 35.15, 35.75, -89.5, -85.5, HULL_A, 2.1), ("drums", 34.95, 35.75, -74.0, -71.0, HULL_A, 1.0),
+    ("crates", 34.55, 35.75, -66.0, -63.5, HULL_A, 1.4), ("tool_cab", 35.15, 35.75, -28.5, -26.1, HULL_A, 1.6),
+    ("shelves", 35.15, 35.75, -8.0, -4.0, HULL_A, 2.1), ("crates", 34.55, 35.75, 44.5, 47.0, HULL_A, 1.4),
+    ("shelves", 35.15, 35.75, 63.5, 67.5, HULL_A, 2.1),
+    ("crates", 30.3, 31.5, -36.0, -33.5, HULL_A, 1.4), ("drums", 30.3, 31.1, -3.0, 0.0, HULL_A, 1.0),
+    ("drums", 30.3, 31.1, 40.5, 43.5, HULL_A, 1.0),
     # the starboard (east) side passage
     ("shelves", 65.1, 65.7, -88.0, -84.0, HULL_A, 2.1), ("crates", 64.5, 65.7, -76.0, -73.0, HULL_A, 1.4),
     ("drums", 64.9, 65.7, -44.0, -41.0, HULL_A, 1.0), ("tool_cab", 65.1, 65.7, -30.0, -27.6, HULL_A, 1.6),
     ("shelves", 65.1, 65.7, -16.0, -11.0, HULL_A, 2.1), ("drums", 64.9, 65.7, 20.0, 23.0, HULL_A, 1.0),
     ("crates", 64.5, 65.7, 30.0, 33.0, HULL_A, 1.4), ("shelves", 65.1, 65.7, 36.0, 40.0, HULL_A, 2.1),
+    ("crates", 60.25, 61.45, -53.5, -51.0, HULL_A, 1.4), ("drums", 60.25, 61.05, -33.5, -30.5, HULL_A, 1.0),
+    ("tool_cab", 60.25, 60.85, -10.0, -7.6, HULL_A, 1.6), ("shelves", 60.25, 60.85, -3.0, 1.0, HULL_A, 2.1),
+    ("shelves", 60.25, 60.85, 18.5, 22.5, HULL_A, 2.1), ("drums", 60.25, 61.05, 45.5, 48.5, HULL_A, 1.0),
+    ("tool_cab", 65.1, 65.7, -50.0, -47.6, HULL_A, 1.6), ("drums", 64.9, 65.7, 3.0, 6.0, HULL_A, 1.0),
     # out in the cargo hold, between the container stacks
     ("crates", 38.2, 39.6, -70.0, -68.6, HULL_A, 1.4), ("drums", 49.5, 50.3, -55.6, -53.2, HULL_A, 1.0),
     ("reel", 47.6, 49.0, -31.5, -29.5, HULL_A, 1.4), ("forklift", 41.8, 43.1, 33.0, 35.6, HULL_A, 2.1),
@@ -2612,6 +2647,7 @@ def main():
     transit_sheds()
     breakers()
     south_props()
+    ship_rails()
     crossings()
     ship()
     moon_pool()

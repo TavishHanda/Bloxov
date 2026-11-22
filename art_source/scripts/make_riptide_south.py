@@ -233,6 +233,25 @@ def boat_piece(m, row):
     m.box((c[0], y0 + s[1] - 0.1, c[2]), (s[0] + 0.1, 0.12, s[2] + 0.1), lambda n, mid, q: None if abs(n[1]) > 0.7 else "rip_iron")
 
 
+def ramp_rail(m, row):
+    """(ship detail pass) A rail down a ramp's open side: its box is a 1 m slab along the slope; drawn as a yellow top
+    rail, a mid rail and a kick plate along the slope, with posts every 1.5 m."""
+    c, s, yaw, pitch = row["pos"], row["size"], row["yaw"], row["pitch"]
+    up = mb.rot((0.0, 1.0, 0.0), yaw, pitch)
+    al = mb.rot((0.0, 0.0, 1.0), yaw, pitch)
+    h = s[1]
+    for off, th, mt in ((h / 2 - 0.04, 0.07, "rip_yellow"), (0.0, 0.05, "rip_yellow"), (-h / 2 + 0.08, 0.16, "rip_iron")):
+        m.box((c[0] + up[0] * off, c[1] + up[1] * off, c[2] + up[2] * off), (0.06, th, s[2]), mat(mt), yaw=yaw, pitch=pitch,
+              cull=False)
+    n = max(2, int(s[2] // 1.5) + 1)
+    for k in range(n):
+        t = -s[2] / 2 + 0.05 + (s[2] - 0.1) * k / (n - 1)
+        p = (c[0] + al[0] * t, c[1] + al[1] * t, c[2] + al[2] * t)
+        lo = p[1] - up[1] * h / 2
+        hi = p[1] + up[1] * h / 2
+        m.box((p[0], (lo + hi) / 2, p[2]), (0.07, hi - lo, 0.07), mat("rip_yellow"), cull=False)
+
+
 def details(m):
     for name, info in BUILDINGS.items():          # (detail pass) the floors laid over the ground inside
         if info[5]:
@@ -331,6 +350,8 @@ def build_south(name="south_port"):
             boathouse(m, row)
         elif kind in P.PROP_KINDS or kind == "tool_cab" or kind.startswith("chair_"):
             R.t_prop(m, row)
+        elif kind == "ramp_rail":
+            ramp_rail(m, row)
         elif kind == "boxcar":
             boxcar(m, row)
         elif kind in ("ac_unit", "vent", "roof_tank"):
