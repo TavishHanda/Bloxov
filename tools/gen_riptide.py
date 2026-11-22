@@ -543,6 +543,51 @@ CANNERY_CHAIRS = [("chair_n", -140.0, -164.8, 4.5), ("chair_n", -138.5, -147.4, 
                   ("chair_s", -138.0, -131.6, 4.5)]
 
 
+# (detail pass, owner 2026-11-22: "yea lets do it") the small buildings of art passes 3b-5 were bare rooms: their
+# furniture, drawn by south_port. (kind, x0, x1, z0, z1, y above the shore, h); every piece against a wall, clear of
+# the doors, gates, low windows and loot, the middle of each room left open.
+SOUTH_PROPS = [
+    # the weighbridge office: the clerk's desk, a filing cabinet, shelves of dockets
+    ("desk", -151.85, -151.05, -41.5, -39.0, 0.0, 0.76), ("files", -151.85, -151.25, -43.7, -42.3, 0.0, 1.3),
+    ("shelves", -151.5, -148.0, -34.75, -34.15, 0.0, 2.1),
+    # the rail shed: a tool cabinet and racks on the west wall, drums and crates on the east, the lane between the
+    # gates open
+    ("tool_cab", -151.85, -151.05, 39.5, 41.5, 0.0, 1.8), ("shelves", -151.85, -151.25, 43.5, 48.5, 0.0, 2.1),
+    ("drums", -137.85, -136.65, 50.0, 52.4, 0.0, 1.0), ("crates", -139.5, -137.0, 37.0, 39.0, 0.0, 1.4),
+    # the signal box: the lever frame along the north wall, the signalman's desk, shelves
+    ("console", -141.5, -138.5, 72.15, 72.85, 0.0, 1.1), ("desk", -149.85, -149.05, 74.0, 76.5, 0.0, 0.76),
+    ("shelves", -146.0, -142.0, 83.25, 83.85, 0.0, 2.1),
+    # the lane shed: a workbench, racks, drums
+    ("bench", -126.0, -123.0, 94.15, 94.85, 0.0, 0.9), ("shelves", -114.75, -114.15, 95.0, 99.0, 0.0, 2.1),
+    ("drums", -116.6, -114.4, 100.8, 101.85, 0.0, 1.0),
+    # the south street garage: a tool cabinet and a workbench on the east wall, drums
+    ("tool_cab", -66.85, -66.15, 127.0, 129.0, 0.0, 1.8), ("bench", -66.85, -66.15, 131.0, 134.0, 0.0, 0.9),
+    ("drums", -79.5, -77.0, 134.5, 135.85, 0.0, 1.0),
+    # the south edge shed: crates, racks, drums
+    ("crates", -89.0, -87.0, 165.0, 167.0, 0.0, 1.4), ("shelves", -95.0, -90.0, 175.25, 175.85, 0.0, 2.1),
+    ("drums", -99.5, -97.5, 164.15, 165.4, 0.0, 1.0),
+    # the barge office: the manager's desk, files, the counter by the south door, the chart table
+    ("desk", -44.85, -44.05, 118.0, 120.5, 0.0, 0.76), ("files", -57.85, -57.25, 115.0, 119.0, 0.0, 1.3),
+    ("counter", -56.0, -53.0, 121.15, 121.85, 0.0, 1.0), ("chart_table", -52.0, -50.0, 114.0, 115.2, 0.0, 0.9),
+    # the shipyard workshop: a workbench and a tool cabinet on the north wall, racks, drums by the gate
+    ("bench", -102.0, -98.8, 106.15, 106.85, 0.0, 0.9), ("tool_cab", -90.5, -88.5, 106.15, 106.85, 0.0, 1.8),
+    ("shelves", -103.85, -103.25, 117.0, 121.0, 0.0, 2.1), ("drums", -88.0, -85.5, 122.4, 123.7, 0.0, 1.0),
+    # the fab shed: racks of plate on the west wall, drums and crates in the east corners
+    ("shelves", -151.85, -151.25, 105.0, 109.5, 0.0, 2.1), ("drums", -123.0, -120.8, 104.3, 105.6, 0.0, 1.0),
+    ("crates", -124.0, -121.5, 125.0, 127.5, 0.0, 1.4),
+]
+SOUTH_CHAIRS = [("chair_w", -150.7, -40.5, 0.0), ("chair_w", -148.7, 75.0, 0.0), ("chair_n", -140.3, 73.2, 0.0),
+                ("chair_e", -45.6, 119.0, 0.0)]
+
+
+def south_props():
+    with modeled("south_port", -90.0, 110.0):
+        for kind, x0, x1, z0, z1, y, h in SOUTH_PROPS:
+            box(x0, SHORE + y, z0, x1, SHORE + y + h, z1, "metal" if kind in ("drums", "tool_cab") else "wood", kind=kind)
+        for kind, x, z, y in SOUTH_CHAIRS:
+            box(x, SHORE + y, z, x + 0.55, SHORE + y + 0.9, z + 0.55, "wood", kind=kind)
+
+
 LH_TOP = SHORE + 28.0     # (0.38.5) the lighthouse's watch room floor
 
 
@@ -2566,6 +2611,7 @@ def main():
     shipyard()
     transit_sheds()
     breakers()
+    south_props()
     crossings()
     ship()
     moon_pool()

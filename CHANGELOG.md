@@ -7,6 +7,19 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.19 (Riptide: detail pass, furnished rooms)
+The owner agreed to a detail pass (2026-11-22, "yea lets do it"). The small buildings from art passes 3b-5 were bare
+rooms. They now have furniture: 36 pieces against their walls, kept clear of doors, gates, low windows and loot, with
+the middle of each room left open. This adds a little indoor cover, which the owner approved for Riptide's interiors
+on 2026-11-20.
+- **Weighbridge office**: the clerk's desk and chair, a filing cabinet, shelves of dockets.
+- **Signal box**: the lever frame on the north wall with the signalman's chair, a desk, shelves.
+- **Barge office**: the manager's desk, files, a counter by the south door, a chart table.
+- **Rail shed, lane shed, south shed, garage**: tool cabinets, workbenches, racks, drums, crates.
+- **Shipyard workshop and fab shed**: a workbench, a tool cabinet, racks, drums and crates.
+- Floors are laid inside these buildings: lino in the offices, concrete in the sheds. Before, they showed bare ground.
+- Net version 27: the furniture collides.
+
 ## 0.39.18 (Riptide: art pass 5, the ship's bow, the loader and the boats)
 The last pieces of Riptide still drawn as grey boxes now have a model (added to `south_port`):
 - **The forecastle**: the bosun's hut in white with a steel inside, the two windlasses, the white foremast.
