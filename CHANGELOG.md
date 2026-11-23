@@ -7,6 +7,23 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.29 (Richer AI PMCs, Orbit and Ace)
+The owner (2026-11-23): AI PMCs were "a little too homeless", they should have better loot overall and well-geared ones
+should be a bit more common ("you should be rewarded from killing a PMC (sometimes)"); Orbit and Ace's loot was
+underwhelming. The owner picked the plan as written.
+- **Three kit levels for AI PMCs**, rolled from the bot's id: **Light** (half of them, about today's kit: light armor
+  70%, an Old Helmet 30%, a small backpack half the time, 0-1 attachments, 2-3 items), **Kitted** (35%: light armor,
+  heavy 15%; a helmet 70%, Combat 1 in 4; a small or medium backpack; 1-2 attachments; 3-5 items; a medkit; a valuable
+  of uncommon or better) and **Geared** (15%: heavy armor, Combat Helmet, a medium or large backpack, 2-3 attachments
+  with a purple one 1 time in 4, a Hornet, Brawler or Viper 1 time in 3, 4-6 items, 2 medkits, a grenade, a valuable of
+  rare or better). A bot's body is worth about $27k on average (was about $17k); a Geared one about $60k.
+- **Richer bot items**: the AI PMC loot table's rare valuables go from 10 to 14 and epic from 2 to 4.
+- **Orbit and Ace**: their Hound gets a third attachment (Ace a Drum Mag, Orbit a Heavy Suppressor); they wear a Large
+  Backpack with their loot inside; 5-7 items from a new boss table (rare and epic doubled, legendary added); one more
+  epic or legendary valuable on top of their Orders or Chip. Bon, Raijin and the guards are unchanged.
+- The economy sim (`tools/economy_sim.gd`) rolls the new kits and lists Ace and Orbit.
+- Net version 33 (loot changed).
+
 ## 0.39.28 (Best attachments are found, never bought)
 The owner (2026-11-22): "The new purple attachments should not be able to be bought, these should be rarer items only
 found." Drop rates stay as they were; the owner picked filling the gaps.

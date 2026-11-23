@@ -309,6 +309,12 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 @export var kit := ""
 ## The backpack that kit gave it (it only ends up on its body).
 var pack := ""
+## Its kit level (0.39.29, AILoadouts.PMC_KITS: "light", "kitted", "geared"; "" for every other AI).
+var pmc_tier := ""
+## A backpack worn by a non-PMC AI (0.39.29, Orbit and Ace): it ends up on its body with the rolled loot inside.
+@export var body_pack := ""
+## One more valuable on its body, its rarity rolled from these weights (0.39.29, Orbit and Ace). Empty = none.
+@export var bonus_valuable := {}
 ## Item id of that gun.
 @export var weapon_drop := ""
 ## What it carries (0.15.5, AILoadouts): a loadout table ("scav", "raider": a random gun each spawn) or a gun id.

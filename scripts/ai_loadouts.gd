@@ -19,22 +19,29 @@ const TABLES := {
 	"trooper": {"ak": 50, "smg": 30, "shotgun": 20, "hornet": 6, "brawler": 6},
 }
 
-## What an AI PMC wears and carries (0.36.4, piece 5 of the AI PMC plan: "light armor most of the time, sometimes none
-## or heavy, sometimes a helmet, a small backpack"). The plan gave no odds, so these are PROPOSED numbers for the
-## owner to approve before bots are switched on (tunable here, piece 7). Weights: item id ("" = none) -> weight.
-## (0.36.7, owner approved: "make heavy stuff rarer for now": light 65, none 30, heavy 5, was 60/25/15.)
-const PMC_ARMOR := {"armor_light": 65, "": 30, "armor_heavy": 5}
-## Share of AI PMCs in a helmet, and which one. Decided from the bot's id (`pmc_helmet`), because the helmet has to
-## match the hat on its outfit and every screen only knows the id.
-const PMC_HELMET_CHANCE := 0.3
-## (0.36.7, owner approved: the Combat Helmet is 1 in 10 of helmets, was 1 in 5.)
-const PMC_HELMETS := {"helmet_basic": 90, "helmet_good": 10}
-## Backpack it carries (it ends up on its body): item id ("" = none) -> weight.
-## (0.36.7, owner approved: none 55, small 40, medium 5, was 55/35/10.)
-const PMC_BACKPACK := {"": 55, "backpack_small": 40, "backpack_medium": 5}
-## A bandage stack it carries, the share of AI PMCs with a medkit too, and its ammo: the carried gun's rounds, rolled
-## like any body's (ItemDB.roll_count).
-const PMC_MEDKIT_CHANCE := 0.15
+## What an AI PMC wears and carries. 0.36.4 / 0.36.7 gave every bot one kit (light armor mostly, sometimes a helmet,
+## a small backpack). 0.39.29 (owner approved, 2026-11-23: bots were "too homeless", better loot overall and well-geared
+## bots a bit more common, "you should be rewarded from killing a PMC (sometimes)"): each bot rolls one of three kit
+## levels from its id. Light is about today's kit (about $15k on the body), Kitted about $30k, Geared about $60k.
+## Weights: item id ("" = none) -> weight.
+const PMC_TIERS := {"light": 50, "kitted": 35, "geared": 15}
+const PMC_KITS := {
+	"light": {"armor": {"armor_light": 70, "": 30}, "helmet_chance": 0.3, "helmets": {"helmet_basic": 1},
+		"pack": {"": 50, "backpack_small": 50}, "parts": [0, 1], "drops": [2, 3], "medkits": 0, "medkit_chance": 0.15,
+		"grenades": 0, "valuable": {}, "new_gun_chance": 0.0, "best_part_chance": 0.0},
+	"kitted": {"armor": {"armor_light": 85, "armor_heavy": 15}, "helmet_chance": 0.7,
+		"helmets": {"helmet_basic": 75, "helmet_good": 25}, "pack": {"backpack_small": 50, "backpack_medium": 50},
+		"parts": [1, 2], "drops": [3, 5], "medkits": 1, "medkit_chance": 0.0, "grenades": 0,
+		"valuable": {"uncommon": 60, "rare": 30, "epic": 10}, "new_gun_chance": 0.0, "best_part_chance": 0.0},
+	"geared": {"armor": {"armor_heavy": 1}, "helmet_chance": 1.0, "helmets": {"helmet_good": 1},
+		"pack": {"backpack_medium": 2, "backpack_large": 1}, "parts": [2, 3], "drops": [4, 6], "medkits": 2,
+		"medkit_chance": 0.0, "grenades": 1, "valuable": {"rare": 60, "epic": 30, "legendary": 10},
+		"new_gun_chance": 1.0 / 3.0, "best_part_chance": 0.25},
+}
+## The new guns a Geared bot may carry (they fight exactly like their base gun, STYLE_OF).
+const PMC_NEW_GUNS := ["hornet", "brawler", "viper"]
+## The purple "Best" attachments (loot-only, 0.39.28): a Geared bot's gun has one of these 1 time in 4.
+const BEST_PARTS := ["tactical_grip", "heavy_suppressor", "drum_mag", "full_choke"]
 
 ## How a gun changes the AI's shooting: "mult" multiplies its stats, "set" replaces them.
 ## Rough damage per second up close against the AK (scav): SMG about the same, shotgun a little less but in big
@@ -124,26 +131,75 @@ static func roll_weighted(weights: Dictionary, rng: RandomNumberGenerator = null
 	return weights.keys()[0]
 
 
+## An AI PMC's kit level ("light", "kitted", "geared") from its id. Only the id decides, so the server and every
+## screen agree (its helmet, and so its outfit's hat, depends on it).
+static func pmc_tier(seed_value: int) -> String:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	return roll_weighted(PMC_TIERS, rng)
+
+
 ## The helmet an AI PMC with this id wears ("" = none). Only the id decides, so the server and every screen agree
 ## (the outfit's hat is picked to match, Scav.pick_look).
 static func pmc_helmet(seed_value: int) -> String:
+	var kit: Dictionary = PMC_KITS[pmc_tier(seed_value)]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	if rng.randf() >= PMC_HELMET_CHANCE:
+	rng.seed = seed_value + 7919
+	if rng.randf() >= float(kit["helmet_chance"]):
 		return ""
-	return roll_weighted(PMC_HELMETS, rng)
+	return roll_weighted(kit["helmets"], rng)
 
 
-## An AI PMC's own kit for `ai` (a Scav), set before it puts its gear on: armor, helmet (from `seed_value`) and
-## backpack. The gun comes from the "pmc" table through `loadout`.
+## An AI PMC's own kit for `ai` (a Scav), set before it puts its gear on: armor, helmet (from `seed_value`), backpack
+## and how many items its body rolls. The gun comes from the "pmc" table through `loadout` (or a new gun, Geared).
 static func roll_pmc_kit(ai: Object, seed_value: int) -> void:
-	ai.set("armor", roll_weighted(PMC_ARMOR))
+	var tier := pmc_tier(seed_value)
+	var kit: Dictionary = PMC_KITS[tier]
+	ai.set("pmc_tier", tier)
+	ai.set("armor", roll_weighted(kit["armor"]))
 	ai.set("helmet", pmc_helmet(seed_value))
-	ai.set("pack", roll_weighted(PMC_BACKPACK))
+	ai.set("pack", roll_weighted(kit["pack"]))
+	ai.set("min_drops", kit["drops"][0])
+	ai.set("max_drops", kit["drops"][1])
+	if String(ai.get("loadout")) != "" and randf() < float(kit["new_gun_chance"]):
+		ai.set("loadout", PMC_NEW_GUNS.pick_random())
 
 
-## What its body holds on top of the rolled loot (`kit`): its backpack, the rounds for its gun and some meds.
-static func pmc_extras(gun: String, pack: String) -> Array:
+## An AI PMC's gun as it ends up on its body: its kit level's number of attachments (a Geared bot's sometimes a
+## purple one).
+static func pmc_gun(gun: String, tier: String) -> ItemStack:
+	var kit: Dictionary = PMC_KITS.get(tier, PMC_KITS["light"])
+	var stack := ItemStack.new(gun)
+	var count := randi_range(kit["parts"][0], kit["parts"][1])
+	if count > 0 and randf() < float(kit["best_part_chance"]):
+		var best := BEST_PARTS.filter(func(part: String) -> bool: return ItemDB.attachment_slot_for(gun, part) != "")
+		if not best.is_empty():
+			var part: String = best.pick_random()
+			stack.attachments[ItemDB.attachment_slot_for(gun, part)] = part
+			count -= 1
+	var options := DROP_PARTS.duplicate()
+	options.shuffle()
+	for part: String in options:
+		if count <= 0:
+			break
+		var slot := ItemDB.attachment_slot_for(gun, part)
+		if slot != "" and not stack.attachments.has(slot):
+			stack.attachments[slot] = part
+			count -= 1
+	return stack
+
+
+## A random valuable whose rarity is rolled from `rarities` (rarity -> weight), or "" for none.
+static func bonus_valuable(rarities: Dictionary) -> String:
+	if rarities.is_empty():
+		return ""
+	return ItemDB._random_valuable(roll_weighted(rarities))
+
+
+## What its body holds on top of the rolled loot (`kit`): its backpack, the rounds for its gun, some meds, and its kit
+## level's extras (a grenade, a valuable).
+static func pmc_extras(gun: String, pack: String, tier: String = "light") -> Array:
+	var kit: Dictionary = PMC_KITS.get(tier, PMC_KITS["light"])
 	var extras: Array = []
 	if pack != "":
 		extras.append(ItemStack.new(pack))
@@ -151,6 +207,14 @@ static func pmc_extras(gun: String, pack: String) -> Array:
 	if ammo != "":
 		extras.append([ammo, ItemDB.roll_count(ammo)])
 	extras.append(["bandage", ItemDB.roll_count("bandage")])
-	if randf() < PMC_MEDKIT_CHANCE:
+	var medkits: int = kit["medkits"]
+	if medkits == 0 and randf() < float(kit["medkit_chance"]):
+		medkits = 1
+	for i in medkits:
 		extras.append(["medkit", 1])
+	for i in int(kit["grenades"]):
+		extras.append(["grenade", 1])
+	var valuable := bonus_valuable(kit["valuable"])
+	if valuable != "":
+		extras.append([valuable, 1])
 	return extras
