@@ -1871,6 +1871,14 @@ func _section_attachments() -> void:
 			_check(int(ItemDB.item(part).get("tier", 0)) > 0 or part.begins_with("scope_"), "every attachment but scopes has a tier (%s)" % part)
 			for stat: String in ItemDB.item(part).get("mult", {}):
 				_check(not stat in ["damage", "rpm", "head"], "attachments never change damage or fire rate (%s)" % part)
+	# 0.39.28 (owner): Best attachments are never sold, only found (bodies, the Bunker, Site Zero, the ship armory).
+	for trader: String in Traders.LIST:
+		for level: Dictionary in Traders.LIST[trader]["levels"]:
+			for entry: Array in level["stock"]:
+				_check(int(ItemDB.item(entry[0]).get("tier", 0)) != 3, "Best attachments are never sold (%s)" % entry[0])
+	for best: String in ["tactical_grip", "heavy_suppressor", "full_choke", "drum_mag"]:
+		_check(ItemDB.LOOT_TABLES["raider"].has(best) and ItemDB.LOOT_TABLES["pmc"].has(best) and ItemDB.PLACE_LOOT["LabCore"].has(best)
+			and ItemDB.PLACE_LOOT["Bunker"].has(best) and ItemDB.PLACE_LOOT["ShipArmory"].has(best), "%s is found on bodies and in the best places" % best)
 	var wasp := ItemStack.new("smg")
 	var wasp_plain := int(ItemDB.weapon_stats(wasp)["mag"])
 	wasp.attachments = {"mag": "ext_mag"}
