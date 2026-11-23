@@ -25,6 +25,17 @@ was ~2.5x Riptide's. No gameplay, map or look changes.
   5.9 s -> 4.7 s when the title screen / hideout had time to build the trees (unchanged total when START RAID comes
   straight away, but the bar counts instead of freezing). Smoke test: the reused triangles match building them again.
 
+## 0.39.31 (Raijin holds his ground)
+Owner, 2026-11-23: a friend ran straight at Raijin in blue armor with a kitted Hornet and won; "raijin needs to be a
+bit stronger". Test duels (blue armor and combat helmet, Hornet, rushing from 20 m, guards left out) showed why: his
+Assault Armor wore out like a player's in about 12 Hornet hits, and he fired about 4 shots a second. Owner picked
+"armor holds + fires harder":
+- **His armor and helmet hold up while he's alive.** The hits are still counted: they end up on his body as worn as
+  they would have been, so the loot is the same as before.
+- **He fires harder:** 7-round bursts (was 5) with 0.25-0.4 s pauses (was 0.5-0.75 s). Health stays 400.
+- In 60 test duels a rusher landing 60% of their shots now wins about 1 in 3 (was every time); one landing 40%
+  wins about 1 in 60 (was about 1 in 3).
+- Smoke test: Raijin's bursts and his armor holding, then wearing in on his body.
 ## 0.39.30 (A cleaner skill tree)
 The owner (2026-11-23): the skill tree "looks ugly cuz theres so many boxes". Each upside is now one bar of 12 thin
 segments that fills up green, with a single +1% button above it (MAXED when full) and its count beside the value
