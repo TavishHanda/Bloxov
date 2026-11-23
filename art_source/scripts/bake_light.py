@@ -117,8 +117,8 @@ SAME = 0.002        # light values closer than this count as equal (the colours 
 
 def _merge(pts, uvs, grid, light):
     """The cells of a cut quad joined back into bigger rectangles wherever the light doesn't change across them
-    (2026-11-23, fewer triangles, same picture): a rectangle is kept whole when its light depends on one direction
-    only, so the GPU's interpolation over its two triangles gives exactly what the cells gave."""
+    (2026-11-23, fewer triangles, same picture): a rectangle is kept whole when its light over the cells' corners is
+    a plane (constant, or changing evenly), so the GPU's interpolation over its two triangles gives what the cells gave."""
     nu, nv = grid
     p = [np.array(q, dtype=float) for q in pts]
     t = [np.array(q, dtype=float) for q in uvs]
@@ -127,39 +127,33 @@ def _merge(pts, uvs, grid, light):
         return tuple((arr[0] * (1 - s) * (1 - r) + arr[1] * s * (1 - r) + arr[2] * s * r + arr[3] * (1 - s) * r).tolist())
     val = [[light(at(p, i / nu, j / nv)) for j in range(nv + 1)] for i in range(nu + 1)]
 
-    def flat_u(i0, i1, j0, j1):     # the same along u (depends on v only)
-        return all(abs(val[a][b] - val[i0][b]) < SAME for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
-
-    def flat_v(i0, i1, j0, j1):     # the same along v (depends on u only)
-        return all(abs(val[a][b] - val[a][j0]) < SAME for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
+    def flat(i0, i1, j0, j1):       # the light over vertices i0..i1 x j0..j1 is a plane (the GPU gives it exactly)
+        base = val[i0][j0]
+        du = (val[i1][j0] - base) / (i1 - i0) if i1 > i0 else 0.0
+        dv = (val[i0][j1] - base) / (j1 - j0) if j1 > j0 else 0.0
+        return all(abs(val[a][b] - (base + du * (a - i0) + dv * (b - j0))) < SAME
+                   for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
     used = [[False] * nv for _ in range(nu)]
     out = []
     for j in range(nv):
         for i in range(nu):
             if used[i][j]:
                 continue
-            best = (i, j)
 
             def free(i0, i1, j0, j1):
                 return all(not used[a][b] for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
-
-            def const(i0, i1, j0, j1):
-                return flat_u(i0, i1 + 1, j0, j1 + 1) and flat_v(i0, i1 + 1, j0, j1 + 1)
-            # a strip along u (light changes only across it), widened over v only where the light is constant
-            i1, j1 = i, j
-            while i1 + 1 < nu and free(i1 + 1, i1 + 1, j, j) and flat_u(i, i1 + 2, j, j + 1):
-                i1 += 1
-            while j1 + 1 < nv and free(i, i1, j1 + 1, j1 + 1) and const(i, i1, j, j1 + 1):
-                j1 += 1
-            best = (i1, j1)
-            # or a strip along v, widened over u where constant
-            i1, j1 = i, j
-            while j1 + 1 < nv and free(i, i, j1 + 1, j1 + 1) and flat_v(i, i + 1, j, j1 + 2):
-                j1 += 1
-            while i1 + 1 < nu and free(i1 + 1, i1 + 1, j, j1) and const(i, i1 + 1, j, j1):
-                i1 += 1
-            if (i1 - i + 1) * (j1 - j + 1) > (best[0] - i + 1) * (best[1] - j + 1):
-                best = (i1, j1)
+            best = (i, j)
+            for first_u in (True, False):     # grow along u then v, or v then u; keep the bigger
+                i1, j1 = i, j
+                for along_u in ((True, False) if first_u else (False, True)):
+                    if along_u:
+                        while i1 + 1 < nu and free(i1 + 1, i1 + 1, j, j1) and flat(i, i1 + 2, j, j1 + 1):
+                            i1 += 1
+                    else:
+                        while j1 + 1 < nv and free(i, i1, j1 + 1, j1 + 1) and flat(i, i1 + 1, j, j1 + 2):
+                            j1 += 1
+                if (i1 - i + 1) * (j1 - j + 1) > (best[0] - i + 1) * (best[1] - j + 1):
+                    best = (i1, j1)
             i1, j1 = best
             for a in range(i, i1 + 1):
                 for b in range(j, j1 + 1):

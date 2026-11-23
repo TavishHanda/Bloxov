@@ -7,13 +7,13 @@ extends Node3D
 ## square, so far squares are culled. Skipped headless.
 ## Far view (outdoor step 10): each square also gets a cheap far version (plain crowns of a few cards and one leaf block,
 ## no ferns), shown instead of the full trees once the square's middle is FAR_FROM away, so every tree within about
-## 75 m is always the full one. The forest outside the map (FAR_PINE, FAR_BROAD) is always drawn the cheap way.
+## 45 m is always the full one (75 m until 2026-11-23, owner: lighter trees further out for speed). The forest outside the map (FAR_PINE, FAR_BROAD) is always drawn the cheap way.
 ##
 ## `look`: 0 A blocks (layered leafy blocks), 1 B leaf cards (clumps like the bushes), 2 C blocks with leaf cards
 ## sticking out of them.
 
 const CELL := 50.0
-const FAR_FROM := 110.0    # (metres from a square's middle to its far version; FAR_MARGIN keeps it from flickering)
+const FAR_FROM := 80.0     # (metres from a square's middle to its far version; FAR_MARGIN keeps it from flickering)
 const FAR_MARGIN := 6.0
 const STRIDE := 7          # x, ground y, z, trunk height, canopy width, kind (0 broadleaf, 1 pine, 2 birch, 3 dead,
                            # 4 fern, 5-7 crops: height, width), yaw
