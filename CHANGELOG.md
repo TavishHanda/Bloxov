@@ -7,6 +7,180 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.32 (Frontlines loads faster)
+The owner (2026-11-23): "It seems like frontlines takes forever to load but not riptide?" Measured in a web build
+(tools/map_load_probe.gd natively; a probe autoload in a throwaway web export): Frontlines simply has far more to set
+up than Riptide: 7x the collision triangles (304k vs 43k), 1.9M tree vertices built from the tree list (Riptide has no
+trees), and more building and outdoor models. In the browser, START RAID to the first frame took ~5.9 s of game work
+on Frontlines (2.6 s getting ready + 3.3 s frozen making the raid) vs ~2.1 s on Riptide, and the first drawn frame
+was ~2.5x Riptide's. No gameplay, map or look changes.
+- The raid's trees start building behind the title screen's buttons (a few ms a frame, as the hideout already did),
+  and whatever's left is finished by START RAID's counted loading steps (RaidPrep) instead of inside the frozen
+  frame that makes the raid.
+- The raid's box map reuses the collision triangles RaidPrep already built instead of building and fingerprinting
+  all 912k corners again (BoxMap `_prepped`).
+- The raid's cover prints "Raid load (map): N s from START RAID to playing" to the browser console, to read real
+  machines' load times.
+- Web build, same machine: the frozen frame that makes a Frontlines raid 3.3 s -> 1.4 s; START RAID's game work
+  5.9 s -> 4.7 s when the title screen / hideout had time to build the trees (unchanged total when START RAID comes
+  straight away, but the bar counts instead of freezing). Smoke test: the reused triangles match building them again.
+
+## 0.39.31 (Raijin holds his ground)
+Owner, 2026-11-23: a friend ran straight at Raijin in blue armor with a kitted Hornet and won; "raijin needs to be a
+bit stronger". Test duels (blue armor and combat helmet, Hornet, rushing from 20 m, guards left out) showed why: his
+Assault Armor wore out like a player's in about 12 Hornet hits, and he fired about 4 shots a second. Owner picked
+"armor holds + fires harder":
+- **His armor and helmet hold up while he's alive.** The hits are still counted: they end up on his body as worn as
+  they would have been, so the loot is the same as before.
+- **He fires harder:** 7-round bursts (was 5) with 0.25-0.4 s pauses (was 0.5-0.75 s). Health stays 400.
+- In 60 test duels a rusher landing 60% of their shots now wins about 1 in 3 (was every time); one landing 40%
+  wins about 1 in 60 (was about 1 in 3).
+- Smoke test: Raijin's bursts and his armor holding, then wearing in on his body.
+## 0.39.30 (A cleaner skill tree)
+The owner (2026-11-23): the skill tree "looks ugly cuz theres so many boxes". Each upside is now one bar of 12 thin
+segments that fills up green, with a single +1% button above it (MAXED when full) and its count beside the value
+(e.g. "+9.0%  (7 / 12)"). The passive keeps its three rank boxes. Same rules and prices; only the look changed.
+## 0.39.29 (Richer AI PMCs, Orbit and Ace)
+The owner (2026-11-23): AI PMCs were "a little too homeless", they should have better loot overall and well-geared ones
+should be a bit more common ("you should be rewarded from killing a PMC (sometimes)"); Orbit and Ace's loot was
+underwhelming. The owner picked the plan as written.
+- **Three kit levels for AI PMCs**, rolled from the bot's id: **Light** (half of them, about today's kit: light armor
+  70%, an Old Helmet 30%, a small backpack half the time, 0-1 attachments, 2-3 items), **Kitted** (35%: light armor,
+  heavy 15%; a helmet 70%, Combat 1 in 4; a small or medium backpack; 1-2 attachments; 3-5 items; a medkit; a valuable
+  of uncommon or better) and **Geared** (15%: heavy armor, Combat Helmet, a medium or large backpack, 2-3 attachments
+  with a purple one 1 time in 4, a Hornet, Brawler or Viper 1 time in 3, 4-6 items, 2 medkits, a grenade, a valuable of
+  rare or better). A bot's body is worth about $27k on average (was about $17k); a Geared one about $60k.
+- **Richer bot items**: the AI PMC loot table's rare valuables go from 10 to 14 and epic from 2 to 4.
+- **Orbit and Ace**: their Hound gets a third attachment (Ace a Drum Mag, Orbit a Heavy Suppressor); they wear a Large
+  Backpack with their loot inside; 5-7 items from a new boss table (rare and epic doubled, legendary added); one more
+  epic or legendary valuable on top of their Orders or Chip. Bon, Raijin and the guards are unchanged.
+- The economy sim (`tools/economy_sim.gd`) rolls the new kits and lists Ace and Orbit.
+- Net version 33 (loot changed).
+
+## 0.39.28 (Best attachments are found, never bought)
+The owner (2026-11-22): "The new purple attachments should not be able to be bought, these should be rarer items only
+found." Drop rates stay as they were; the owner picked filling the gaps.
+- **Out of the shop**: Ponta level 3 no longer sells the Tactical Grip, Heavy Suppressor, Full Choke or Drum Mag.
+  No quest, recipe or Ming box gives them either. The 8x Scope stays in the shop.
+- **Full Choke found in more places**: it now drops off Raider and AI PMC bodies and in Site Zero's core, like the
+  other three (it was Bunker-only).
+- **Riptide's ship armory**: its lockers now hold a Best attachment about 1 roll in 45.
+- Net version 32 (trader stock and loot changed).
+
+## 0.39.27 (Skill points per character)
+The owner (2026-11-22): "per character you get 20 in total (level 1-20 1 per level) and then when you prestige you
+can get more", +2 per prestige, a cap of 30 per character (owner's pick). Long-time players are stronger, but not by
+so much that new players can't win.
+- **Each character has its own points**: 1 per level, levels 1 to 20, the first time only (20), and 2 per expedition
+  escape (a prestige), 30 at most. There is no shared pool any more: a character's points only go on that character
+  (and never on one you don't own; the server checks it).
+- **A bigger tree, smaller steps**: each upside takes 12 points at +1% each (was 5 at +2%), passive ranks 2 and 3
+  cost 3 points each (was 2). A full tree costs exactly 30, so a capped character fills everything and a 20-point
+  one has to choose. The tree's nodes shrink to fit a short screen.
+- **Old saves**: each character's level points come from the highest level it reached (the old 2 at level 10 and 3
+  at level 20 say how far it got before an expedition), expedition points stay, and every spent point comes back free
+  to place again.
+- **AI PMCs** get 1 point per level like a player (levels 5-15, so 5-15 points), placed at random.
+- Net version 31 (the server's point check changed).
+## 0.39.26 (Raijin and his guards fight you on the stairs)
+The owner's friend shot Raijin and his guards down from a stairway while they stood in the open and did nothing.
+- **Why:** a boss zone's height band (0.35.34: Riptide's lab, Fore and Aft stop at the decks above and below) had no
+  slack. It was meant for where they patrol, but it was also used for where they fight and what they hear. So a shooter
+  just above the lab's band (the moon pool ramp, the stairwells' upper flights) was "outside their area": his shots
+  went unheard, calls for help were ignored, and the moment Raijin followed you up a step past the band he gave up the
+  fight on the spot, turned his back and couldn't spot you again for 6 s.
+- **Fix:** the band gets the same 40 m leash the zone already had sideways: they still patrol only their own decks, but
+  fight, hear and come after you up and down stairs as far as they already did past the edge of their area. Applies to
+  every boss crew with a height band (Raijin, Ace, Orbit). Test raid (player on the moon pool ramp): before, Raijin
+  went idle 1 m from the player after 29 shots; now he keeps fighting (60 shots in 15 s).
+- Smoke test: Raijin doesn't give up a fight on the stairs just above the lab.
+## 0.39.24 (No crouching or lying down while swimming)
+The owner found you could crouch and go prone in deep water, and doing it dropped your eyes under the surface so you
+could see under the water. Now, afloat:
+- Crouch and prone do nothing, and going into the water always stands you straight up (no ceiling check, so being
+  crouched under a pier doesn't keep you low).
+- Your eyes stay at standing height, even downed, and never go less than 0.15 m above the surface (also while you sink
+  for a moment after jumping in).
+- Smoke test (riptide): crouch and prone afloat are refused and the camera stays above the water (before the fix it
+  was 0.87 m under).
+- Smoke test (sound): the far-boom check now counts from an empty sound mix, so sounds still playing from earlier
+  sections on a slow runner (46 on Windows CI) can't make the crowd limit skip the boom.
+## 0.39.23 (A triangle stock on the Hound)
+Owner, 2026-11-22: "The back of the hound still looks so ugly, it needs to be more triangle, its like droopy from
+the back". The owner picked look A of three (`/mnt/project-files/guns/models/hound-stock-options-2026-11-22.png`).
+- The stock's top edge now runs level straight back from the receiver, and only the bottom slopes down to the butt.
+  The 0.38.8 wedge sloped down along its top edge, so it hung off the gun. Same length, same in every look; only the
+  model changed (`make_gun.py`, `hound.glb`).
+- The Hound's inventory icon is re-rendered. It still showed the old slab stock from before 0.38.8.
+
+## 0.39.22 (Damage drop-off, pistol nerf, SMG kick, ammo names)
+Owner, 2026-11-22: a Hound bullet doing 56 to the head at any range was too much. Player guns now lose damage with
+distance, and full-auto heads count less (the bots' own damage is unchanged):
+- **Drop-off on every gun** ("falloff": full damage up to the first range, weakest from the second and beyond):
+  Hound and Reaper 30 m to 80 m (65%), Wasp 15 m to 40 m (55%), Hornet 20 m to 50 m (60%), Stinger and Viper 15 m to
+  40 m (60%), Talon 60 m to 150 m (80%), Lancer 80 m to 200 m (85%). Mauler and Brawler unchanged (12 m to 30 m, 40%).
+- **Full-auto headshots 1.6x** (Hound, Reaper, Wasp, Hornet; was 2x). A close Hound headshot does 45 (was 56), so a
+  scav takes 3 Hound headshots instead of 2; body shots up close are unchanged (4). Pistols and rifles keep theirs.
+- The Lancer still kills with one to the head or two to the body at any range, the Talon with three to the body.
+- **Pistol nerf** (owner, 2026-11-22: "Viper damage is like WAYY too strong"): Viper 24 damage (was 30), 1.8x heads
+  (was 2.5x), 170 rpm (was 200): 5 body shots or 3 headshots to kill (was 4 or 2). Stinger 14 damage (was 17), 1.8x
+  heads (was 2.5x): 8 body shots or 4 headshots (was 6 or 3).
+- **SMGs kick more** (owner, 2026-11-22: kitted SMGs had almost no recoil; a fully kitted Hornet should feel like
+  the old Wasp): Wasp 750 rpm (was 900), kick 1.3 (was 0.9), side kick 0.55 (was 0.4); Hornet kick 1.4 (was 1.15),
+  side kick 0.6 (was 0.5). Fully kitted, either one now kicks about like the old bare Wasp.
+- **Ammo named by gun type** (owner, 2026-11-22): Rifle Rounds (Hound, Reaper), Pistol Rounds (Stinger, Viper),
+  SMG Rounds (Wasp, Hornet), Shotgun Shells (Mauler, Brawler), Sniper Rounds (Lancer, Talon). Names only: the items
+  are the same, so ammo already in stashes keeps working.
+- The stat bars' range bar now measures where a gun's damage has fallen off the most.
+Net version 30 (the server judges gun damage).
+## 0.39.21 (AI PMCs: sharp ears)
+The owner: AI PMCs "need to be way better at detecting if there are players around them". Plan approved 2026-11-22.
+Only the AI PMCs change, and only for noises a player makes; scavs, Raiders, snipers and Raijin hear as before, and
+bots hear other AI's noises as before.
+- **Gunshots** carry 2.5x the gun's noise to a bot (AK ~88 m, sniper 150 m; a suppressor halves it). Within 50 m
+  every bot reacts: curious ones jog over to look, cautious ones (and ones on their way out) get into cover and watch
+  that way for 8 s. Farther off, cautious bots steer round the fight as before.
+- **Footsteps** carry 2x: walking 20 m, sprinting 56 m, crouch-walking 3 m (online it was silent; now bots only),
+  prone silent.
+- **New noises** only bots hear: reloading 10 m, a heal 6 m, a door opening or shutting 15 m (the server is told about
+  reloads and heals: new `_made_noise` call, net version 29).
+- **Walls**: a noise through a wall carries 60% as far. Its guess of where the noise was is off by ~1 m per 10 m.
+- **Reactions**: it turns to the noise in about a quarter of a second, then jogs over (not the scavs' slow walk).
+  Steps coming its way within 20 m: it stops and aims that way for 6 s, then goes to look.
+- **Eyes**: for 20 s after hearing a player it spots anyone toward that noise twice as fast.
+- **Memory**: having lost someone in a fight it hunts round where it last saw them for 45 s (was 30 s); hearing a
+  player beats its "keep away from other AI" rule while it investigates.
+- **Shot at** (owner's pick, "suppression + hide"): a player's bullet passing within 5 m (was 2.5 m) or hitting it pins
+  a bot down for 3 s: it ducks into cover first, stays down instead of peeking, and its shots land 70% as often.
+  Hit by someone it can't see, it gets into cover from them and waits 10 s watching where the shot came from,
+  instead of walking toward them in the open.
+
+## 0.39.20 (Riptide: the ship's insides, railings and clutter)
+The owner asked for more in the ship (2026-11-22: "big open hallways. ramps without railings like there needs to be
+more noise in that boat"). Looks and a little cover only; doors, ladders, ramps and walking room stay clear.
+- **Railings** down every open side of the ship's ramps: the pier platform's ramp into the hold, both sides of the
+  stern ramp, the forecastle ramp, both drill floor ramps, the rest of the two boat door ramps, and both ramps in Site
+  Zero. Yellow rails with posts, 1 m over the slope, the same as the companionways'.
+- **Side passages**: 18 more stores (shelves, drums, crates, tool cabinets), now on the bulkhead side too, never
+  opposite another one, so there is still 4 m to walk.
+- **Passage walls**: the hull's frames every 3 m, deck beams across the ceiling every 6 m, valve stations with red
+  wheels and fire hose boxes on the hull side, junction boxes on the bulkheads, a cable tray and a bundle of pipes along
+  each bulkhead, yellow walkway lines on the floor. These have no collision (they sit flat to the walls or overhead).
+- Net version 28: the railings and the new stores collide.
+
+## 0.39.19 (Riptide: detail pass, furnished rooms)
+The owner agreed to a detail pass (2026-11-22, "yea lets do it"). The small buildings from art passes 3b-5 were bare
+rooms. They now have furniture: 36 pieces against their walls, kept clear of doors, gates, low windows and loot, with
+the middle of each room left open. This adds a little indoor cover, which the owner approved for Riptide's interiors
+on 2026-11-20.
+- **Weighbridge office**: the clerk's desk and chair, a filing cabinet, shelves of dockets.
+- **Signal box**: the lever frame on the north wall with the signalman's chair, a desk, shelves.
+- **Barge office**: the manager's desk, files, a counter by the south door, a chart table.
+- **Rail shed, lane shed, south shed, garage**: tool cabinets, workbenches, racks, drums, crates.
+- **Shipyard workshop and fab shed**: a workbench, a tool cabinet, racks, drums and crates.
+- Floors are laid inside these buildings: lino in the offices, concrete in the sheds. Before, they showed bare ground.
+- Net version 27: the furniture collides.
+
 ## 0.39.18 (Riptide: art pass 5, the ship's bow, the loader and the boats)
 The last pieces of Riptide still drawn as grey boxes now have a model (added to `south_port`):
 - **The forecastle**: the bosun's hut in white with a steel inside, the two windlasses, the white foremast.

@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "pmc_ears", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables", "expedition",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -357,21 +357,37 @@ func _section_recoil() -> void:
 
 
 func _section_ttk() -> void:
-	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 2 headshots; you die in ~7 scav hits.
+	# Time to kill ("lethal-leaning middle"): scavs die in 4 AK body shots or 3 headshots up close (0.39.22: full-auto
+	# heads 1.6x); you die in ~7 scav hits.
 	var ak_damage: int = ItemDB.item("ak")["damage"]
 	var scav_probe := (load(SCAV_SCENE) as PackedScene).instantiate() as Scav
 	var raider_probe := (load(RAIDER_SCENE) as PackedScene).instantiate() as Scav
 	var scav_hp: int = scav_probe.get_node("Health").max_health
 	var raider_health := raider_probe.get_node("Health") as Health
 	var hits_to_kill := func(hp: int, dmg: float) -> int: return ceili(hp / maxf(roundf(dmg), 1.0))
-	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 2,
-		"scav: 4 AK body shots or 2 headshots")
+	_check(hits_to_kill.call(scav_hp, ak_damage) == 4 and hits_to_kill.call(scav_hp, ak_damage * gun.headshot_multiplier) == 3,
+		"scav: 4 AK body shots or 3 headshots")
+	# Damage drop-off (0.39.22, owner): every gun but the shotguns' own gets weaker with distance; full-auto heads 1.6x.
+	var ak := ItemDB.item("ak")
+	_check(ItemDB.falloff_mult(ak["falloff"], 20.0) == 1.0 and is_equal_approx(ItemDB.falloff_mult(ak["falloff"], 200.0), 0.65)
+		and is_equal_approx(float(ak["head"]), 1.6), "Hound: full damage to 30 m, 65% from 80 m, heads 1.6x")
+	for id: String in ["ak", "reaper", "smg", "hornet", "pistol", "viper", "talon", "sniper", "shotgun", "brawler"]:
+		_check(ItemDB.item(id).get("falloff", []).size() == 3, "%s loses damage with distance" % id)
+	var lancer := ItemDB.item("sniper")
+	_check(lancer["damage"] * ItemDB.falloff_mult(lancer["falloff"], 600.0) * lancer["head"] >= 100.0
+		and ceili(100.0 / (lancer["damage"] * ItemDB.falloff_mult(lancer["falloff"], 600.0))) == 2,
+		"Lancer: one to the head or two to the body at any range")
+	var talon := ItemDB.item("talon")
+	_check(ceili(100.0 / (talon["damage"] * ItemDB.falloff_mult(talon["falloff"], 600.0))) == 3, "Talon: three to the body at any range")
 	_check(raider_probe.armor == "armor_light" and raider_probe.helmet == "helmet_basic"
 		and hits_to_kill.call(raider_health.max_health, ak_damage * (1.0 - ItemDB.item(raider_probe.armor)["reduction"])) == 5,
 		"Raiders wear light armor and an old helmet: 5 AK body shots")
 	var pistol_data := ItemDB.item("pistol")
-	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 6 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 3,
-		"pistol: 6 body shots or 3 headshots")
+	_check(hits_to_kill.call(scav_hp, pistol_data["damage"]) == 8 and hits_to_kill.call(scav_hp, pistol_data["damage"] * pistol_data["head"]) == 4,
+		"pistol: 8 body shots or 4 headshots (0.39.22 nerf)")
+	var viper_data := ItemDB.item("viper")
+	_check(hits_to_kill.call(scav_hp, viper_data["damage"]) == 5 and hits_to_kill.call(scav_hp, viper_data["damage"] * viper_data["head"]) == 3,
+		"Viper: 5 body shots or 3 headshots (0.39.22 nerf)")
 	var to_kill_player: int = hits_to_kill.call(player.health.max_health, scav_probe.shot_damage)
 	_check(to_kill_player >= 6 and to_kill_player <= 7, "you die in %d scav hits" % to_kill_player)
 	_check(hits_to_kill.call(player.health.max_health, scav_probe.shot_damage * (1.0 - ItemDB.item("armor_light")["reduction"])) > to_kill_player,
@@ -1855,6 +1871,14 @@ func _section_attachments() -> void:
 			_check(int(ItemDB.item(part).get("tier", 0)) > 0 or part.begins_with("scope_"), "every attachment but scopes has a tier (%s)" % part)
 			for stat: String in ItemDB.item(part).get("mult", {}):
 				_check(not stat in ["damage", "rpm", "head"], "attachments never change damage or fire rate (%s)" % part)
+	# 0.39.28 (owner): Best attachments are never sold, only found (bodies, the Bunker, Site Zero, the ship armory).
+	for trader: String in Traders.LIST:
+		for level: Dictionary in Traders.LIST[trader]["levels"]:
+			for entry: Array in level["stock"]:
+				_check(int(ItemDB.item(entry[0]).get("tier", 0)) != 3, "Best attachments are never sold (%s)" % entry[0])
+	for best: String in ["tactical_grip", "heavy_suppressor", "full_choke", "drum_mag"]:
+		_check(ItemDB.LOOT_TABLES["raider"].has(best) and ItemDB.LOOT_TABLES["pmc"].has(best) and ItemDB.PLACE_LOOT["LabCore"].has(best)
+			and ItemDB.PLACE_LOOT["Bunker"].has(best) and ItemDB.PLACE_LOOT["ShipArmory"].has(best), "%s is found on bodies and in the best places" % best)
 	var wasp := ItemStack.new("smg")
 	var wasp_plain := int(ItemDB.weapon_stats(wasp)["mag"])
 	wasp.attachments = {"mag": "ext_mag"}
@@ -1960,7 +1984,7 @@ func _section_new_guns() -> void:
 	_check(ceili(100.0 / ItemDB.item("sniper")["damage"]) == 2 and ItemDB.item("sniper")["damage"] * ItemDB.item("sniper")["head"] >= 100,
 		"sniper: 2 body shots or 1 headshot")
 	_check(is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 10.0), 1.0)
-		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.7), "SMG damage drops off past 25 m")
+		and is_equal_approx(ItemDB.falloff_mult(ItemDB.item("smg")["falloff"], 60.0), 0.55), "SMG damage drops off past 15 m")
 	_check(ItemDB.attachment_slot_for("sniper", "scope_8x") == "scope" and ItemDB.attachment_slot_for("shotgun", "choke") == "barrel"
 		and ItemDB.attachment_slot_for("shotgun", "scope_4x") == "", "the 8x scope and choke go on their guns")
 	# The second gun of each type (0.36.42, owner): Viper, Hornet, Brawler, Talon. Each takes its type's ammo, is sold by
@@ -2906,15 +2930,15 @@ func _section_hideout_world() -> void:
 	var nodes_ok: bool = tree.visible and (tree._nodes["u0"] as Array).size() == Characters.UPSIDE_MAX \
 		and not tree._nodes.has("d0") and (tree._nodes["p"] as Array).size() == 3 and tree._downsides.text.begins_with("DOWNSIDES")
 	_check(nodes_ok and (tree._nodes["u0"][0] as Button).get_meta("state") == "next" and (tree._nodes["u0"][1] as Button).get_meta("state") == "locked"
-		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 5 + 5 upside steps and the passive's 3 ranks; the downsides shown, not bought")
+		and (tree._nodes["p"][0] as Button).get_meta("state") == "owned", "the skill tree: 12 + 12 upside steps and the passive's 3 ranks; the downsides shown, not bought")
 	tree.buy("u0", 2)
 	_check(int(tree_c["spent"]["u0"]) == 0, "a branch is bought from the bottom up")
 	tree.buy("u0", 0)
 	tree.buy("u0", 1)
 	tree.buy("p", 1)
-	_check(int(tree_c["spent"]["u0"]) == 2 and int(tree_c["spent"]["p"]) == 1 and Characters.points_left(tree_state) == 1
+	_check(int(tree_c["spent"]["u0"]) == 2 and int(tree_c["spent"]["p"]) == 1 and Characters.points_left(tree_state, "vega") == 0
 		and (tree._nodes["u0"][1] as Button).get_meta("state") == "owned" and (tree._nodes["p"][2] as Button).get_meta("state") == "locked",
-		"clicking the next node spends points (2 on the upside, 2 on a passive rank)")
+		"clicking the next node spends points (2 on the upside, 3 on a passive rank)")
 	tree.close()
 	_check(not tree.visible and chars.visible, "BACK goes back to the CHARACTERS screen")
 	tree_c["lvl_points"] = 0
@@ -5127,30 +5151,54 @@ func _section_playables() -> void:
 		total += Characters.xp_to_next(lv)
 	Characters.add_xp(state, "vega", total)
 	_check(Characters.level(state, "vega") == 20 and is_equal_approx(Characters.trait_value("vega", c, 0), 0.08)
-		and int(c["lvl_points"]) == 5, "at level 20 traits are full size and 5 level points are earned")
+		and int(c["lvl_points"]) == 20 and Characters.char_earned(c) == 20, "at level 20 traits are full size and 20 level points are earned")
 	Characters.add_expedition_points(state, "vega")
-	_check(Characters.points_left(state) == 7, "an expedition adds 2 points (7 to spend)")
-	for i in 5:
+	_check(Characters.points_left(state, "vega") == 22, "an expedition (a prestige) adds 2 points (22 to spend)")
+	for i in Characters.UPSIDE_MAX:
 		Characters.spend(state, "vega", "u0")
-	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.18),
-		"5 points at most on an upside: +18% speed")
-	_check(not Characters.spend(state, "vega", "d0") and not Characters.spend(state, "sable", "u0") and Characters.points_left(state) == 2,
+	_check(not Characters.spend(state, "vega", "u0") and is_equal_approx(Characters.trait_value("vega", c, 0), 0.20),
+		"12 points at most on an upside at +1% each: +20% speed")
+	_check(not Characters.spend(state, "vega", "d0") and not Characters.spend(state, "sable", "u0") and Characters.points_left(state, "vega") == 10,
 		"points never go on a downside (it grows with level) or on a character you don't own (owner 2026-11-22)")
-	Characters.spend(state, "vega", "u1")
-	Characters.spend(state, "vega", "u1")
-	var refunded := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 2, "exp_points": 0, "spent": {"d0": 2}}}})
-	_check(Characters.points_left(refunded) == 2, "points an old save put on a downside come back")
-	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state) == 0, "no points left for a passive rank")
+	for i in 8:
+		Characters.spend(state, "vega", "u1")
+	_check(not Characters.spend(state, "vega", "p") and Characters.points_left(state, "vega") == 2, "a passive rank costs 3 points")
 	Characters.reset_points(state, "vega")
-	_check(Characters.points_left(state) == 7 and Characters.spend(state, "voss", "p") and Characters.passive_rank(Characters.char_of(state, "voss")) == 2
-		and Characters.points_left(state) == 5, "points are one shared pool: VEGA's points can buy VOSS a passive rank")
-	Characters.reset_points(state, "voss")
+	_check(Characters.points_left(state, "vega") == 22 and Characters.points_left(state, "voss") == 1 and not Characters.spend(state, "voss", "p"),
+		"each character's points are its own (0.39.21): VEGA's can't buy VOSS a passive rank")
+	# Saves from before 0.39.21: level points from the highest level reached, every spent point back.
+	var refunded := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 2, "exp_points": 4, "spent": {"u0": 5, "d0": 2}}}})
+	var rc := Characters.char_of(refunded, "vega")
+	_check(Characters.char_spent(rc) == 0 and Characters.points_left(refunded, "vega") == 14 and int(refunded["points_v"]) == Characters.POINTS_VERSION,
+		"an old save that reached level 10 gets 10 level points + its 4 expedition points, all free to place")
+	var lvl7_xp := 0
+	for lv in range(1, 7):
+		lvl7_xp += Characters.xp_to_next(lv)
+	var old20 := Characters.clean({"unlocked": ["vega"], "chars": {"vega": {"xp": 0, "lvl_points": 5, "exp_points": 0, "spent": {}},
+		"voss": {"xp": lvl7_xp, "lvl_points": 0, "exp_points": 0, "spent": {}}}})
+	_check(Characters.points_left(old20, "vega") == 20 and Characters.points_left(old20, "voss") == 7,
+		"an old level-20 character gets 20, a level-7 one gets 7")
+	var again := Characters.clean(refunded)
+	_check(Characters.char_earned(Characters.char_of(again, "vega")) == 14, "a moved-over save isn't moved again")
 	Characters.reset_level(state, "vega")
+	_check(Characters.points_left(state, "vega") == 22, "an expedition resets the level but keeps the level points")
 	Characters.add_xp(state, "vega", total)
-	_check(int(c["lvl_points"]) == 5, "an expedition resets the level; level points only come once")
+	_check(int(c["lvl_points"]) == 20 and Characters.points_left(state, "vega") == 22, "level points only come once")
 	for i in 4:
 		Characters.add_expedition_points(state, "vega")
-	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS, "expedition points stop at 10 per character")
+	_check(int(c["exp_points"]) == Characters.MAX_EXPEDITION_POINTS and Characters.char_earned(c) == Characters.MAX_POINTS,
+		"expedition points stop at 10 per character: 30 points at most (owner 2026-11-22)")
+	for key in ["u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "u0", "p", "p"]:
+		Characters.spend(state, "vega", key)
+	for i in Characters.UPSIDE_MAX:
+		Characters.spend(state, "vega", "u1")
+	_check(Characters.points_left(state, "vega") == 0 and Characters.passive_rank(c) == 3 and int(c["spent"]["u1"]) == Characters.UPSIDE_MAX,
+		"30 points is exactly a full tree")
+	var over := {"characters": state.duplicate(true)}
+	var over_b := {"characters": state.duplicate(true)}
+	Characters.char_of(over_b["characters"], "voss")["spent"]["u0"] = 3
+	_check(Characters.changes(over, over_b)["error"] != "", "the server refuses points a character didn't earn")
+	Characters.reset_points(state, "vega")
 	Characters.add_expedition_points(state, "voss")
 	_check(int(Characters.char_of(state, "voss")["exp_points"]) == 2, "another character still earns its own 10")
 	var old_save := Characters.clean({"selected": "voss", "unlocked": ["vega", "voss"], "exp_points": 6})
@@ -5230,7 +5278,10 @@ func _section_playables() -> void:
 	Characters.char_of(shared["characters"], "vega")["exp_points"] = 4
 	var shared_after := {"characters": shared["characters"].duplicate(true)}
 	Characters.char_of(shared_after["characters"], "voss")["spent"]["u0"] = 3
-	_check(Characters.changes(shared, shared_after)["error"] == "", "online, shared points can go on any unlocked character")
+	_check(Characters.changes(shared, shared_after)["error"] != "", "online, VEGA's points can't go on VOSS (each character's own, 0.39.21)")
+	var own_after := {"characters": shared["characters"].duplicate(true)}
+	Characters.char_of(own_after["characters"], "vega")["spent"]["u0"] = 5
+	_check(Characters.changes(shared, own_after)["error"] == "", "but VEGA can spend its own")
 	Characters.char_of(shared_after["characters"], "sable")["spent"]["u0"] = 1
 	_check(Characters.changes(shared, shared_after)["error"] != "", "but not on a locked one")
 	# Online tags: steps can't be made quieter than VEGA's quietest.
@@ -5254,7 +5305,7 @@ func _section_crafting() -> void:
 	var stash := GridInventory.new("Stash", 8, 20)
 	stash.add("gunpowder", 3)
 	stash.add("scrap", 2)
-	_check(Crafting.times_possible(stash, "rifle_ammo") == 2, "two powder tins and two scrap make Hound Rounds twice")
+	_check(Crafting.times_possible(stash, "rifle_ammo") == 2, "two powder tins and two scrap make Rifle Rounds twice")
 	_check(Crafting.craft(stash, "rifle_ammo", 2, 1) == "" and stash.count_of("rifle_ammo") == 180
 		and stash.count_of("gunpowder") == 1 and stash.count_of("scrap") == 0,
 		"crafting twice takes both sets of parts and gives 180 rounds (%d)" % stash.count_of("rifle_ammo"))
@@ -5774,7 +5825,7 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()]), "ak")
 	await _until(func() -> bool: return got["hits"].size() >= 2)
-	_check(got["hits"].size() == 2 and got["hits"][1] == [56, true], "a headshot does double (%s)" % str(got["hits"]))
+	_check(got["hits"].size() == 2 and got["hits"][1] == [45, true], "a headshot does 1.6x (0.39.22: %s)" % str(got["hits"]))
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([Vector3(1, 0, 0)]), "ak")
 	OS.delay_msec(60)
@@ -5807,7 +5858,7 @@ func _section_pvp() -> void:
 	OS.delay_msec(60)
 	c1.send_shot(Vector3(0, 1.5, -4), PackedVector3Array([(Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()]), "pistol")
 	await _until(func() -> bool: return got["hits"].size() >= 3)
-	_check(got["hits"].size() == 3 and got["hits"][2] == [17, false], "pistol body shot: 17")
+	_check(got["hits"].size() == 3 and got["hits"][2] == [14, false], "pistol body shot: 14")
 	# The new guns online (0.15.17): Wasp and Lancer body shots, a Lancer headshot.
 	var head_dir := (Vector3(0, 1.75, -10) - Vector3(0, 1.5, -4)).normalized()
 	var body_dir := (Vector3(0, 0.8, -10) - Vector3(0, 1.5, -4)).normalized()
@@ -6797,6 +6848,14 @@ func _section_riptide() -> void:
 		and ace_spawned.global_position.y > -10.0 and ace_spawned.global_position.y < 0.0
 		and not ace_spawned._in_home(Vector3(48, 4.0, -60)) and ace_spawned._in_home(Vector3(48, -8.0, -60)),
 		"Ace starts and patrols in the lower hull's fore end, not the deck above")
+	# 0.39.26 (owner's friend shot Raijin's crew from the stairs and they did nothing): the height band limits where
+	# a boss patrols, not where he fights or hears: he follows you up the moon pool ramp (just above the lab's band)
+	# and hears shots from there, as he does past the edge of his area.
+	var raijin_spawned: Scav = spawner.bosses_spawned[0] if spawner.bosses_spawned.size() > 0 else null
+	var ramp := Vector3(56.7, -10.6, -3.0)
+	_check(raijin_spawned != null and not raijin_spawned._in_home(ramp) and raijin_spawned._near_home(ramp)
+		and not raijin_spawned._near_home(Vector3(48, -18.25 + 7.0 + raijin_spawned.leash + 1.0, 30)),
+		"Raijin doesn't give up a fight or ignore shots on the stairs just above the lab (only past his leash)")
 	var kinds := {}
 	for e in RaidScope.nodes(spawner, &"enemies"):
 		kinds[String(e.scene_file_path).get_file().get_basename()] = true
@@ -6887,6 +6946,12 @@ func _section_riptide() -> void:
 	for i in 200: await physics_frame
 	_check(swimmer.is_swimming() and absf(swimmer.global_position.y + Player.SWIM_FLOAT) < 0.1 and not swimmer.hands_free(),
 		"in the sea you float with your head out, hands busy (y %.2f)" % swimmer.global_position.y)
+	# (0.39.24, owner: crouching or lying in the water put your eyes under it) no crouch or prone afloat
+	swimmer.set_crouching(true)
+	swimmer.set_prone(true)
+	for i in 20: await physics_frame
+	_check(not swimmer.is_crouching and not swimmer.is_prone and swimmer.camera.global_position.y > 0.1,
+		"afloat you can't crouch or lie down, and your eyes stay above the water (eyes at %.2f)" % swimmer.camera.global_position.y)
 	swimmer.global_position = Vector3(-100, 2.7, 0)
 	for i in 30: await physics_frame
 	_check(not swimmer.is_swimming() and swimmer.hands_free(), "back on land you have your hands again")
@@ -6928,6 +6993,18 @@ func _section_riptide() -> void:
 	_check(raijin.never_cover and raijin.guard_leash == 0.0 and raijin.chase_range == 60.0 and raijin.push_speed == 1.0
 		and raijin.chase_burst_min == 6.0 and raijin.chase_burst_max == 9.0 and raijin.chase_pause_min == 0.5
 		and raijin.chase_pause_max == 1.0 and raijin.reposition_chance == 0.0, "Raijin pushes relentlessly (0.39.6)")
+	# (0.39.31, owner picked "armor holds + fires harder": a rusher in blue armor with a Hornet beat him every time)
+	_check(raijin.gear_holds and raijin.burst_size == 7 and raijin.burst_cooldown_min == 0.25 and raijin.burst_cooldown_max == 0.4,
+		"Raijin fires 7-round bursts with short pauses, and his gear holds while he's alive")
+	var mult_before := raijin.health.damage_multiplier
+	for i in 20:
+		raijin.health.take_damage(24, Vector3.ZERO)
+	var vest: ItemStack = raijin._gear_for(false)
+	_check(is_equal_approx(raijin.health.damage_multiplier, mult_before) and vest.durability == ItemDB.max_durability("armor_assault"),
+		"20 hits later his armor still stops as much (%.2f -> %.2f)" % [mult_before, raijin.health.damage_multiplier])
+	raijin._held_wear.map(func(hit: Array) -> void: ItemDB.wear(hit[0], hit[1]))
+	_check(vest.durability == maxi(ItemDB.max_durability("armor_assault") - 20 * 12, 0),
+		"and it's as worn as it would have been when it ends up on his body (%d)" % vest.durability)
 	var bon_check := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
 	_check(bon_check.guard_leash == 15.0 and bon_check.chase_range == 45.0 and bon_check.reposition_chance == 0.5,
 		"Bon keeps his own style")
@@ -7525,8 +7602,8 @@ func _pmc_kit_checks() -> void:
 		bot.queue_free()
 	_check(wears["armor_light"] > wears[""] and wears[""] > 0 and wears["armor_heavy"] > 0 and wears["armor_light"] > wears["armor_heavy"],
 		"AI PMCs wear light armor most of the time, sometimes none or heavy (%s)" % [wears])
-	_check(helmets > 40 and helmets < 140, "some AI PMCs wear a helmet (%d of 300)" % helmets)
-	_check(packs > 60 and packs < 180, "some AI PMCs carry a backpack (%d of 300)" % packs)
+	_check(helmets > 130 and helmets < 200, "about half of AI PMCs wear a helmet (0.39.29 kit levels: %d of 300)" % helmets)
+	_check(packs > 190 and packs < 260, "about 3 in 4 AI PMCs carry a backpack (0.39.29 kit levels: %d of 300)" % packs)
 	_check(matched, "an AI PMC's hat matches its helmet")
 	_check(AILoadouts.pmc_helmet(1234) == AILoadouts.pmc_helmet(1234), "a bot's helmet is decided by its id alone")
 	# Its body: the gun, its worn gear, rounds, meds, 1-3 rolled items, a backpack sometimes, and its dog tag.
@@ -7673,11 +7750,11 @@ func _pmc_character_checks() -> void:
 		var lv: int = pick["level"]
 		levels_ok = levels_ok and lv >= 5 and lv <= 15 and Characters.level(pick["state"], pick["id"]) == lv \
 			and (Characters.SKINS[pick["id"]] as Array).has(pick["skin"])
-		points_ok = points_ok and Characters.points_earned(pick["state"]) == (2 if lv >= 10 else 0) \
-			and Characters.points_left(pick["state"]) == 0
+		points_ok = points_ok and Characters.points_earned(pick["state"]) == lv \
+			and Characters.points_left(pick["state"], pick["id"]) == 0
 	_check(seen.size() == 6, "AI PMCs come as all six characters (%s)" % str(seen.keys()))
 	_check(levels_ok, "an AI PMC is level 5-15, in one of its character's skins")
-	_check(points_ok, "an AI PMC at level 10+ has spent its 2 level points, below 10 it has none")
+	_check(points_ok, "an AI PMC has spent its level points (1 per level, like a player)")
 	_check(Characters.ai_pick(4242) == Characters.ai_pick(4242), "the same id gives the same character, skin and level on every screen")
 	# Its traits on the AI's numbers.
 	var ref := (load(PMC_AI_SCENE) as PackedScene).instantiate() as PmcAI
@@ -7728,6 +7805,124 @@ func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -
 	main.add_child(box)
 	box.global_position = pos
 	return box
+
+
+func _section_pmc_ears() -> void:
+	# AI PMCs' sharp ears (0.39.21, owner approved 2026-11-22): a player's noises carry farther to a bot (shots 2.5x,
+	# steps 2x, crouch 3 m, prone nothing), reloads/doors/heals only bots hear, steps coming its way make it stop and
+	# watch; other AI's noises and scavs' hearing are as before.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	Scav.lod_enabled = false
+	player.teleport_to(Vector3(0, 0.1, 0))
+	await physics_frame
+	var bot := _spawn(PMC_AI_SCENE, Vector3(0, 0.1, 18)) as PmcAI
+	var scav := _spawn(SCAV_SCENE, Vector3(18, 0.1, 0)) as Scav
+	await physics_frame
+	var at := player.global_position
+	var reset := func(b: Scav) -> void:
+		b._set_state(Scav.State.IDLE)
+		if b is PmcAI:
+			(b as PmcAI)._watch_left = 0.0
+			(b as PmcAI)._step_age = INF
+			(b as PmcAI)._step_dist = INF
+	bot.curious = true
+	bot.plan = PmcAI.Plan.HOLD
+	bot._step_trait = 1.0   # (no character trait on its ears here)
+	bot.hear_noise(at, 10.0)
+	scav.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.INVESTIGATE and scav.state == Scav.State.IDLE,
+		"a walking step 18 m off: a bot hears it (20 m), a scav doesn't (10 m, unchanged)")
+	_check(bot._alarmed and is_equal_approx(bot._look_at_sound_left, PmcAI.TURN_LOOK), "a bot turns to it at once and jogs over")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 22)
+	bot.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.IDLE, "a walking step 22 m off: not heard")
+	bot.global_position = Vector3(0, 0.1, 2.5)
+	bot.hear_noise(at, 1.5)
+	_check(bot.state == Scav.State.INVESTIGATE, "crouch-walking 2.5 m off: heard (3 m)")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 1.0)
+	bot.hear_noise(at, 0.6)
+	_check(bot.state == Scav.State.IDLE, "prone right next to it: silent")
+	bot.global_position = Vector3(0, 0.1, 8.0)
+	bot.hear_player_noise(at, Network.QUIET_NOISES[Network.NOISE_RELOAD])
+	_check(bot.state == Scav.State.INVESTIGATE, "a reload 8 m off: heard (10 m)")
+	reset.call(bot)
+	bot.global_position = Vector3(0, 0.1, 12.0)
+	bot.hear_player_noise(at, Network.QUIET_NOISES[Network.NOISE_RELOAD])
+	_check(bot.state == Scav.State.IDLE, "a reload 12 m off: not heard")
+	# (the test map is walled in at ~41 m: a suppressed AK, noise 17.5, carries ~44 m to a bot now, ~20 m before)
+	bot.global_position = at + Vector3(0, 0.1, 38.0)
+	bot.hear_noise(at, 35.0 * 0.5, true)
+	_check(bot.state == Scav.State.INVESTIGATE, "a suppressed AK 38 m off: a curious bot goes to look (was heard to ~20 m)")
+	reset.call(bot)
+	bot.hear_noise(at, 12.0, true)
+	_check(bot.state == Scav.State.IDLE, "a quieter shot (30 m reach) 38 m off: not heard")
+	reset.call(bot)
+	bot.curious = false
+	bot.global_position = Vector3(0, 0.1, 40.0)
+	bot.hear_noise(at, 35.0, true)
+	_check(bot._watch_left > 0.0 and bot.state in [Scav.State.INVESTIGATE, Scav.State.SEARCH],
+		"an AK shot 40 m off: a cautious bot takes cover and watches that way")
+	reset.call(bot)
+	bot.curious = true
+	bot.global_position = Vector3(0, 0.1, 18.0)
+	bot.hear_noise(at, 10.0)
+	reset.call(bot)
+	bot._step_age = 0.5
+	bot._step_dist = 18.0
+	bot.global_position = Vector3(0, 0.1, 15.0)
+	bot.hear_noise(at, 10.0)
+	_check(bot.state == Scav.State.SEARCH and bot._watch_left > 0.0 and bot._look_after,
+		"steps coming its way: it stops and watches, then goes to look")
+	# (turned away from the noise first)
+	bot.look_at(bot.global_position + Vector3(0, 0, 1), Vector3.UP)
+	for f in 30:
+		await physics_frame
+	var facing := Vector3(-bot.global_basis.z.x, 0, -bot.global_basis.z.z).normalized()
+	var to_sound := Vector3(bot._watch_at.x - bot.global_position.x, 0, bot._watch_at.z - bot.global_position.z).normalized()
+	_check(bot.state in [Scav.State.SEARCH, Scav.State.ALERT, Scav.State.ENGAGE] and (bot.state != Scav.State.SEARCH or facing.dot(to_sound) > 0.9),
+		"half a second later it's facing the noise (dot %.2f) or has spotted the player" % facing.dot(to_sound))
+	reset.call(bot)
+	# A noise with no player at it (another AI's) is heard as before: 1.5x (x its trait), so a 10 m step from 19 m isn't.
+	bot.global_position = Vector3(0, 0.1, 13.0)
+	bot.hear_noise(Vector3(0, 0.1, 32.0), 10.0)
+	_check(bot.state == Scav.State.IDLE, "another AI's step 19 m off: heard as before (not at all)")
+	# Shot at (0.39.21, owner: "suppression + hide"): a player's bullet within 5 m pins a bot down (worse aim for 3 s);
+	# a scav still only notices one within 2.5 m.
+	var aim_before := bot.hit_chance(20.0)
+	bot.notice_near_miss(at)
+	_check(bot.near_miss_radius == 5.0 and scav.near_miss_radius == 2.5 and bot._suppressed_left > 0.0
+		and is_equal_approx(bot.hit_chance(20.0), aim_before * PmcAI.SUPPRESSED_AIM),
+		"a near miss pins a bot down: its hit chance x%.1f (scavs notice misses within 2.5 m, bots 5 m)" % PmcAI.SUPPRESSED_AIM)
+	bot._suppressed_left = 0.0
+	_check(is_equal_approx(bot.hit_chance(20.0), aim_before), "not pinned: its aim is back")
+	# In a fight in the open with a wall close by, a near miss sends it into cover.
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	wall_shape.shape = BoxShape3D.new()
+	(wall_shape.shape as BoxShape3D).size = Vector3(4.0, 3.0, 0.4)
+	wall.add_child(wall_shape)
+	main.add_child(wall)
+	wall.global_position = at + Vector3(4.0, 1.5, 12.0)
+	bot.global_position = at + Vector3(0, 0.1, 12.0)
+	_face_player(bot)
+	await physics_frame
+	bot._target = player
+	bot._last_seen = at
+	bot._set_state(Scav.State.ENGAGE)
+	bot._cover_cooldown_left = 0.0
+	for f in 3:
+		await physics_frame
+	bot.notice_near_miss(at)
+	for f in 3:
+		await physics_frame
+	_check(bot._cover_phase != Scav.Cover.NONE, "a near miss mid-fight: it heads for cover (phase %d)" % bot._cover_phase)
+	wall.queue_free()
+	bot.free()
+	scav.free()
+	Scav.lod_enabled = true
 
 
 func _section_pmc_plan() -> void:
@@ -8516,23 +8711,72 @@ func _section_pmc_leave() -> void:
 		for w: int in t.values():
 			n += w
 		return n
-	_check(sum_of.call(AILoadouts.PMC_ARMOR) == 100 and AILoadouts.PMC_ARMOR == {"armor_light": 65, "": 30, "armor_heavy": 5}
-		and sum_of.call(AILoadouts.PMC_BACKPACK) == 100 and AILoadouts.PMC_BACKPACK == {"": 55, "backpack_small": 40, "backpack_medium": 5}
-		and sum_of.call(AILoadouts.PMC_HELMETS) == 100 and AILoadouts.PMC_HELMETS["helmet_good"] == 10 and is_equal_approx(AILoadouts.PMC_HELMET_CHANCE, 0.3),
-		"kit odds: armor 65/30/5, backpack 55/40/5, helmets 30% of bots with the Combat Helmet 1 in 10, each table sums to 100")
-	var good := 0
+	# (0.39.29, owner approved: richer bots) three kit levels from the bot's id: Light 50, Kitted 35, Geared 15.
+	_check(sum_of.call(AILoadouts.PMC_TIERS) == 100 and AILoadouts.PMC_TIERS == {"light": 50, "kitted": 35, "geared": 15}
+		and AILoadouts.PMC_KITS["geared"]["armor"] == {"armor_heavy": 1} and AILoadouts.PMC_KITS["light"]["armor"] == {"armor_light": 70, "": 30}
+		and AILoadouts.PMC_KITS["kitted"]["armor"] == {"armor_light": 85, "armor_heavy": 15},
+		"kit levels 50/35/15; Light wears light armor 70%, Kitted light (heavy 15%), Geared heavy")
+	var tiers := {"light": 0, "kitted": 0, "geared": 0}
+	var helmet_ok := true
 	var helmeted := 0
 	for i in 4000:
+		var tier := AILoadouts.pmc_tier(i)
+		tiers[tier] += 1
 		var h := AILoadouts.pmc_helmet(i)
 		helmeted += 1 if h != "" else 0
-		good += 1 if h == "helmet_good" else 0
-	_check(absf(helmeted / 4000.0 - 0.3) < 0.03 and absf(good / float(helmeted) - 0.1) < 0.03,
-		"%d%% of bots wear a helmet, %d%% of those the Combat Helmet" % [roundi(helmeted / 40.0), roundi(100.0 * good / helmeted)])
-	var pmc: Dictionary = ItemDB.LOOT_TABLES["pmc"]
+		helmet_ok = helmet_ok and h == AILoadouts.pmc_helmet(i) and (tier != "geared" or h == "helmet_good") and (tier != "light" or h in ["", "helmet_basic"])
+	_check(absf(tiers.light / 4000.0 - 0.5) < 0.03 and absf(tiers.kitted / 4000.0 - 0.35) < 0.03 and absf(tiers.geared / 4000.0 - 0.15) < 0.02
+		and helmet_ok and absf(helmeted / 4000.0 - 0.545) < 0.04,
+		"kit levels by id %s; the same id always gets the same helmet, Geared the Combat Helmet, Light never; %d%% in a helmet" % [tiers, roundi(helmeted / 40.0)])
+	var parts_ok := true
+	var best_seen := 0
+	for i in 400:
+		var geared := AILoadouts.pmc_gun("ak", "geared")
+		var light := AILoadouts.pmc_gun("ak", "light")
+		parts_ok = parts_ok and geared.attachments.size() >= 2 and geared.attachments.size() <= 3 and light.attachments.size() <= 1
+		best_seen += 1 if geared.attachments.values().any(func(p: String) -> bool: return p in AILoadouts.BEST_PARTS) else 0
+		parts_ok = parts_ok and not light.attachments.values().any(func(p: String) -> bool: return p in AILoadouts.BEST_PARTS)
+	_check(parts_ok and best_seen > 60 and best_seen < 150, "a Geared bot's gun has 2-3 attachments, a purple one about 1 in 4 (%d of 400); a Light one 0-1, never purple" % best_seen)
+	var extras: Array = AILoadouts.pmc_extras("ak", "backpack_large", "geared")
+	var count_of := func(list: Array, id: String) -> int:
+		return list.filter(func(e: Variant) -> bool: return (e.id if e is ItemStack else e[0]) == id).size()
+	var valuable_ok := false
+	for e: Variant in extras:
+		if e is Array and ItemDB.kind(e[0]) == "valuable" and ItemDB.ITEMS[e[0]]["rarity"] in ["rare", "epic", "legendary"]:
+			valuable_ok = true
+	_check(count_of.call(extras, "medkit") == 2 and count_of.call(extras, "grenade") == 1 and count_of.call(extras, "backpack_large") == 1 and valuable_ok,
+		"a Geared body also holds 2 medkits, a grenade, its backpack and a rare-or-better valuable")
+	var pmc: Dictionary = (ItemDB.LOOT_TABLES["pmc"] as Dictionary).duplicate()
 	var raider: Dictionary = (ItemDB.LOOT_TABLES["raider"] as Dictionary).duplicate()
 	raider.erase("backpack_medium")
-	_check(not pmc.has("backpack_medium") and pmc == raider and pmc.has("epic") and pmc.has("rare") and pmc.has("grenade")
-		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table is the Raider's without the medium backpack (rare, epic, grenades, attachments)")
+	_check(pmc["rare"] == 14 and pmc["epic"] == 4 and not pmc.has("backpack_medium") and pmc.has("grenade")
+		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table: rare 14, epic 4, no medium backpack, grenades and attachments")
+	pmc.erase("rare"); pmc.erase("epic"); raider.erase("rare"); raider.erase("epic")
+	_check(pmc == raider, "otherwise the pmc table is the Raider's")
+	# (0.39.29) Orbit and Ace: a large backpack with 5-7 boss-table items inside, a third attachment, one more epic+ valuable.
+	var boss_table: Dictionary = ItemDB.LOOT_TABLES["boss"]
+	_check(boss_table["rare"] == 20 and boss_table["epic"] == 4 and boss_table["legendary"] == 2, "the boss table doubles rare and epic and adds legendary")
+	for who: Array in [["boss_ace", "drum_mag", "intel_exion"], ["boss_orbit", "heavy_suppressor", "mil_chip"]]:
+		var boss := _spawn("res://scenes/%s.tscn" % who[0], Vector3(0, 0.1, 30)) as Scav
+		await physics_frame
+		var boss_at := boss.global_position
+		boss.health.take_damage(5000)
+		await physics_frame
+		await physics_frame
+		var boss_body: LootContainer = null
+		for node in RaidScope.nodes(main, &"loot_containers"):
+			if node is LootContainer and (node as LootContainer).remove_when_empty and node.global_position.distance_to(boss_at) < 3.0:
+				boss_body = node
+		var gun_parts: Array = []
+		if boss_body != null and not boss_body.gear["primary"].is_empty():
+			gun_parts = (boss_body.gear["primary"].stacks[0] as ItemStack).attachments.values()
+		var in_pack: int = boss_body.pack.stacks.size() if boss_body != null and boss_body.pack != null else 0
+		var has_sig := boss_body != null and boss_body.all_grids().any(func(g: GridInventory) -> bool: return g.count_of(who[2]) >= 1)
+		_check(boss_body != null and boss_body.worn_pack() != null and boss_body.worn_pack().id == "backpack_large" and in_pack >= 6
+			and who[1] in gun_parts and gun_parts.size() == 3 and has_sig,
+			"%s's body: a large backpack with %d items in it, a 3-attachment gun %s, and its %s" % [who[0], in_pack, gun_parts, who[2]])
+		if boss_body != null:
+			boss_body.free()
 
 	# Leave time: 50-85% of the raid's length, seeded; no known length counts as 600 s.
 	var bot := _blind_bot(Vector3(0, 0.1, 30))
@@ -11061,7 +11305,11 @@ func _section_sound() -> void:
 	var ear := player.camera.global_position
 	var before: int = sounds.call().size()
 	var crowd := Effects._playing   # (said if it fails: past MAX_SOUNDS playing, the far boom is skipped)
+	# (0.39.24) sounds left over from earlier sections can still be playing on a slow runner (46 on Windows CI): this
+	# checks the boom and the snap, not the crowd limit (that has its own check above), so count from an empty mix.
+	Effects._playing = 0
 	Hearing.gunshot(main, ear + Vector3(0, 0, 120), ear + Vector3(1, 0, -50), -4.0)
+	Effects._playing += crowd
 	var added: Array = sounds.call().slice(before)
 	_check(added.size() == 2 and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream == Hearing.DISTANT_SHOT)
 		and added.any(func(a: AudioStreamPlayer3D) -> bool: return a.stream in Hearing.SNAPS),
@@ -11891,6 +12139,12 @@ func _section_raid_prep() -> void:
 	_check(not held.is_empty() and shape == held[0][0], "the raid's box map uses the shape built ahead")
 	_check(box_map.collision_faces.size() > 100000 and box_map.collision_faces.size() == (shape.get_meta(&"faces") as PackedVector3Array).size(),
 		"with the same triangles (%d)" % box_map.collision_faces.size())
+	# (0.39.32) it takes them from what was built ahead instead of building them again: the same parts either way
+	var marks := [box_map._shaped_from, box_map._shaped_to, box_map._shots_to]
+	var fresh := box_map._solid_faces(box_map._terrain_arrays())
+	_check(box_map._prepped_shape() == shape and fresh == box_map.collision_faces and marks[2] > marks[0]
+		and marks == [box_map._shaped_from, box_map._shaped_to, box_map._shots_to],
+		"the raid's box map reuses the triangles built ahead, identical to building them again")
 	BoxMap.let_go(held)
 	view.queue_free()
 	map.free()

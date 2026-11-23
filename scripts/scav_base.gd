@@ -304,11 +304,20 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 ## way they protect a player, wear down from hits the same way, and end up on its body as they are.
 @export var armor := ""
 @export var helmet := ""
+## Its armor and helmet hold up while it's alive (0.39.31, Raijin, owner: rushers broke his armor in ~1.5 s): hits wear
+## a tally instead, and the gear ends up on its body as worn as it would have been.
+@export var gear_holds := false
 ## An AI PMC's own kit (0.36.4): "pmc" rolls its armor, helmet and backpack each spawn (AILoadouts.roll_pmc_kit) and
 ## puts them, its gun's rounds and some meds on its body. "" = the scene's own armor and helmet, as for every other AI.
 @export var kit := ""
 ## The backpack that kit gave it (it only ends up on its body).
 var pack := ""
+## Its kit level (0.39.29, AILoadouts.PMC_KITS: "light", "kitted", "geared"; "" for every other AI).
+var pmc_tier := ""
+## A backpack worn by a non-PMC AI (0.39.29, Orbit and Ace): it ends up on its body with the rolled loot inside.
+@export var body_pack := ""
+## One more valuable on its body, its rarity rolled from these weights (0.39.29, Orbit and Ace). Empty = none.
+@export var bonus_valuable := {}
 ## Item id of that gun.
 @export var weapon_drop := ""
 ## What it carries (0.15.5, AILoadouts): a loadout table ("scav", "raider": a random gun each spawn) or a gun id.
@@ -372,12 +381,14 @@ var puppet := false
 var _net_flags := 0
 
 
-## Within `leash` meters of its patrol area (always true without one).
+## Within `leash` meters of its patrol area (always true without one): past its edge, or above or below its height
+## band (0.39.26: the band had no slack, so Raijin gave up the moment he stepped onto the stairs after you, and his
+## crew never heard shots from just above the lab).
 func _near_home(point: Vector3) -> bool:
 	var boss := leader if leader != null and is_instance_valid(leader) else self
 	if boss._trip_point != Vector3.INF and _flat(point - boss._trip_point).length() <= leash:
 		return true   # out on a trip (a fight there doesn't send it straight home)
-	return home_radius <= 0.0 or (_flat(point - home_center).length() <= home_radius + leash and _in_height(point))
+	return home_radius <= 0.0 or (_flat(point - home_center).length() <= home_radius + leash and _in_height(point, leash))
 
 
 ## Below hurt_fraction (or wounded): plays safer, no pushing, flanking or chasing (0.12.32).
@@ -454,9 +465,9 @@ func _in_home(point: Vector3) -> bool:
 	return _flat(point - home_center).length() <= home_radius + (0.0 if holds_position else 4.0) and _in_height(point)
 
 
-## Within its area's height band (always true without one).
-func _in_height(point: Vector3) -> bool:
-	return home_height <= 0.0 or absf(point.y - home_center.y) <= home_height
+## Within its area's height band, give or take `slack` meters (always true without one).
+func _in_height(point: Vector3, slack := 0.0) -> bool:
+	return home_height <= 0.0 or absf(point.y - home_center.y) <= home_height + slack
 var _hunting := false
 ## Heading over because another AI called for help (jogs instead of walking).
 var _answering_call := false

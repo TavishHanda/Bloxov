@@ -204,6 +204,8 @@ func use(from: Vector3) -> void:
 	var want := 0 if is_open() else _away_from(from)
 	if Network.main.in_online_raid():
 		Network.main.use_door(String(name), want)
+	elif want != state:   # (0.39.21: offline the AI PMCs near it hear it; online the server tells them)
+		RaidScope.call_all(self, &"pmc_bots", &"hear_player_noise", [global_position, Network.QUIET_NOISES[Network.NOISE_DOOR]])
 	set_state(want)
 
 

@@ -95,6 +95,32 @@ const HURRY_TIME := 6.0
 const CHECK_EVERY := 1.0         # seconds between its looks at whether it is indoors
 const SHOT_CARE_RANGE := 80.0    # gunshots this close: curious bots go, cautious ones steer away
 const CURIOUS_CHANCE := 0.5
+## Awareness (0.39.21, owner approved 2026-11-22; PMC bots only, noises a PLAYER made). Gunshots reach PLAYER_SHOT_HEARING
+## times the gun's noise (AK 35 -> ~88 m, sniper 60 -> 150 m, a suppressor halves it); steps PLAYER_STEP_HEARING times
+## (walk 20 m, sprint 56 m, crouch 3 m; under SILENT_BELOW, prone, nothing). Reloads, doors and heals: Network.QUIET_NOISES.
+const PLAYER_SHOT_HEARING := 2.5
+const PLAYER_STEP_HEARING := 2.0
+const SILENT_BELOW := 1.0
+const THROUGH_WALL := 0.6         # a wall in the way: the noise carries this share as far
+const GUESS_PER_M := 0.1          # how far off its guess of the spot is, per meter away (at least GUESS_MIN)
+const GUESS_MIN := 0.5
+const TURN_LOOK := 0.65           # Scav's look-at-sound timer: >0.6 is the "huh?" pause, so ~0.05 s, then it turns
+const SHOT_REACT_RANGE := 50.0    # a player's shot this close: every bot reacts (cover + watch; curious ones go look)
+const WATCH_SHOT := 8.0
+const STEP_HOLD_RANGE := 20.0     # steps coming its way this close: it stops and aims that way
+const STEP_MEMORY := 3.0
+const WATCH_STEPS := 6.0
+const EAR_TIME := 20.0            # after hearing a player, spots toward that noise EAR_SPOT_MULT as long
+const EAR_SPOT_MULT := 0.5
+const EAR_CONE_COS := 0.766       # within 40 degrees of the noise
+const COVER_LOOK := 10.0
+## Shot at (0.39.21, owner picked "suppression + hide", 2026-11-22). A player's bullet passing within near_miss_radius
+## (5 m, pmc_ai.tscn) or hitting it pins it down for SUPPRESS_TIME s: it ducks into cover first, stays down there
+## instead of peeking, and its shots land SUPPRESSED_AIM as often. Hit by someone it can't see, it gets into cover
+## from them and waits HIDE_WAIT s watching that way, instead of walking toward them in the open.
+const SUPPRESS_TIME := 3.0
+const SUPPRESSED_AIM := 0.7
+const HIDE_WAIT := 10.0
 ## Tuning (not the owner's numbers): a wait of RETRY_WAIT s when nowhere is open, containers of one place within
 ## PLACE_SPREAD m of each other form one place.
 const RETRY_WAIT := 3.0
@@ -166,6 +192,19 @@ var _indoor_left := 0.0
 var _seen_state := State.IDLE
 var _shot_at := Vector3.INF
 var _shot_age := 0.0
+## Awareness (0.39.21): its own dice (not the global ones), where it last heard a player and for how long it's sharp that
+## way, the last step's distance, and the spot it's stopped to watch.
+var _ears := RandomNumberGenerator.new()
+var _ear_at := Vector3.ZERO
+var _ear_left := 0.0
+var _step_dist := INF
+var _step_age := INF
+var _watch_at := Vector3.ZERO
+var _watch_left := 0.0
+var _look_after := false
+var _step_trait := 1.0   # its character's "hearing" (footsteps) trait
+var _suppressed_left := 0.0
+var _hit_unseen_left := 0.0   # just hit by a player it couldn't see: hide from them (for this long it still may)
 ## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
 ## roll (0 = unseeded), and when it leaves: seconds after it spawned.
 var raid_length := 0.0
@@ -200,6 +239,7 @@ func apply_character(mult: Dictionary) -> void:
 	var m := func(stat: String) -> float: return float(mult.get(stat, 1.0))
 	move_speed *= m.call("move") * m.call("sprint")   # (its move speed is its run; walking and patrol are shares of it)
 	hearing_mult *= m.call("hearing")
+	_step_trait = m.call("hearing")   # (0.39.21: a player's steps too)
 	aim_time *= m.call("ads")
 	# More recoil / spread = fewer hits: its hit chance goes down by the same share (and up for less).
 	accuracy_near = minf(accuracy_near / (m.call("recoil") * m.call("hip_spread")), 1.0)
@@ -271,6 +311,7 @@ func _ready() -> void:
 	super()
 	if puppet:
 		return
+	_ears.seed = hash(character_seed) ^ 0x5eed   # (0.39.21: its hearing's own dice)
 	add_to_group(&"pmc_bots")   # (0.36.10: how every other AI finds the bots it may fight, Scav._closest_rival)
 	curious = randf() < CURIOUS_CHANCE
 	_places_left = randi_range(PLACES_MIN, PLACES_MAX)
@@ -318,6 +359,9 @@ func _physics_process(delta: float) -> void:
 			_break_check = BREAK_CHECK
 			_check_break_off()
 	super(delta)
+	if not puppet and state != State.DEAD:
+		_update_watch(delta)
+		_update_shot_at(delta)
 	if state != _seen_state and not puppet:
 		if state == State.IDLE and _seen_state != State.IDLE:
 			_holding_ground = false
@@ -336,8 +380,14 @@ func out_of_fight() -> bool:
 
 ## A noise it hears (0.36.11: shots from every other AI too). Curious bots go and look like any scav; cautious ones, and
 ## any on their way out, note where it was and steer away from there when they pick a place.
+## 0.39.21 (owner: "really good awareness"): a noise a PLAYER made goes to `_hear_player` instead (sharper ears, see
+## "Awareness"); noises from other AI are heard exactly as before.
 func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 	if puppet:
+		return
+	if _player_made(pos):
+		if radius >= SILENT_BELOW:
+			_hear_player(pos, radius * (PLAYER_SHOT_HEARING if gunshot else PLAYER_STEP_HEARING * _step_trait), gunshot)
 		return
 	var loud := gunshot or radius >= alarm_noise
 	if plan == Plan.FLEE and state == State.IDLE:   # (0.36.12: running off, it doesn't go and look at anything)
@@ -351,6 +401,211 @@ func hear_noise(pos: Vector3, radius: float, gunshot := false) -> void:
 			_shot_age = 0.0
 		return
 	super(pos, radius, gunshot)
+
+
+## A player's quieter noise that only the AI PMCs listen for (0.39.21): a reload, a door, a heal. `reach` is in meters.
+func hear_player_noise(pos: Vector3, reach: float) -> void:
+	if puppet:
+		return
+	_hear_player(pos, reach, false)
+
+
+# --- Awareness (0.39.21, owner approved 2026-11-22): what it does with a noise a player made --------------------------
+
+## A player is standing where the noise came from (their steps, shots, knife; the server's proxies count).
+func _player_made(pos: Vector3) -> bool:
+	for node in RaidScope.nodes(self, &"player"):
+		var body := node as Node3D
+		if body != null and _flat(body.global_position - pos).length() < 1.5 and absf(body.global_position.y - pos.y) < 2.5:
+			return true
+	return false
+
+
+## Heard a player `reach` meters off at most (less through a wall). It snaps round, then: a gunshot close by gets it into
+## cover watching that way (curious ones go and look instead); steps coming its way make it stop and aim that way; any
+## other noise it jogs over to check. Where it thinks the noise was is off by about 1 m per 10 m.
+func _hear_player(pos: Vector3, reach: float, gunshot: bool) -> void:
+	var dist := global_position.distance_to(pos)
+	if dist > reach:
+		return
+	if dist > reach * THROUGH_WALL and _wall_between(pos):
+		return
+	if gunshot:
+		FightBudget.stir(self, pos)
+	if plan == Plan.FLEE and state == State.IDLE:
+		return
+	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		return
+	var spread := maxf(GUESS_MIN, dist * GUESS_PER_M)
+	var guess := pos + Vector3(_ears.randf_range(-1.0, 1.0), 0.0, _ears.randf_range(-1.0, 1.0)).normalized() * _ears.randf() * spread
+	_ear_at = guess
+	_ear_left = EAR_TIME
+	_looting_left = 0.0
+	if gunshot:
+		var leaving := plan in [Plan.EXIT, Plan.EXTRACT]
+		if curious and not leaving:
+			_go_look(guess)
+		elif dist <= SHOT_REACT_RANGE:
+			_watch(guess, WATCH_SHOT, false, true)
+		else:
+			_shot_at = pos
+			_shot_age = 0.0
+		return
+	var closing := _step_age < STEP_MEMORY and dist < _step_dist - 0.3
+	_step_dist = dist
+	_step_age = 0.0
+	if _watch_left > 0.0:
+		_watch_at = guess   # (already stopped and watching: it keeps its aim on the noise)
+		return
+	if closing and dist <= STEP_HOLD_RANGE:
+		_watch(guess, WATCH_STEPS, true, false)
+		return
+	_go_look(guess)
+
+
+## Jogs over to check where it heard something, after a quick turn toward it.
+func _go_look(guess: Vector3) -> void:
+	_watch_left = 0.0
+	_goal = guess
+	var to_sound := _flat(guess - global_position)
+	if state != State.INVESTIGATE or (to_sound.length() > 0.1 and _flat(-global_basis.z).normalized().dot(to_sound.normalized()) < 0.5):
+		_heard_at = guess
+		_look_at_sound_left = TURN_LOOK
+	if state != State.INVESTIGATE:
+		_set_state(State.INVESTIGATE)
+	_alarmed = true   # (jogs, not the scavs' slow walk)
+
+
+## Stops (or first gets into cover, `cover`) and watches `at` for `time` s, quicker to spot anyone there; then it goes and
+## looks (`then_look`) or carries on with its plan.
+func _watch(at: Vector3, time: float, then_look: bool, cover: bool) -> void:
+	_watch_at = at
+	_watch_left = time
+	_look_after = then_look
+	_heard_at = at
+	_look_at_sound_left = TURN_LOOK
+	var spot := _cover_from(at) if cover else Vector3.INF
+	if spot != Vector3.INF:
+		_goal = spot
+		if state != State.INVESTIGATE:
+			_set_state(State.INVESTIGATE)
+		_alarmed = true
+		return
+	_goal = at
+	if state != State.SEARCH:
+		_set_state(State.SEARCH)
+
+
+## Each frame (after the brain): while watching, it stands facing the noise instead of the scavs' look-around spin.
+func _update_watch(delta: float) -> void:
+	_ear_left -= delta
+	_step_age += delta
+	if _watch_left <= 0.0:
+		return
+	if state == State.INVESTIGATE:
+		return   # (still on its way to cover)
+	if state != State.SEARCH:
+		_watch_left = 0.0
+		return
+	_watch_left -= delta
+	_face(_flat(_watch_at - global_position), delta, 12.0)
+	if _watch_left <= 0.0:
+		if _look_after:
+			_go_look(_watch_at)
+		else:
+			_set_state(State.IDLE)
+
+
+## A spot within COVER_LOOK m that hides it from someone at `threat` (the far side of a wall, trunk, car...), nearest
+## walk first; INF if there isn't one.
+func _cover_from(threat: Vector3) -> Vector3:
+	var eyes := threat + Vector3(0, 1.6, 0)
+	var space := get_world_3d().direct_space_state
+	var away := _flat(global_position - threat).normalized()
+	var chest := global_position + Vector3(0, 1.0, 0)
+	var best := Vector3.INF
+	var best_walk := INF
+	for i in 16:
+		var dir := Vector3.FORWARD.rotated(Vector3.UP, i * TAU / 16.0)
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest + dir * COVER_LOOK, 1, [get_rid()]))
+		if hit.is_empty():
+			continue
+		var behind: Vector3 = hit.position + away * 0.9 - dir * 0.3
+		var spot := AINav.closest(self, Vector3(behind.x, global_position.y, behind.z))
+		if spot == Vector3.ZERO or _flat(spot - behind).length() > 1.5:
+			continue
+		var hides := _hides_at(space, eyes, spot)
+		if hides == 0:
+			continue
+		var walk := AINav.path_length(AINav.path(self, global_position, spot)) + (3.0 if hides == 1 else 0.0)
+		if walk <= COVER_LOOK * 1.6 and walk < best_walk:
+			best = spot
+			best_walk = walk
+	return best
+
+
+## A wall (or a shut door) between its head and the noise: the noise only carries THROUGH_WALL as far.
+func _wall_between(pos: Vector3) -> bool:
+	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3(0, 1.6, 0), pos + Vector3(0, 1.0, 0), 1 | Door.LAYER, [get_rid()])
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+## Pinned down or hit from out of sight (see SUPPRESS_TIME): runs after the brain each frame.
+func _update_shot_at(delta: float) -> void:
+	_suppressed_left -= delta
+	_hit_unseen_left -= delta
+	if state != State.ENGAGE or _target == null or not is_instance_valid(_target):
+		return
+	if _hit_unseen_left > 0.0 and not _can_see and _cover_phase == Cover.NONE:
+		_hit_unseen_left = 0.0
+		_hide_from_unseen()
+		return
+	if _suppressed_left <= 0.0:
+		return
+	match _cover_phase:
+		Cover.HOLDING:
+			_cover_hold_left = maxf(_cover_hold_left, 0.2)   # stays down while the bullets keep coming
+		Cover.PEEKING:
+			if _shots_left <= 0:
+				_cover_phase = Cover.MOVING   # ducks back in
+		Cover.NONE:
+			if _cover_cooldown_left <= 0.0:
+				_try_take_cover()
+				if _cover_phase != Cover.NONE:
+					tactic = Tactic.COVER
+
+
+## Hit by someone it can't see: cover from them (farther off is fine), then it waits there HIDE_WAIT s watching where
+## the shot came from before it goes looking (the scavs' "sniped from beyond its range" run, for any distance).
+func _hide_from_unseen() -> void:
+	var spot := _find_cover(cover_search_radius * 2.0)
+	if spot == Vector3.INF:
+		return
+	_cover_point = spot
+	_cover_low = _found_low
+	_cover_phase = Cover.MOVING
+	_peeks_left = 0
+	_peek_point = global_position
+	_note_move_start()
+	_bark("cover", 0.35)
+	_fled_left = HIDE_WAIT
+	_cover_cooldown_left = cover_cooldown
+	tactic = Tactic.COVER
+
+
+## Pinned down, its shots land SUPPRESSED_AIM as often.
+func hit_chance(dist: float) -> float:
+	return super(dist) * (SUPPRESSED_AIM if _suppressed_left > 0.0 else 1.0)
+
+
+## For EAR_TIME s after hearing a player, it spots anyone toward that noise twice as fast.
+func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bool:
+	if _ear_left > 0.0 and _target != null:
+		var to_ear := _flat(_ear_at - global_position)
+		var flat_target := _flat(to_target)
+		if to_ear.length() > 0.1 and flat_target.length() > 0.1 and flat_target.normalized().dot(to_ear.normalized()) > EAR_CONE_COS:
+			mult *= EAR_SPOT_MULT
+	return super(delta, to_target, dist, mult)
 
 
 ## Its shots are a gunshot noise to every other AI in the raid, the way a player's are (0.36.11, owner): the same
@@ -889,6 +1144,11 @@ func _quiet_enough_to_heal() -> bool:
 func _on_damaged(amount: int, source_position: Vector3) -> void:
 	if _hit_by == null:
 		_since_player_hit = 0.0
+		_suppressed_left = SUPPRESS_TIME
+		if not _can_see:
+			_hit_unseen_left = 1.5
+			if state == State.ENGAGE:
+				_last_seen = source_position   # (where the shot came from: it watches that way from cover)
 	_hit_now = true
 	super(amount, source_position)
 	_hit_now = false
@@ -896,6 +1156,8 @@ func _on_damaged(amount: int, source_position: Vector3) -> void:
 
 ## A shot that just missed: as a hit, never a group it can let be.
 func notice_near_miss(shooter_pos: Vector3) -> void:
+	if not puppet and _player_made(shooter_pos):
+		_suppressed_left = SUPPRESS_TIME
 	_hit_now = true
 	super(shooter_pos)
 	_hit_now = false
@@ -1040,6 +1302,8 @@ func _route_score(route: PackedVector3Array, others: Array, from := 0) -> float:
 func _keep_apart() -> void:
 	if state not in [State.IDLE, State.INVESTIGATE, State.SEARCH] or plan == Plan.FLEE:
 		return
+	if _ear_left > 0.0 and state != State.IDLE:
+		return   # (0.39.21: hunting a player it heard beats keeping away from other AI)
 	var others := _others_at()
 	var threat := _nearest_threat(others)
 	_flee_wait_left -= CHECK_EVERY

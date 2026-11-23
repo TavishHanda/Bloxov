@@ -382,6 +382,8 @@ func is_low() -> bool:
 
 ## Its armor and helmet, worn (see `armor`).
 var _gear: Array[ItemStack] = []
+## gear_holds: the hits its gear took while it was alive ([stack, damage]), worn in when it dies.
+var _held_wear: Array = []
 
 
 ## One mesh per moving part instead of one per piece of clothing (0.18.12, fewer draw calls). Deferred: online, a
@@ -414,7 +416,12 @@ func _wear_gear() -> void:
 	_update_gear()
 	health.armor_hit.connect(func(amount: int, head: bool) -> void:
 		var hit_gear := _gear_for(head)
-		if hit_gear != null and hit_gear.durability > 0:
+		if hit_gear == null:
+			return
+		if gear_holds:
+			_held_wear.append([hit_gear, amount])   # (the wear it would have taken: its body gets it, _on_died)
+			return
+		if hit_gear.durability > 0:
 			ItemDB.wear(hit_gear, amount)
 			_update_gear())
 
@@ -446,7 +453,8 @@ func _on_died() -> void:
 		return
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
-		var gun_stack := AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
+		var gun_stack := AILoadouts.pmc_gun(weapon_drop, pmc_tier) if kit == "pmc" \
+			else AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
 		if kit == "pmc":
 			gun_stack.durability = ItemDB.found_durability(weapon_drop)   # (worn 40-100%, like any found gun)
 		drops.append(gun_stack)
@@ -455,15 +463,25 @@ func _on_died() -> void:
 	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
 		if randf() < ItemDB.TABLE_CHANCES[loot_table][id]:
 			drops.append([id, 1])
+	for hit: Array in _held_wear:
+		if hit[0].durability > 0:
+			ItemDB.wear(hit[0], hit[1])
 	for stack in _gear:
 		drops.append(stack)
-	for i in randi_range(min_drops, max_drops):
-		var id := ItemDB.roll(loot_table)
-		drops.append([id, ItemDB.roll_count(id)])
-	if kit == "pmc":
-		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
 	# (0.36.7: what an AI PMC took from containers; 0.38.9: it's in the backpack it wears, like a player's)
 	var in_pack: Array = carried_loot.duplicate() if kit == "pmc" else []
+	# (0.39.29: Orbit and Ace wear a backpack, their rolled loot inside it)
+	var rolled: Array = in_pack if body_pack != "" else drops
+	if body_pack != "":
+		drops.append(ItemStack.new(body_pack))
+	for i in randi_range(min_drops, max_drops):
+		var id := ItemDB.roll(loot_table)
+		rolled.append([id, ItemDB.roll_count(id)])
+	var bonus := AILoadouts.bonus_valuable(bonus_valuable)
+	if bonus != "":
+		rolled.append([bonus, 1])
+	if kit == "pmc":
+		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack, pmc_tier))
 	var title := body_name
 	if bot_name != "":
 		# (an AI PMC, 0.36.2: a player's body, dog tag and all)
@@ -471,6 +489,12 @@ func _on_died() -> void:
 		var tag := ItemStack.new("player_tag")
 		tag.label = bot_name.left(ItemStack.LABEL_MAX)
 		drops.append(tag)
+	in_pack = in_pack.map(func(entry: Variant) -> ItemStack:
+		if entry is ItemStack:
+			return entry
+		var stack := ItemStack.new(entry[0], entry[1])
+		stack.durability = ItemDB.found_durability(stack.id)
+		return stack)
 	for drop: Variant in drops + in_pack:
 		if drop is ItemStack:
 			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)
