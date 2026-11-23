@@ -988,6 +988,7 @@ func start_raid() -> void:
 		Network.main.issued_kit = {}
 	UISounds.play(self, UISounds.START, -8.0)
 	_show_loading()
+	LoadingScreen.started_usec = Time.get_ticks_usec()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await (_loading as LoadingScreen).wait_for_map()   # (0.36.30: the web build may still be downloading the map models)

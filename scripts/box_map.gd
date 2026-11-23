@@ -156,6 +156,12 @@ var _surface_inverse := {}
 static var _shapes := {}   # faces fingerprint -> WeakRef to its ConcavePolygonShape3D
 
 
+## (0.39.30) What prebuild worked out for each map, so the raid's own _ready doesn't build all the triangles again
+## just to find the shape (a few hundred ms in a browser on Frontlines): `_layout_key` -> [faces fingerprint,
+## shaped from, shaped to, shots to].
+static var _prepped := {}
+
+
 static func _shared_shape(faces: PackedVector3Array) -> ConcavePolygonShape3D:
 	var key := _fingerprint(faces)
 	var held: WeakRef = _shapes.get(key)
@@ -228,7 +234,12 @@ func _ready() -> void:
 					tool.set_normal(normal)
 					tool.add_vertex(p)
 	var ground := _terrain_arrays()
-	var faces := _solid_faces(ground)
+	var faces := PackedVector3Array()
+	var ready_shape := _prepped_shape() if not editor else null
+	if ready_shape == null:
+		faces = _solid_faces(ground)
+	else:
+		faces = ready_shape.get_meta(&"faces")
 	if not ground.is_empty():
 		ground[Mesh.ARRAY_INDEX] = _terrain_indices(terrain_hidden)
 	collision_faces = faces
@@ -260,7 +271,7 @@ func _ready() -> void:
 	if water_points.size() >= 2:
 		add_child(_wading_area())
 	var collider := CollisionShape3D.new()
-	var shape := _shared_shape(faces)
+	var shape := ready_shape if ready_shape != null else _shared_shape(faces)
 	collision_faces = shape.get_meta(&"faces", faces)   # (shared: one copy for every raid on this map, 0.30.6)
 	collider.name = "Shape"
 	collider.shape = shape
@@ -320,7 +331,11 @@ static func prebuild(map_scene: PackedScene) -> Array:
 	found.append_array(map.find_children("*", "StaticBody3D", true, false))
 	for node in found:
 		if node is BoxMap:
-			var shape := _shared_shape((node as BoxMap)._solid_faces((node as BoxMap)._terrain_arrays()))
+			var box_map := node as BoxMap
+			var faces := box_map._solid_faces(box_map._terrain_arrays())
+			var shape := _shared_shape(faces)
+			_prepped[box_map._layout_key()] = [_fingerprint(faces), box_map._shaped_from, box_map._shaped_to,
+				box_map._shots_to]
 			# The physics engine builds its side of a triangle shape when a body first uses it: do it now, out of sight.
 			var space := PhysicsServer3D.space_create()
 			var body := PhysicsServer3D.body_create()
@@ -334,6 +349,27 @@ static func prebuild(map_scene: PackedScene) -> Array:
 			held.append([shape, body, space])
 	map.free()
 	return held
+
+
+## A quick key for this map's layout (what its collision triangles are made from).
+func _layout_key() -> String:
+	return "%d:%d:%d:%d:%d:%d" % [hash(boxes), hash(terrain_heights), shaped_indices.size(), shot_indices.size(),
+		hash(shaped_points), hash(shot_points)]
+
+
+## The shape prebuild made for this map, if it's still held (null if not), with the part markers _solid_faces sets.
+func _prepped_shape() -> ConcavePolygonShape3D:
+	var entry: Array = _prepped.get(_layout_key(), [])
+	if entry.is_empty():
+		return null
+	var held: WeakRef = _shapes.get(entry[0])
+	var shape: ConcavePolygonShape3D = held.get_ref() if held != null else null
+	if shape == null or not shape.has_meta(&"faces"):
+		return null
+	_shaped_from = entry[1]
+	_shaped_to = entry[2]
+	_shots_to = entry[3]
+	return shape
 
 
 ## Frees what `prebuild` returned (the raid's own body uses the shape by now).

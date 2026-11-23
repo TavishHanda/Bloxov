@@ -9,6 +9,9 @@ extends RefCounted
 ## Players' games without threads (the web build); desktops warm the map on a thread instead (hideout `_warm_raid`).
 
 const RAID_SCENE := "res://scenes/main.tscn"
+const TREES := preload("res://scripts/trees.gd")
+## (0.39.30) How long each step of finishing the map's trees may take before the loading screen gets a frame (µs).
+const TREE_STEP_USEC := 500000
 
 ## The map these are for ("" = nothing ready).
 static var _path := ""
@@ -55,8 +58,19 @@ static func prepare(tree: SceneTree, path: String, progress := Callable()) -> vo
 	if not _shaped:
 		_shapes = BoxMap.prebuild(_map) if _map != null else []
 		_shaped = true
-		await _step(tree, progress, 1.0)
+		await _step(tree, progress, 0.85)
+	# (0.39.30, owner: Frontlines took far longer to load than Riptide) Whatever the title screen and the hideout
+	# didn't get to of the map's trees (~1 s in a browser when START RAID came quickly) is finished here, a bit a
+	# frame with the count going up, instead of all at once inside the frozen frame that makes the raid.
+	while not TREES.prebuild(trees_file(path), TREE_STEP_USEC):
+		await _step(tree, progress, 0.9)
+	await _step(tree, progress, 1.0)
 	_busy = false
+
+
+## The tree list of the map at `path` (the generator writes it beside the map; Riptide has none).
+static func trees_file(path: String) -> String:
+	return path.get_basename() + "_trees.tres" if path != "" else ""
 
 
 ## The same, all at once (each step is quick when the raid that just ended still has it all loaded). Called as a

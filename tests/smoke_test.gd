@@ -12127,6 +12127,12 @@ func _section_raid_prep() -> void:
 	_check(not held.is_empty() and shape == held[0][0], "the raid's box map uses the shape built ahead")
 	_check(box_map.collision_faces.size() > 100000 and box_map.collision_faces.size() == (shape.get_meta(&"faces") as PackedVector3Array).size(),
 		"with the same triangles (%d)" % box_map.collision_faces.size())
+	# (0.39.30) it takes them from what was built ahead instead of building them again: the same parts either way
+	var marks := [box_map._shaped_from, box_map._shaped_to, box_map._shots_to]
+	var fresh := box_map._solid_faces(box_map._terrain_arrays())
+	_check(box_map._prepped_shape() == shape and fresh == box_map.collision_faces and marks[2] > marks[0]
+		and marks == [box_map._shaped_from, box_map._shaped_to, box_map._shots_to],
+		"the raid's box map reuses the triangles built ahead, identical to building them again")
 	BoxMap.let_go(held)
 	view.queue_free()
 	map.free()
