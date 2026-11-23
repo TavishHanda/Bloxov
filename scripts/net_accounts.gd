@@ -17,13 +17,17 @@ extends RefCounted
 
 const IN_RAID := "in_raid"
 const IDLE := "idle"
+## Dying or leaving online: how long the server waits for the game's last word on the secure pocket (0.39.33).
+## The game sends it as the raid ends; when it doesn't come (a crash, a lost connection), the pocket they came in
+## with comes home, as before.
+const DEATH_GRACE := 5.0
 
 var net: Node
 var api: StashClient
 ## This server run's id: raid ids are "<boot>-<n>", so a raid from an earlier run is known to be gone.
 var boot := ""
 ## peer -> record: {account_id, username, profile, revision, raid: {state, id, snapshot}, results: [], busy, dirty,
-## kit, final, extracted, display_name}
+## kit, final, extracted, ending, until, carried, display_name}
 var by_peer := {}
 ## account id -> peer.
 var by_account := {}
@@ -170,7 +174,7 @@ func _bind(peer: int, reply: Dictionary) -> void:
 	var record := {"account_id": reply["account_id"], "username": reply["username"], "profile": profile,
 		"revision": int(reply.get("revision", 1)), "raid": {"state": IDLE, "id": null, "snapshot": null},
 		"results": [], "busy": false, "dirty": false, "kit": {}, "final": null, "extracted": false,
-		"display_name": _name(peer), "kills": []}
+		"ending": "", "until": 0.0, "carried": null, "display_name": _name(peer), "kills": []}
 	by_peer[peer] = record
 	by_account[record["account_id"]] = peer
 	net._log("%s signed in (peer %d)" % [record["username"], peer])
@@ -213,7 +217,8 @@ func sign_out(peer: int) -> void:
 	if record.is_empty():
 		return
 	if record["raid"]["state"] == IN_RAID:
-		raid_over(peer, "left")
+		# (gone for good: no last word on the secure pocket is coming, so settle it now)
+		_settle(peer, record, record["ending"] if record["ending"] != "" else "left")
 	by_peer.erase(peer)
 	if by_account.get(record["account_id"]) == peer:
 		by_account.erase(record["account_id"])
@@ -278,7 +283,7 @@ func raid_starting(peer: int, raid: int) -> Dictionary:
 	if record.is_empty():
 		return {}
 	if record["raid"]["state"] == IN_RAID:
-		raid_over(peer, "left")
+		_settle(peer, record, record["ending"] if record["ending"] != "" else "left")
 	var kit: Dictionary = record["profile"].get("loadout", {})
 	record["kit"] = kit
 	record["final"] = null
@@ -324,26 +329,51 @@ func extracted(peer: int, at := "") -> void:
 		raid_over(peer, "extracted")
 
 
-## What their game says they came out with. More of anything than the server counted them carrying is a strike.
+## What their game says they came out with (extracting), or what it says is left in the secure pocket (dying or
+## leaving, 0.39.33). More of anything than the server counted them carrying is a strike.
 func final_kit(peer: int, loadout: Variant, carried: Dictionary) -> bool:
 	var record: Dictionary = by_peer.get(peer, {})
 	if record.is_empty() or record["raid"]["state"] != IN_RAID:
 		return true
 	if not OnlineProfile.loadout_ok(loadout):
 		return false
-	var extra := OnlineProfile.more_than(loadout, carried)
+	# (a death or leave may have been settled by the server before this arrived: check against what it counted then)
+	var allowed: Dictionary = record["carried"] if record.get("carried") is Dictionary else carried
+	var extra := OnlineProfile.more_than(loadout, allowed)
 	if not extra.is_empty():
 		net._caught(peer, "item", "came out with more than they carry: %s" % extra)
 	record["final"] = loadout
 	if record["extracted"]:
 		raid_over(peer, "extracted")
+	elif record["ending"] != "":
+		_settle(peer, record, record["ending"])
 	return true
 
 
 ## Their raid is over: "extracted", "killed" or "left". Saved, and their game gets the profile as the server has it.
+## Dying or leaving waits DEATH_GRACE for the game's last word on the secure pocket, so what they had in it at the
+## end comes home rather than what they came in with.
 func raid_over(peer: int, result: String) -> void:
 	var record: Dictionary = by_peer.get(peer, {})
 	if record.is_empty() or record["raid"]["state"] != IN_RAID:
+		return
+	if result == "extracted":
+		_settle(peer, record, "extracted" if record["final"] is Dictionary else "left")
+		return
+	var ending := "killed" if result == "killed" else "left"
+	if record["final"] is Dictionary:
+		_settle(peer, record, ending)
+	elif record["ending"] == "":
+		record["ending"] = ending
+		record["until"] = net._now() + DEATH_GRACE
+		record["carried"] = net._carried.get(peer, {}).duplicate()
+	# (already waiting: keep waiting for the game's last word; sign_out settles it at once)
+
+
+## Settles a finished raid on the server's copy: extracting keeps what came out; dying or leaving keeps the secure
+## pocket as it was at the end (or, with no last word, the one they came in with).
+func _settle(peer: int, record: Dictionary, result: String) -> void:
+	if record["raid"]["state"] != IN_RAID:
 		return
 	var value := 0
 	if result == "extracted" and record["final"] is Dictionary:
@@ -351,11 +381,21 @@ func raid_over(peer: int, result: String) -> void:
 		value = maxi(OnlineProfile.worth(record["final"]) - OnlineProfile.worth(record["kit"]), 0)
 		OnlineProfile.raid_quests(record["profile"], record["kills"], value, record.get("marks", []), str(record.get("at", "")))
 	else:
+		if record["final"] is Dictionary:
+			record["profile"]["loadout"] = OnlineProfile.death_loadout(record["final"])
 		OnlineProfile.raid_lost(record["profile"])
 		result = "killed" if result == "killed" else "left"
 	_finish(record, result, value)
 	if net._peer_open(peer):
 		net._profile_sync.rpc_id(peer, record["profile"])
+
+
+## A death or leave whose last word never came: settle it with the secure pocket they came in with.
+func tick(now: float) -> void:
+	for peer: int in by_peer.keys():
+		var record: Dictionary = by_peer[peer]
+		if record["ending"] != "" and now >= float(record["until"]):
+			_settle(peer, record, record["ending"])
 
 
 func _finish(record: Dictionary, result: String, value: int) -> void:
@@ -370,6 +410,9 @@ func _finish(record: Dictionary, result: String, value: int) -> void:
 	record["raid"] = {"state": IDLE, "id": null, "snapshot": null}
 	record["kit"] = {}
 	record["final"] = null
+	record["ending"] = ""
+	record["until"] = 0.0
+	record["carried"] = null
 	record["kills"] = []
 	record["marks"] = []
 	record["at"] = ""

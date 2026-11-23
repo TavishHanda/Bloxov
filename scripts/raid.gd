@@ -217,4 +217,7 @@ func _save_to_profile() -> void:
 	else:
 		Profile.loadout = Profile.death_loadout(carried)
 		Profile.stats["deaths"] += 1
+		# PvP (0.39.33): the secure pocket comes home as it was at the end, not as it came in. The server checks
+		# it against what it counted us carrying.
+		Network.main.send_final_kit(Profile.loadout)
 	Profile.save_profile()

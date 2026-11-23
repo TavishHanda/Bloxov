@@ -5106,6 +5106,32 @@ func _section_pvp_accounts() -> void:
 	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
 	await _until(func() -> bool: return said[a][-1][0] == "sign_in")
 	_check(not a.signed_in() and last.call(a)[2].get("error") == "deleted", "a deleted account can't play (until it's cancelled)")
+	# The secure pocket comes home as it was at the end of the raid, not as it came in (0.39.33, owner's play
+	# tester: 2 energy drinks swapped for 2 diamond rings came back as the drinks).
+	var b_record: Dictionary = server.accounts.by_peer[b_id]
+	b_record["profile"]["loadout"]["secure"] = [{"id": "energy_drink", "count": 1, "x": 0, "y": 0},
+		{"id": "energy_drink", "count": 1, "x": 1, "y": 0}]
+	var kit: Dictionary = server.accounts.raid_starting(b_id, 9901)
+	server._carried[b_id] = OnlineProfile.count(kit)
+	# (in the raid the drinks went and two diamond rings came in; the server counted the rings as carried)
+	server._carried[b_id].erase("energy_drink")
+	server._carried[b_id]["diamond_ring"] = 2
+	server.accounts.raid_over(b_id, "killed")
+	b.send_final_kit({"equipment": {}, "pockets": [], "backpack": [], "hotbar": ["", "", "", ""],
+		"secure": [{"id": "diamond_ring", "count": 1, "x": 0, "y": 0}, {"id": "diamond_ring", "count": 1, "x": 1, "y": 0}]})
+	await _until(func() -> bool: return OnlineProfile.count(b_record["profile"]["loadout"]).get("diamond_ring", 0) == 2)
+	var kept: Dictionary = OnlineProfile.count(b_record["profile"]["loadout"])
+	_check(kept.get("diamond_ring", 0) == 2 and kept.get("energy_drink", 0) == 0 and b_record["raid"]["state"] == "idle",
+		"dying online keeps the secure pocket as it was at the end (%s)" % kept)
+	# No last word (a crash, a lost connection): the pocket they came in with comes home.
+	b_record["profile"]["loadout"]["secure"] = [{"id": "bandage", "count": 1, "x": 0, "y": 0}]
+	var kit2: Dictionary = server.accounts.raid_starting(b_id, 9902)
+	server._carried[b_id] = OnlineProfile.count(kit2)
+	server.accounts.raid_over(b_id, "killed")
+	server.accounts.tick(server._now() + 10.0)
+	var fallback: Dictionary = OnlineProfile.count(b_record["profile"]["loadout"])
+	_check(fallback.get("bandage", 0) == 1 and b_record["raid"]["state"] == "idle",
+		"a death with no last word keeps the secure pocket they came in with")
 	fake.down = true
 	a.account("sign_in", {"username": "alpha_1", "password": "long password 1"})
 	await _until(func() -> bool: return said[a].size() >= 2 and said[a][-1][2].get("error") == "unavailable")

@@ -1301,6 +1301,8 @@ func _process(delta: float) -> void:
 		_send_raid_start(id)
 	if not _away.is_empty():
 		_check_away()
+	if accounts != null:
+		accounts.tick(_now())   # (a death or leave waiting for the game's last word on the secure pocket)
 	_flush()
 	# Raids that ended: drop their worlds; players who left a raid: drop their history.
 	for id in _worlds.keys():
