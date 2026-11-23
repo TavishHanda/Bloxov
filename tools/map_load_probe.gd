@@ -1,5 +1,5 @@
 extends SceneTree
-## Times each step of loading a raid on each map (0.39.30): the map scene's load, the raid scene's, the collision
+## Times each step of loading a raid on each map (0.39.32): the map scene's load, the raid scene's, the collision
 ## shape (BoxMap.prebuild), then the raid going in and its first frames. Not part of the smoke test.
 ## godot --headless -s tools/map_load_probe.gd -- map=old_bloxov   (or map=riptide; xvfb + opengl3 for real frames;
 ## hide=Trees,Models hides nodes by name before the first frame, to see what that frame spends its time on)

@@ -10,7 +10,7 @@ extends RefCounted
 
 const RAID_SCENE := "res://scenes/main.tscn"
 const TREES := preload("res://scripts/trees.gd")
-## (0.39.30) How long each step of finishing the map's trees may take before the loading screen gets a frame (µs).
+## (0.39.32) How long each step of finishing the map's trees may take before the loading screen gets a frame (µs).
 const TREE_STEP_USEC := 500000
 
 ## The map these are for ("" = nothing ready).
@@ -59,7 +59,7 @@ static func prepare(tree: SceneTree, path: String, progress := Callable()) -> vo
 		_shapes = BoxMap.prebuild(_map) if _map != null else []
 		_shaped = true
 		await _step(tree, progress, 0.85)
-	# (0.39.30, owner: Frontlines took far longer to load than Riptide) Whatever the title screen and the hideout
+	# (0.39.32, owner: Frontlines took far longer to load than Riptide) Whatever the title screen and the hideout
 	# didn't get to of the map's trees (~1 s in a browser when START RAID came quickly) is finished here, a bit a
 	# frame with the count going up, instead of all at once inside the frozen frame that makes the raid.
 	while not TREES.prebuild(trees_file(path), TREE_STEP_USEC):

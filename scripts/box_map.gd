@@ -156,7 +156,7 @@ var _surface_inverse := {}
 static var _shapes := {}   # faces fingerprint -> WeakRef to its ConcavePolygonShape3D
 
 
-## (0.39.30) What prebuild worked out for each map, so the raid's own _ready doesn't build all the triangles again
+## (0.39.32) What prebuild worked out for each map, so the raid's own _ready doesn't build all the triangles again
 ## just to find the shape (a few hundred ms in a browser on Frontlines): `_layout_key` -> [faces fingerprint,
 ## shaped from, shaped to, shots to].
 static var _prepped := {}

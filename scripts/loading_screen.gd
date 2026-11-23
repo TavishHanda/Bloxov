@@ -39,7 +39,7 @@ const SETUP_KEY := "bloxov_shaders_built"
 
 ## The tip picked for this load, so the raid shows the same one the hideout did.
 static var tip := ""
-## (0.39.30) When START RAID was pressed (Time.get_ticks_usec(), 0 = not timed): the raid's cover prints how long
+## (0.39.32) When START RAID was pressed (Time.get_ticks_usec(), 0 = not timed): the raid's cover prints how long
 ## the whole load took once it lifts (in a browser: its console), so a real machine's load time can be read off.
 static var started_usec := 0
 
