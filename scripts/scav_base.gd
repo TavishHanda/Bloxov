@@ -304,6 +304,9 @@ var shot_sound: AudioStream = GunSounds.DEFAULT_SHOT
 ## way they protect a player, wear down from hits the same way, and end up on its body as they are.
 @export var armor := ""
 @export var helmet := ""
+## Its armor and helmet hold up while it's alive (0.39.30, Raijin, owner: rushers broke his armor in ~1.5 s): hits wear
+## a tally instead, and the gear ends up on its body as worn as it would have been.
+@export var gear_holds := false
 ## An AI PMC's own kit (0.36.4): "pmc" rolls its armor, helmet and backpack each spawn (AILoadouts.roll_pmc_kit) and
 ## puts them, its gun's rounds and some meds on its body. "" = the scene's own armor and helmet, as for every other AI.
 @export var kit := ""

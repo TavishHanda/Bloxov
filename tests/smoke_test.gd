@@ -6993,6 +6993,18 @@ func _section_riptide() -> void:
 	_check(raijin.never_cover and raijin.guard_leash == 0.0 and raijin.chase_range == 60.0 and raijin.push_speed == 1.0
 		and raijin.chase_burst_min == 6.0 and raijin.chase_burst_max == 9.0 and raijin.chase_pause_min == 0.5
 		and raijin.chase_pause_max == 1.0 and raijin.reposition_chance == 0.0, "Raijin pushes relentlessly (0.39.6)")
+	# (0.39.30, owner picked "armor holds + fires harder": a rusher in blue armor with a Hornet beat him every time)
+	_check(raijin.gear_holds and raijin.burst_size == 7 and raijin.burst_cooldown_min == 0.25 and raijin.burst_cooldown_max == 0.4,
+		"Raijin fires 7-round bursts with short pauses, and his gear holds while he's alive")
+	var mult_before := raijin.health.damage_multiplier
+	for i in 20:
+		raijin.health.take_damage(24, Vector3.ZERO)
+	var vest: ItemStack = raijin._gear_for(false)
+	_check(is_equal_approx(raijin.health.damage_multiplier, mult_before) and vest.durability == ItemDB.max_durability("armor_assault"),
+		"20 hits later his armor still stops as much (%.2f -> %.2f)" % [mult_before, raijin.health.damage_multiplier])
+	raijin._held_wear.map(func(hit: Array) -> void: ItemDB.wear(hit[0], hit[1]))
+	_check(vest.durability == maxi(ItemDB.max_durability("armor_assault") - 20 * 12, 0),
+		"and it's as worn as it would have been when it ends up on his body (%d)" % vest.durability)
 	var bon_check := (load("res://scenes/boss.tscn") as PackedScene).instantiate() as Scav
 	_check(bon_check.guard_leash == 15.0 and bon_check.chase_range == 45.0 and bon_check.reposition_chance == 0.5,
 		"Bon keeps his own style")
