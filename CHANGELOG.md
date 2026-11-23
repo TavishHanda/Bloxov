@@ -7,6 +7,17 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.31 (Raijin holds his ground)
+Owner, 2026-11-23: a friend ran straight at Raijin in blue armor with a kitted Hornet and won; "raijin needs to be a
+bit stronger". Test duels (blue armor and combat helmet, Hornet, rushing from 20 m, guards left out) showed why: his
+Assault Armor wore out like a player's in about 12 Hornet hits, and he fired about 4 shots a second. Owner picked
+"armor holds + fires harder":
+- **His armor and helmet hold up while he's alive.** The hits are still counted: they end up on his body as worn as
+  they would have been, so the loot is the same as before.
+- **He fires harder:** 7-round bursts (was 5) with 0.25-0.4 s pauses (was 0.5-0.75 s). Health stays 400.
+- In 60 test duels a rusher landing 60% of their shots now wins about 1 in 3 (was every time); one landing 40%
+  wins about 1 in 60 (was about 1 in 3).
+- Smoke test: Raijin's bursts and his armor holding, then wearing in on his body.
 ## 0.39.30 (A cleaner skill tree)
 The owner (2026-11-23): the skill tree "looks ugly cuz theres so many boxes". Each upside is now one bar of 12 thin
 segments that fills up green, with a single +1% button above it (MAXED when full) and its count beside the value

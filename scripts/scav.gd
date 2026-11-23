@@ -382,6 +382,8 @@ func is_low() -> bool:
 
 ## Its armor and helmet, worn (see `armor`).
 var _gear: Array[ItemStack] = []
+## gear_holds: the hits its gear took while it was alive ([stack, damage]), worn in when it dies.
+var _held_wear: Array = []
 
 
 ## One mesh per moving part instead of one per piece of clothing (0.18.12, fewer draw calls). Deferred: online, a
@@ -414,7 +416,12 @@ func _wear_gear() -> void:
 	_update_gear()
 	health.armor_hit.connect(func(amount: int, head: bool) -> void:
 		var hit_gear := _gear_for(head)
-		if hit_gear != null and hit_gear.durability > 0:
+		if hit_gear == null:
+			return
+		if gear_holds:
+			_held_wear.append([hit_gear, amount])   # (the wear it would have taken: its body gets it, _on_died)
+			return
+		if hit_gear.durability > 0:
 			ItemDB.wear(hit_gear, amount)
 			_update_gear())
 
@@ -456,6 +463,9 @@ func _on_died() -> void:
 	for id in ItemDB.TABLE_CHANCES.get(loot_table, {}):
 		if randf() < ItemDB.TABLE_CHANCES[loot_table][id]:
 			drops.append([id, 1])
+	for hit: Array in _held_wear:
+		if hit[0].durability > 0:
+			ItemDB.wear(hit[0], hit[1])
 	for stack in _gear:
 		drops.append(stack)
 	# (0.36.7: what an AI PMC took from containers; 0.38.9: it's in the backpack it wears, like a player's)
