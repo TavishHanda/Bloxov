@@ -446,7 +446,8 @@ func _on_died() -> void:
 		return
 	var drops: Array = []
 	if weapon_drop != "" and randf() < weapon_drop_chance:
-		var gun_stack := AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
+		var gun_stack := AILoadouts.pmc_gun(weapon_drop, pmc_tier) if kit == "pmc" \
+			else AILoadouts.dropped_gun(weapon_drop, drop_parts, drop_part_chance)
 		if kit == "pmc":
 			gun_stack.durability = ItemDB.found_durability(weapon_drop)   # (worn 40-100%, like any found gun)
 		drops.append(gun_stack)
@@ -457,13 +458,20 @@ func _on_died() -> void:
 			drops.append([id, 1])
 	for stack in _gear:
 		drops.append(stack)
-	for i in randi_range(min_drops, max_drops):
-		var id := ItemDB.roll(loot_table)
-		drops.append([id, ItemDB.roll_count(id)])
-	if kit == "pmc":
-		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack))
 	# (0.36.7: what an AI PMC took from containers; 0.38.9: it's in the backpack it wears, like a player's)
 	var in_pack: Array = carried_loot.duplicate() if kit == "pmc" else []
+	# (0.39.29: Orbit and Ace wear a backpack, their rolled loot inside it)
+	var rolled: Array = in_pack if body_pack != "" else drops
+	if body_pack != "":
+		drops.append(ItemStack.new(body_pack))
+	for i in randi_range(min_drops, max_drops):
+		var id := ItemDB.roll(loot_table)
+		rolled.append([id, ItemDB.roll_count(id)])
+	var bonus := AILoadouts.bonus_valuable(bonus_valuable)
+	if bonus != "":
+		rolled.append([bonus, 1])
+	if kit == "pmc":
+		drops.append_array(AILoadouts.pmc_extras(carried_gun, pack, pmc_tier))
 	var title := body_name
 	if bot_name != "":
 		# (an AI PMC, 0.36.2: a player's body, dog tag and all)
@@ -471,6 +479,12 @@ func _on_died() -> void:
 		var tag := ItemStack.new("player_tag")
 		tag.label = bot_name.left(ItemStack.LABEL_MAX)
 		drops.append(tag)
+	in_pack = in_pack.map(func(entry: Variant) -> ItemStack:
+		if entry is ItemStack:
+			return entry
+		var stack := ItemStack.new(entry[0], entry[1])
+		stack.durability = ItemDB.found_durability(stack.id)
+		return stack)
 	for drop: Variant in drops + in_pack:
 		if drop is ItemStack:
 			(drop as ItemStack).mark_found()   # (its gun, the gun's attachments and worn gear are found in raid, 0.16.13)

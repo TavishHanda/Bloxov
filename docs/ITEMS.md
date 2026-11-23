@@ -191,25 +191,25 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 19% |
+| Rifle Rounds | 18% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 12% |
-| Bandage | 8% |
-| Medkit | 8% |
-| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 8% |
+| Bandage | 7% |
+| Medkit | 7% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 7% |
 | SMG Rounds | 6% |
-| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 6% |
 | Shotgun Shells | 5% |
 | Frag Grenade | 4% |
 | Pistol Rounds | 4% |
 | Stinger | 3% |
 | Energy Drink | 2% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 2% |
 | Sniper Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
 | Taped Grip | 1% |
 | Muzzle Brake | 1% |
 | Fast Mag | 1% |
-| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
 | 4x Scope | 1% |
 | Suppressor | 1% |
 | Extended Mag | 1% |
@@ -243,6 +243,40 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Muzzle Brake | 1% |
 | Fast Mag | 1% |
 | Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 1% |
+| 4x Scope | 1% |
+| Suppressor | 1% |
+| Extended Mag | 1% |
+| Holo Sight | 1% |
+| Tactical Grip | 1% |
+| Heavy Suppressor | 1% |
+| Drum Mag | 1% |
+| Full Choke | 1% |
+
+### Boss ()
+
+| Entry | Chance per roll |
+|---|---|
+| Rifle Rounds | 17% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 11% |
+| Rare valuable (Gold Watch, Laptop, Cash Bundle, Novarra Field Report, Processor, Novarra Badge, Hard Drive) | 11% |
+| Bandage | 7% |
+| Medkit | 7% |
+| Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 7% |
+| SMG Rounds | 6% |
+| Shotgun Shells | 5% |
+| Frag Grenade | 3% |
+| Pistol Rounds | 3% |
+| Stinger | 3% |
+| Energy Drink | 2% |
+| Epic valuable (Gold Bar, Exion Orders, Military Chip, Exion Medal, Graphics Card, Antique Vase) | 2% |
+| Sniper Rounds | 2% |
+| Red Dot | 2% |
+| Foregrip | 2% |
+| Medium Backpack | 2% |
+| Taped Grip | 1% |
+| Muzzle Brake | 1% |
+| Fast Mag | 1% |
+| Legendary valuable (Diamond Ring, Rare Crystal) | 1% |
 | 4x Scope | 1% |
 | Suppressor | 1% |
 | Extended Mag | 1% |

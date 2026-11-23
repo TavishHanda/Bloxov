@@ -5,6 +5,12 @@
 [node name="Boss" instance=ExtResource("1_boss")]
 body_name = "Orbit"
 extra_drops = PackedStringArray("mil_chip")
+min_drops = 5
+max_drops = 7
+loot_table = "boss"
+drop_parts = PackedStringArray("scope_4x", "tactical_grip", "heavy_suppressor")
+body_pack = "backpack_large"
+bonus_valuable = {"epic": 80, "legendary": 20}
 
 [node name="Health" parent="." index="2"]
 max_health = 300

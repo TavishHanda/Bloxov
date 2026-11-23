@@ -2,7 +2,7 @@ class_name SkillTree
 extends Control
 ## The upgrade points as a skill tree in its own menu (owner 2026-11-20: "the traits screen to kinda be like a skill
 ## tree in its own menu"), opened from the CHARACTERS screen (CharacterScreen.open_tree). Three branches grow up from
-## the character: its two upsides (12 steps of +1% each, drawn as one bar with a + button since 0.39.29) and its passive (rank 1 free, ranks 2 and 3 for 3 points each;
+## the character: its two upsides (12 steps of +1% each, drawn as one bar with a + button since 0.39.30) and its passive (rank 1 free, ranks 2 and 3 for 3 points each;
 ## 0.39.21: each character's points are its own, 30 at most, exactly a full tree).
 ## Its downsides only grow with level (0.39.16, owner 2026-11-22), shown in red beside the character. A branch is bought from the bottom up (Characters.spend,
 ## through CharacterScreen.spend so the pockets and the save follow). Bought nodes are lit, the next one you can buy
@@ -25,7 +25,7 @@ var _downsides: Label
 ## branch key -> Array[Button], bottom first ("p" starts with rank 1, which every character has).
 var _nodes := {}
 var _heads := {}
-## Upside key -> its "+1%" button (0.39.29, owner 2026-11-23: 12 boxes a branch looked messy, so an upside is one bar
+## Upside key -> its "+1%" button (0.39.30, owner 2026-11-23: 12 boxes a branch looked messy, so an upside is one bar
 ## of 12 thin segments and one button that buys the next).
 var _plus := {}
 ## Segment width of an upside bar, and the passive's node spacing.
