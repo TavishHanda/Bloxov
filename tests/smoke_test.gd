@@ -6993,7 +6993,7 @@ func _section_riptide() -> void:
 	_check(raijin.never_cover and raijin.guard_leash == 0.0 and raijin.chase_range == 60.0 and raijin.push_speed == 1.0
 		and raijin.chase_burst_min == 6.0 and raijin.chase_burst_max == 9.0 and raijin.chase_pause_min == 0.5
 		and raijin.chase_pause_max == 1.0 and raijin.reposition_chance == 0.0, "Raijin pushes relentlessly (0.39.6)")
-	# (0.39.30, owner picked "armor holds + fires harder": a rusher in blue armor with a Hornet beat him every time)
+	# (0.39.31, owner picked "armor holds + fires harder": a rusher in blue armor with a Hornet beat him every time)
 	_check(raijin.gear_holds and raijin.burst_size == 7 and raijin.burst_cooldown_min == 0.25 and raijin.burst_cooldown_max == 0.4,
 		"Raijin fires 7-round bursts with short pauses, and his gear holds while he's alive")
 	var mult_before := raijin.health.damage_multiplier
