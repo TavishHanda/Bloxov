@@ -192,7 +192,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Entry | Chance per roll |
 |---|---|
 | Rifle Rounds | 19% |
-| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 13% |
+| Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 12% |
 | Bandage | 8% |
 | Medkit | 8% |
 | Common valuable (Canned Beans, Water Bottle, Duct Tape, Scrap Metal, Bolts, Wires) | 8% |
@@ -202,7 +202,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Frag Grenade | 4% |
 | Pistol Rounds | 4% |
 | Stinger | 3% |
-| Energy Drink | 3% |
+| Energy Drink | 2% |
 | Sniper Rounds | 2% |
 | Red Dot | 2% |
 | Foregrip | 2% |
@@ -217,12 +217,13 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Tactical Grip | 1% |
 | Heavy Suppressor | 1% |
 | Drum Mag | 1% |
+| Full Choke | 1% |
 
 ### Raider (body bag, 2–4 rolls)
 
 | Entry | Chance per roll |
 |---|---|
-| Rifle Rounds | 19% |
+| Rifle Rounds | 18% |
 | Uncommon valuable (Ration Pack, Old Phone, Car Battery, Powder Tin, Fuel Can, Med Parts) | 12% |
 | Bandage | 7% |
 | Medkit | 7% |
@@ -249,6 +250,7 @@ A roll gives one item, except these come as a stack: Rifle Rounds 20–60, SMG R
 | Tactical Grip | 1% |
 | Heavy Suppressor | 1% |
 | Drum Mag | 1% |
+| Full Choke | 1% |
 
 ## Loot by place
 
@@ -281,7 +283,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | Junkyard | Bolts 20, Wires 15, Fuel Can 6 |
 | School | Med Parts 5, Small Backpack 15, Medium Backpack 10, Large Backpack 3, Light Armor 5, Old Helmet 5 |
 | ShipBridge | Gold Watch 15, Cash Bundle 15, Exion Orders 10, Diamond Ring 3, rare valuable 8, Impound Key 2 |
-| ShipArmory | Hound 12, Rifle Rounds 25, Wasp 8, Mauler 8, Shotgun Shells 15, SMG Rounds 15, Light Armor 10, Heavy Armor 5, Old Helmet 8, Combat Helmet 4, Frag Grenade 10, Foregrip 5, Red Dot 5, Viper 1, Hornet 1, Brawler 1 |
+| ShipArmory | Hound 12, Rifle Rounds 25, Wasp 8, Mauler 8, Shotgun Shells 15, SMG Rounds 15, Light Armor 10, Heavy Armor 5, Old Helmet 8, Combat Helmet 4, Frag Grenade 10, Foregrip 5, Red Dot 5, Viper 1, Hornet 1, Brawler 1, Tactical Grip 1, Heavy Suppressor 1, Drum Mag 1, Full Choke 1 |
 | SickBay | Med Parts 25, Bandage 45, Medkit 25, Painkillers 25, Trauma Kit 6 |
 | Clinic | Med Parts 20, Bandage 40, Medkit 25, Painkillers 30, Trauma Kit 6 |
 | Impound | Hound 10, Wasp 8, Mauler 8, Lancer 3, Rifle Rounds 20, SMG Rounds 10, Shotgun Shells 10, Suppressor 3, Extended Mag 4, Cash Bundle 15, Gold Watch 8, rare valuable 10, epic valuable 6, Viper 1, Hornet 1, Brawler 1 |
@@ -289,7 +291,7 @@ so a gun store's lockers are mostly guns. Places not listed roll the plain table
 | EngineRoom | Bolts 15, Wires 10, Fuel Can 12 |
 | Workshop | Bolts 15, Wires 10, Powder Tin 6, Impound Key 1 |
 | LabWing | Med Parts 15, Medkit 10, Exion Orders 12, Military Chip 8, Hard Drive 8, Graphics Card 4, Processor 6, epic valuable 10 |
-| LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Tactical Grip 3, Heavy Suppressor 3, Drum Mag 3, Talon 1 |
+| LabCore | Exion Orders 12, Military Chip 10, Exion Medal 6, Graphics Card 4, legendary valuable 25, epic valuable 35, Heavy Armor 8, Combat Helmet 8, Large Backpack 6, Lancer 4, 8x Scope 3, Suppressor 5, Tactical Grip 3, Heavy Suppressor 3, Drum Mag 3, Full Choke 2, Talon 1 |
 
 ## Crafting
 

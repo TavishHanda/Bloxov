@@ -107,7 +107,7 @@ const ITEMS := {
 	"ext_mag": {"name": "Extended Mag", "short": "Ext Mag", "desc": "Holds more rounds. Slower to reload.", "kind": "attachment", "rarity": "rare",
 		"w": 1, "h": 1, "stack": 1, "value": 1200, "slots": ["mag"], "mult": {"mag": 1.5, "reload": 1.1}, "tier": 2},
 	# Attachment tiers (0.40.0, owner 2026-11-22: bare guns are mid, attachments make them better, tiers for choice).
-	# "tier": 1 basic (Ponta level 1, easy to find), 2 good (the first attachments), 3 best (Ponta level 3 or found:
+	# "tier": 1 basic (Ponta level 1, easy to find), 2 good (the first attachments), 3 best (never sold, 0.39.28: found on
 	# Raiders, bosses, the bunker, Site Zero). Attachments change handling only, never damage or fire rate.
 	# "look": the attachment whose model it uses, "finish": its colour on that model (GunViewModels.dress).
 	"taped_grip": {"name": "Taped Grip", "short": "Tape Grp", "desc": "A block of wood taped under the barrel. A little less kick.", "kind": "attachment", "rarity": "common",
@@ -208,8 +208,8 @@ const LOOT_TABLES := {
 	# AI PMC bodies (0.36.4): their 1-3 rolled items (the gun, backpack, rounds and meds come from their kit). 0.36.7
 	# (owner approved: bodies can hold good loot): the Raider table's weights without the medium backpack (that
 	# comes from the kit's own roll), so it has the rare and epic entries, grenades and attachments.
-	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
-	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
@@ -273,7 +273,8 @@ const PLACE_LOOT := {
 	# Riptide (map 2): the Leviathan and Site Zero
 	"ShipBridge": {"gold_watch": 15, "cash": 15, "intel_exion": 10, "diamond_ring": 3, "rare": 8, "impound_key": 2},
 	"ShipArmory": {"ak": 12, "rifle_ammo": 25, "smg": 8, "shotgun": 8, "shells": 15, "smg_ammo": 15, "armor_light": 10, "armor_heavy": 5, "helmet_basic": 8, "helmet_good": 4, "grenade": 10, "foregrip": 5, "red_dot": 5,
-		"viper": 1, "hornet": 1, "brawler": 1},   # (0.38.1, owner: new guns found only on Riptide, about 1 raid in 10 here)
+		"viper": 1, "hornet": 1, "brawler": 1,
+		"tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1},   # (0.38.1, owner: new guns found only on Riptide, about 1 raid in 10 here; 0.39.28, owner: a Best attachment about 1 roll in 40)
 	"SickBay": {"med_supplies": 25, "bandage": 45, "medkit": 25, "painkillers": 25, "trauma_kit": 6},
 	"Clinic": {"med_supplies": 20, "bandage": 40, "medkit": 25, "painkillers": 30, "trauma_kit": 6},   # (0.38.7, the Port Clinic)
 	# (0.38.7) Harbor Tower's impound room: seized guns and ammo in the crate, seized valuables in the safe
@@ -284,7 +285,7 @@ const PLACE_LOOT := {
 	"Workshop": {"bolts": 15, "wires": 10, "gunpowder": 6, "impound_key": 1},
 	"LabWing": {"med_supplies": 15, "medkit": 10, "intel_exion": 12, "mil_chip": 8, "hard_drive": 8, "gpu": 4, "cpu": 6, "epic": 10},
 	"LabCore": {"intel_exion": 12, "mil_chip": 10, "exion_medal": 6, "gpu": 4, "legendary": 25, "epic": 35, "armor_heavy": 8, "helmet_good": 8, "backpack_large": 6, "sniper": 4, "scope_8x": 3, "suppressor": 5, "tactical_grip": 3, "heavy_suppressor": 3, "drum_mag": 3,
-		"talon": 1},   # (0.38.1, owner: the only place a Talon turns up in a raid, about 1 raid in 20)
+		"full_choke": 2, "talon": 1},   # (0.38.1, owner: the only place a Talon turns up in a raid, about 1 raid in 20)
 }
 
 
