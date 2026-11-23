@@ -39,6 +39,9 @@ const SETUP_KEY := "bloxov_shaders_built"
 
 ## The tip picked for this load, so the raid shows the same one the hideout did.
 static var tip := ""
+## (0.39.32) When START RAID was pressed (Time.get_ticks_usec(), 0 = not timed): the raid's cover prints how long
+## the whole load took once it lifts (in a browser: its console), so a real machine's load time can be read off.
+static var started_usec := 0
 
 ## Set on the raid's copy: fade out (and free its layer) once the raid has settled.
 var fades := false
@@ -176,6 +179,10 @@ func _fade_out() -> void:
 	var tree := get_tree()
 	await settle(tree, HOLD)
 	setup_done()
+	if started_usec != 0:
+		print("Raid load (%s): %.1f s from START RAID to playing" % [RaidMap.scene_path.get_file().get_basename(),
+			(Time.get_ticks_usec() - started_usec) / 1e6])
+		started_usec = 0
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, FADE)
 	await tween.finished

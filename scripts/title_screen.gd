@@ -162,6 +162,8 @@ func _load_hideout_now() -> void:
 ## The buttons come up (fading in after a load).
 func _show_ready(fade: bool) -> void:
 	ready_to_play = true
+	# (0.39.32) The raid's trees start building behind the buttons too, a few ms a frame (the hideout carries on).
+	add_child(preload("res://scripts/tree_prebuild.gd").new())
 	_loading_box.visible = false
 	_play_button.visible = true
 	_row.visible = true

@@ -7,6 +7,24 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.32 (Frontlines loads faster)
+The owner (2026-11-23): "It seems like frontlines takes forever to load but not riptide?" Measured in a web build
+(tools/map_load_probe.gd natively; a probe autoload in a throwaway web export): Frontlines simply has far more to set
+up than Riptide: 7x the collision triangles (304k vs 43k), 1.9M tree vertices built from the tree list (Riptide has no
+trees), and more building and outdoor models. In the browser, START RAID to the first frame took ~5.9 s of game work
+on Frontlines (2.6 s getting ready + 3.3 s frozen making the raid) vs ~2.1 s on Riptide, and the first drawn frame
+was ~2.5x Riptide's. No gameplay, map or look changes.
+- The raid's trees start building behind the title screen's buttons (a few ms a frame, as the hideout already did),
+  and whatever's left is finished by START RAID's counted loading steps (RaidPrep) instead of inside the frozen
+  frame that makes the raid.
+- The raid's box map reuses the collision triangles RaidPrep already built instead of building and fingerprinting
+  all 912k corners again (BoxMap `_prepped`).
+- The raid's cover prints "Raid load (map): N s from START RAID to playing" to the browser console, to read real
+  machines' load times.
+- Web build, same machine: the frozen frame that makes a Frontlines raid 3.3 s -> 1.4 s; START RAID's game work
+  5.9 s -> 4.7 s when the title screen / hideout had time to build the trees (unchanged total when START RAID comes
+  straight away, but the bar counts instead of freezing). Smoke test: the reused triangles match building them again.
+
 ## 0.39.31 (Raijin holds his ground)
 Owner, 2026-11-23: a friend ran straight at Raijin in blue armor with a kitted Hornet and won; "raijin needs to be a
 bit stronger". Test duels (blue armor and combat helmet, Hornet, rushing from 20 m, guards left out) showed why: his
