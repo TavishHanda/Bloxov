@@ -106,6 +106,69 @@ def _split(pts, uvs):
     return out
 
 
+def _grid_size(pts):
+    p = [np.array(q, dtype=float) for q in pts]
+    return (max(1, math.ceil(np.linalg.norm(p[1] - p[0]) / CELL - 1e-6)),
+            max(1, math.ceil(np.linalg.norm(p[3] - p[0]) / CELL - 1e-6)))
+
+
+SAME = 0.002        # light values closer than this count as equal (the colours are stored as 8-bit)
+
+
+def _merge(pts, uvs, grid, light):
+    """The cells of a cut quad joined back into bigger rectangles wherever the light doesn't change across them
+    (2026-11-23, fewer triangles, same picture): a rectangle is kept whole when its light depends on one direction
+    only, so the GPU's interpolation over its two triangles gives exactly what the cells gave."""
+    nu, nv = grid
+    p = [np.array(q, dtype=float) for q in pts]
+    t = [np.array(q, dtype=float) for q in uvs]
+
+    def at(arr, s, r):
+        return tuple((arr[0] * (1 - s) * (1 - r) + arr[1] * s * (1 - r) + arr[2] * s * r + arr[3] * (1 - s) * r).tolist())
+    val = [[light(at(p, i / nu, j / nv)) for j in range(nv + 1)] for i in range(nu + 1)]
+
+    def flat_u(i0, i1, j0, j1):     # the same along u (depends on v only)
+        return all(abs(val[a][b] - val[i0][b]) < SAME for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
+
+    def flat_v(i0, i1, j0, j1):     # the same along v (depends on u only)
+        return all(abs(val[a][b] - val[a][j0]) < SAME for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
+    used = [[False] * nv for _ in range(nu)]
+    out = []
+    for j in range(nv):
+        for i in range(nu):
+            if used[i][j]:
+                continue
+            best = (i, j)
+
+            def free(i0, i1, j0, j1):
+                return all(not used[a][b] for a in range(i0, i1 + 1) for b in range(j0, j1 + 1))
+
+            def const(i0, i1, j0, j1):
+                return flat_u(i0, i1 + 1, j0, j1 + 1) and flat_v(i0, i1 + 1, j0, j1 + 1)
+            # a strip along u (light changes only across it), widened over v only where the light is constant
+            i1, j1 = i, j
+            while i1 + 1 < nu and free(i1 + 1, i1 + 1, j, j) and flat_u(i, i1 + 2, j, j + 1):
+                i1 += 1
+            while j1 + 1 < nv and free(i, i1, j1 + 1, j1 + 1) and const(i, i1, j, j1 + 1):
+                j1 += 1
+            best = (i1, j1)
+            # or a strip along v, widened over u where constant
+            i1, j1 = i, j
+            while j1 + 1 < nv and free(i, i, j1 + 1, j1 + 1) and flat_v(i, i + 1, j, j1 + 2):
+                j1 += 1
+            while i1 + 1 < nu and free(i1 + 1, i1 + 1, j, j1) and const(i, i1 + 1, j, j1):
+                i1 += 1
+            if (i1 - i + 1) * (j1 - j + 1) > (best[0] - i + 1) * (best[1] - j + 1):
+                best = (i1, j1)
+            i1, j1 = best
+            for a in range(i, i1 + 1):
+                for b in range(j, j1 + 1):
+                    used[a][b] = True
+            cs = ((i / nu, j / nv), ((i1 + 1) / nu, j / nv), ((i1 + 1) / nu, (j1 + 1) / nv), (i / nu, (j1 + 1) / nv))
+            out.append(([at(p, s, r) for s, r in cs], [at(t, s, r) for s, r in cs]))
+    return out
+
+
 def bake(builder, rows):
     """Cuts the builder's big faces into cells and gives every vertex a colour (builder.colors, per face).
     Faces in a group (one small item) all get the light at the item's middle."""
@@ -136,10 +199,22 @@ def bake(builder, rows):
     corner_keys = [None if g is not None else [key(builder.verts[i], n) for i in face]
                    for face, n, g in zip(builder.faces, builder.normals, groups)]
     _resolve(cache, lo, hi)
-    faces, uvs, mats, normals, verts, gs = [], [], [], [], [], []
+    cut = []                                   # per face: its pieces, and (nu, nv) when cut into a grid
     for face, uv, m, n, g, keys in zip(builder.faces, builder.uvs, builder.mats, builder.normals, groups, corner_keys):
         pts = [builder.verts[i] for i in face]
-        pieces = [(pts, uv)] if g is not None or min(cache[k] for k in keys) > 0.995 else _split(pts, uv)
+        if g is not None or min(cache[k] for k in keys) > 0.995:
+            cut.append(([(pts, uv)], None))
+        else:
+            pieces = _split(pts, uv)
+            for q, _t in pieces:
+                for v in q:
+                    key(v, n)
+            cut.append((pieces, _grid_size(pts) if len(pieces) > 1 else None))
+    _resolve(cache, lo, hi)
+    faces, uvs, mats, normals, verts, gs = [], [], [], [], [], []
+    for (pieces, grid), face, uv, m, n, g in zip(cut, builder.faces, builder.uvs, builder.mats, builder.normals, groups):
+        if grid is not None:
+            pieces = _merge([builder.verts[i] for i in face], uv, grid, lambda v, n=n: cache[key(v, n)])
         for q, t in pieces:
             base = len(verts)
             verts += q
