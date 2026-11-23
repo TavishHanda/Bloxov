@@ -7,7 +7,8 @@ extends SceneTree
 
 const MAP := "res://scenes/maps/old_bloxov.tscn"
 const BODIES := {"Scav": "res://scenes/scav.tscn", "Sniper": "res://scenes/sniper.tscn",
-	"Raider": "res://scenes/raider.tscn", "Bon": "res://scenes/boss.tscn", "PMC (AI)": "res://scenes/pmc_ai.tscn"}
+	"Raider": "res://scenes/raider.tscn", "Bon": "res://scenes/boss.tscn", "PMC (AI)": "res://scenes/pmc_ai.tscn",
+	"Ace": "res://scenes/boss_ace.tscn", "Orbit": "res://scenes/boss_orbit.tscn"}
 const CONTAINER_SCENES := {"3_crate": "res://scenes/loot_crate.tscn", "4_locker": "res://scenes/loot_locker.tscn",
 	"5_safe": "res://scenes/loot_safe.tscn"}
 ## Kits by tier (owner, 2026-10-30: compare a raid's haul to a bad, mid, good and really good kit): [name, [[item id, count], ...]].
@@ -181,49 +182,13 @@ func _avg_container(c: Dictionary) -> float:
 	return float(total) / runs
 
 
-## Body loot, the way ScavBase.die() builds it (the gun it carries, its worn gear, its table rolls).
+## Body loot, the way Scav._on_died() builds it (the gun it carries, its worn gear, its table rolls), on average.
 func _avg_body(path: String) -> float:
-	var ai: Node = (load(path) as PackedScene).instantiate()
 	var total := 0
 	for i in runs:
-		var gun: String = ai.weapon_drop if ai.weapon_drop != "" else AILoadouts.pick(ai.loadout)
-		if gun != "" and randf() < ai.weapon_drop_chance:
-			var dropped := AILoadouts.dropped_gun(gun, ai.drop_parts, ai.drop_part_chance)
-			if ai.kit == "pmc":
-				dropped.durability = ItemDB.found_durability(gun)
-			total += Traders.sell_price(dropped)
-		for id in ai.extra_drops:
-			total += Traders.sell_price(ItemStack.new(id))
-		for id in ItemDB.TABLE_CHANCES.get(ai.loot_table, {}):
-			if randf() < ItemDB.TABLE_CHANCES[ai.loot_table][id]:
-				total += Traders.sell_price(ItemStack.new(id))
-		for stack in _pmc_kit(ai, gun):
+		for stack: ItemStack in _body_stacks(path):
 			total += Traders.sell_price(stack)
-		for gear in [ai.armor, ai.helmet]:
-			if gear != "":
-				total += Traders.sell_price(ItemStack.new(gear))
-		for j in randi_range(ai.min_drops, ai.max_drops):
-			var id := ItemDB.roll(ai.loot_table)
-			var stack := ItemStack.new(id)
-			stack.count = ItemDB.roll_count(id)
-			total += Traders.sell_price(stack)
-	ai.free()
 	return float(total) / runs
-
-
-## An AI PMC's kit as stacks (0.36.4): armor, helmet and backpack rolled like in the game, rounds, meds and its dog
-## tag. (Armor and helmet are counted new; the rolled `ai.armor` fields stay as the scene has them, "".) Other AI: none.
-func _pmc_kit(ai: Node, gun: String) -> Array:
-	var out: Array = []
-	if ai.kit != "pmc":
-		return out
-	for id: String in [AILoadouts.roll_weighted(AILoadouts.PMC_ARMOR), AILoadouts.pmc_helmet(randi())]:
-		if id != "":
-			out.append(ItemStack.new(id))
-	out.append_array(AILoadouts.pmc_extras(gun, AILoadouts.roll_weighted(AILoadouts.PMC_BACKPACK)).map(
-		func(entry: Variant) -> ItemStack: return entry if entry is ItemStack else ItemStack.new(entry[0], entry[1])))
-	out.append(ItemStack.new("player_tag"))
-	return out
 
 
 func _sold(id: String) -> bool:
@@ -265,25 +230,38 @@ func _carry_haul(unlocked: Array, count: int, scavs: int, raiders: int, cells: i
 	return float(total) / n
 
 
-## One body's loot as stacks (same rolls as _avg_body).
+## One body's loot as stacks, rolled like Scav._on_died() (worn armor and helmet counted new). An AI PMC rolls its kit
+## level first (AILoadouts.roll_pmc_kit, 0.39.29).
 func _body_stacks(path: String) -> Array:
 	var ai: Node = (load(path) as PackedScene).instantiate()
 	var out: Array = []
-	var gun: String = ai.weapon_drop if ai.weapon_drop != "" else AILoadouts.pick(ai.loadout)
+	if ai.kit == "pmc":
+		AILoadouts.roll_pmc_kit(ai, randi())
+	var gun: String = AILoadouts.pick(ai.loadout) if ai.loadout != "" else ai.weapon_drop
 	if gun != "" and randf() < ai.weapon_drop_chance:
-		out.append(AILoadouts.dropped_gun(gun, ai.drop_parts, ai.drop_part_chance))
+		var dropped := AILoadouts.pmc_gun(gun, ai.pmc_tier) if ai.kit == "pmc" \
+			else AILoadouts.dropped_gun(gun, ai.drop_parts, ai.drop_part_chance)
+		if ai.kit == "pmc":
+			dropped.durability = ItemDB.found_durability(gun)
+		out.append(dropped)
 	for id in ai.extra_drops:
 		out.append(ItemStack.new(id))
 	for id in ItemDB.TABLE_CHANCES.get(ai.loot_table, {}):
 		if randf() < ItemDB.TABLE_CHANCES[ai.loot_table][id]:
 			out.append(ItemStack.new(id))
-	out.append_array(_pmc_kit(ai, gun))
-	for gear in [ai.armor, ai.helmet]:
+	for gear in [ai.armor, ai.helmet, ai.body_pack]:
 		if gear != "":
 			out.append(ItemStack.new(gear))
 	for j in randi_range(ai.min_drops, ai.max_drops):
 		var stack := ItemStack.new(ItemDB.roll(ai.loot_table))
 		stack.count = ItemDB.roll_count(stack.id)
 		out.append(stack)
+	var bonus := AILoadouts.bonus_valuable(ai.bonus_valuable)
+	if bonus != "":
+		out.append(ItemStack.new(bonus))
+	if ai.kit == "pmc":
+		out.append_array(AILoadouts.pmc_extras(gun, ai.pack, ai.pmc_tier).map(
+			func(entry: Variant) -> ItemStack: return entry if entry is ItemStack else ItemStack.new(entry[0], entry[1])))
+		out.append(ItemStack.new("player_tag"))
 	ai.free()
 	return out

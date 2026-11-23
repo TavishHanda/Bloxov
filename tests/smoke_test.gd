@@ -7590,8 +7590,8 @@ func _pmc_kit_checks() -> void:
 		bot.queue_free()
 	_check(wears["armor_light"] > wears[""] and wears[""] > 0 and wears["armor_heavy"] > 0 and wears["armor_light"] > wears["armor_heavy"],
 		"AI PMCs wear light armor most of the time, sometimes none or heavy (%s)" % [wears])
-	_check(helmets > 40 and helmets < 140, "some AI PMCs wear a helmet (%d of 300)" % helmets)
-	_check(packs > 60 and packs < 180, "some AI PMCs carry a backpack (%d of 300)" % packs)
+	_check(helmets > 130 and helmets < 200, "about half of AI PMCs wear a helmet (0.39.29 kit levels: %d of 300)" % helmets)
+	_check(packs > 190 and packs < 260, "about 3 in 4 AI PMCs carry a backpack (0.39.29 kit levels: %d of 300)" % packs)
 	_check(matched, "an AI PMC's hat matches its helmet")
 	_check(AILoadouts.pmc_helmet(1234) == AILoadouts.pmc_helmet(1234), "a bot's helmet is decided by its id alone")
 	# Its body: the gun, its worn gear, rounds, meds, 1-3 rolled items, a backpack sometimes, and its dog tag.
@@ -8699,23 +8699,72 @@ func _section_pmc_leave() -> void:
 		for w: int in t.values():
 			n += w
 		return n
-	_check(sum_of.call(AILoadouts.PMC_ARMOR) == 100 and AILoadouts.PMC_ARMOR == {"armor_light": 65, "": 30, "armor_heavy": 5}
-		and sum_of.call(AILoadouts.PMC_BACKPACK) == 100 and AILoadouts.PMC_BACKPACK == {"": 55, "backpack_small": 40, "backpack_medium": 5}
-		and sum_of.call(AILoadouts.PMC_HELMETS) == 100 and AILoadouts.PMC_HELMETS["helmet_good"] == 10 and is_equal_approx(AILoadouts.PMC_HELMET_CHANCE, 0.3),
-		"kit odds: armor 65/30/5, backpack 55/40/5, helmets 30% of bots with the Combat Helmet 1 in 10, each table sums to 100")
-	var good := 0
+	# (0.39.29, owner approved: richer bots) three kit levels from the bot's id: Light 50, Kitted 35, Geared 15.
+	_check(sum_of.call(AILoadouts.PMC_TIERS) == 100 and AILoadouts.PMC_TIERS == {"light": 50, "kitted": 35, "geared": 15}
+		and AILoadouts.PMC_KITS["geared"]["armor"] == {"armor_heavy": 1} and AILoadouts.PMC_KITS["light"]["armor"] == {"armor_light": 70, "": 30}
+		and AILoadouts.PMC_KITS["kitted"]["armor"] == {"armor_light": 85, "armor_heavy": 15},
+		"kit levels 50/35/15; Light wears light armor 70%, Kitted light (heavy 15%), Geared heavy")
+	var tiers := {"light": 0, "kitted": 0, "geared": 0}
+	var helmet_ok := true
 	var helmeted := 0
 	for i in 4000:
+		var tier := AILoadouts.pmc_tier(i)
+		tiers[tier] += 1
 		var h := AILoadouts.pmc_helmet(i)
 		helmeted += 1 if h != "" else 0
-		good += 1 if h == "helmet_good" else 0
-	_check(absf(helmeted / 4000.0 - 0.3) < 0.03 and absf(good / float(helmeted) - 0.1) < 0.03,
-		"%d%% of bots wear a helmet, %d%% of those the Combat Helmet" % [roundi(helmeted / 40.0), roundi(100.0 * good / helmeted)])
-	var pmc: Dictionary = ItemDB.LOOT_TABLES["pmc"]
+		helmet_ok = helmet_ok and h == AILoadouts.pmc_helmet(i) and (tier != "geared" or h == "helmet_good") and (tier != "light" or h in ["", "helmet_basic"])
+	_check(absf(tiers.light / 4000.0 - 0.5) < 0.03 and absf(tiers.kitted / 4000.0 - 0.35) < 0.03 and absf(tiers.geared / 4000.0 - 0.15) < 0.02
+		and helmet_ok and absf(helmeted / 4000.0 - 0.545) < 0.04,
+		"kit levels by id %s; the same id always gets the same helmet, Geared the Combat Helmet, Light never; %d%% in a helmet" % [tiers, roundi(helmeted / 40.0)])
+	var parts_ok := true
+	var best_seen := 0
+	for i in 400:
+		var geared := AILoadouts.pmc_gun("ak", "geared")
+		var light := AILoadouts.pmc_gun("ak", "light")
+		parts_ok = parts_ok and geared.attachments.size() >= 2 and geared.attachments.size() <= 3 and light.attachments.size() <= 1
+		best_seen += 1 if geared.attachments.values().any(func(p: String) -> bool: return p in AILoadouts.BEST_PARTS) else 0
+		parts_ok = parts_ok and not light.attachments.values().any(func(p: String) -> bool: return p in AILoadouts.BEST_PARTS)
+	_check(parts_ok and best_seen > 60 and best_seen < 150, "a Geared bot's gun has 2-3 attachments, a purple one about 1 in 4 (%d of 400); a Light one 0-1, never purple" % best_seen)
+	var extras: Array = AILoadouts.pmc_extras("ak", "backpack_large", "geared")
+	var count_of := func(list: Array, id: String) -> int:
+		return list.filter(func(e: Variant) -> bool: return (e.id if e is ItemStack else e[0]) == id).size()
+	var valuable_ok := false
+	for e: Variant in extras:
+		if e is Array and ItemDB.kind(e[0]) == "valuable" and ItemDB.ITEMS[e[0]]["rarity"] in ["rare", "epic", "legendary"]:
+			valuable_ok = true
+	_check(count_of.call(extras, "medkit") == 2 and count_of.call(extras, "grenade") == 1 and count_of.call(extras, "backpack_large") == 1 and valuable_ok,
+		"a Geared body also holds 2 medkits, a grenade, its backpack and a rare-or-better valuable")
+	var pmc: Dictionary = (ItemDB.LOOT_TABLES["pmc"] as Dictionary).duplicate()
 	var raider: Dictionary = (ItemDB.LOOT_TABLES["raider"] as Dictionary).duplicate()
 	raider.erase("backpack_medium")
-	_check(not pmc.has("backpack_medium") and pmc == raider and pmc.has("epic") and pmc.has("rare") and pmc.has("grenade")
-		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table is the Raider's without the medium backpack (rare, epic, grenades, attachments)")
+	_check(pmc["rare"] == 14 and pmc["epic"] == 4 and not pmc.has("backpack_medium") and pmc.has("grenade")
+		and not ItemDB.TABLE_CHANCES.has("pmc"), "the pmc loot table: rare 14, epic 4, no medium backpack, grenades and attachments")
+	pmc.erase("rare"); pmc.erase("epic"); raider.erase("rare"); raider.erase("epic")
+	_check(pmc == raider, "otherwise the pmc table is the Raider's")
+	# (0.39.29) Orbit and Ace: a large backpack with 5-7 boss-table items inside, a third attachment, one more epic+ valuable.
+	var boss_table: Dictionary = ItemDB.LOOT_TABLES["boss"]
+	_check(boss_table["rare"] == 20 and boss_table["epic"] == 4 and boss_table["legendary"] == 2, "the boss table doubles rare and epic and adds legendary")
+	for who: Array in [["boss_ace", "drum_mag", "intel_exion"], ["boss_orbit", "heavy_suppressor", "mil_chip"]]:
+		var boss := _spawn("res://scenes/%s.tscn" % who[0], Vector3(0, 0.1, 30)) as Scav
+		await physics_frame
+		var boss_at := boss.global_position
+		boss.health.take_damage(5000)
+		await physics_frame
+		await physics_frame
+		var boss_body: LootContainer = null
+		for node in RaidScope.nodes(main, &"loot_containers"):
+			if node is LootContainer and (node as LootContainer).remove_when_empty and node.global_position.distance_to(boss_at) < 3.0:
+				boss_body = node
+		var gun_parts: Array = []
+		if boss_body != null and not boss_body.gear["primary"].is_empty():
+			gun_parts = (boss_body.gear["primary"].stacks[0] as ItemStack).attachments.values()
+		var in_pack: int = boss_body.pack.stacks.size() if boss_body != null and boss_body.pack != null else 0
+		var has_sig := boss_body != null and boss_body.all_grids().any(func(g: GridInventory) -> bool: return g.count_of(who[2]) >= 1)
+		_check(boss_body != null and boss_body.worn_pack() != null and boss_body.worn_pack().id == "backpack_large" and in_pack >= 6
+			and who[1] in gun_parts and gun_parts.size() == 3 and has_sig,
+			"%s's body: a large backpack with %d items in it, a 3-attachment gun %s, and its %s" % [who[0], in_pack, gun_parts, who[2]])
+		if boss_body != null:
+			boss_body.free()
 
 	# Leave time: 50-85% of the raid's length, seeded; no known length counts as 600 s.
 	var bot := _blind_bot(Vector3(0, 0.1, 30))

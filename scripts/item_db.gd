@@ -208,8 +208,12 @@ const LOOT_TABLES := {
 	# AI PMC bodies (0.36.4): their 1-3 rolled items (the gun, backpack, rounds and meds come from their kit). 0.36.7
 	# (owner approved: bodies can hold good loot): the Raider table's weights without the medium backpack (that
 	# comes from the kit's own roll), so it has the rare and epic entries, grenades and attachments.
-	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	# 0.39.29 (owner approved, richer bodies): rare 10 -> 14, epic 2 -> 4.
+	"pmc": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 14, "epic": 4},
 	"raider": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 10, "epic": 2},
+	# Orbit and Ace (0.39.29, owner approved: their loot was underwhelming): the Raider table with rare and epic
+	# doubled and legendary added.
+	"boss": {"smg_ammo": 10, "shells": 8, "sniper_ammo": 3, "red_dot": 3, "foregrip": 3, "scope_4x": 1, "suppressor": 1, "ext_mag": 1, "taped_grip": 2, "muzzle_brake": 2, "fast_mag": 2, "holo_sight": 1, "tactical_grip": 1, "heavy_suppressor": 1, "drum_mag": 1, "full_choke": 1, "grenade": 6, "energy_drink": 4, "pistol": 5, "backpack_medium": 3, "pistol_ammo": 6, "rifle_ammo": 30, "bandage": 12, "medkit": 12, "common": 12, "uncommon": 20, "rare": 20, "epic": 4, "legendary": 2},
 }
 
 ## A chance (0.14.14, owner) that a container or body rolled from this loot table also holds this item, once.
