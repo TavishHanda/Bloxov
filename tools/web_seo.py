@@ -7,7 +7,7 @@ Godot's page is just a canvas, so search engines see almost nothing on it. This 
   3. adds the game's structured data (web/seo/game.json, schema.org VideoGame),
   4. puts a short intro (web/seo/intro.html + intro.css) on the loading screen; it sits inside Godot's
      #status overlay, so it goes away with the loading screen once the game starts,
-  5. copies web/robots.txt and writes sitemap.xml (one page, dated today),
+  5. copies web/robots.txt and writes sitemap.xml (the game page and the privacy page, dated today),
   6. gives search the site icon at sizes Google accepts (0.25.22): links web/brand/icon-48/96/192.png, swaps
      Godot's 256 px tab icon for the 192 px one and puts the 16/32/48 px favicon.ico at the site root
      (made by tools/make_web_branding.py; CI copies web/brand before this runs).
@@ -94,7 +94,8 @@ def main(build_dir: str) -> None:
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         "  <url><loc>%s</loc><lastmod>%s</lastmod></url>\n"
-        "</urlset>\n" % (SITE, today),
+        "  <url><loc>%sprivacy/</loc><lastmod>%s</lastmod></url>\n"
+        "</urlset>\n" % (SITE, today, SITE, today),
         encoding="utf-8",
     )
     print("web_seo: title, canonical, icons, structured data, intro, robots.txt and sitemap.xml done")
