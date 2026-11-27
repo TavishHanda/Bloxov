@@ -7,6 +7,21 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.35 (AI PMC routes)
+The owner (2026-11-23): AI PMCs "die off spawn so much", asked for a set of paths the bots pick from at random, and
+(on the plan) that bots on a route still fight and kill what they run into.
+- `scripts/pmc_routes.gd`: 12 hand-made Frontlines routes (start area, loot stops, turns, the extract at the end). A bot
+  picks one at random from those starting within 80 m of it and walks it stop by stop, searching at loot stops. No
+  routes on Riptide yet (bots are off there).
+- A blocked route (other AI near the next stop) makes the bot hide nearby and wait up to 20 s, then carry on, instead
+  of rerouting across open ground.
+- Fighting AI: bots still fight to the kill, from cover, but no longer chase a Scav or Raider more than 15 m from where
+  the fight started. Players are chased as before.
+- Shot from far away (over 45 m, e.g. a sniper): the bot takes cover at once instead of trading shots in the open.
+- Test raids (10 Frontlines raids, 3 bots each, before / after): containers searched per bot 1.8 / 2.9, places
+  visited 7 / 2.9, bots killed 12 / 13 of 30 (snipers 1 / 0), extracted 15 / 13. Raiders are now the main killer.
+- Smoke test: new `pmc_routes` section.
+
 ## 0.39.34 (No AI in your face as you load in)
 The owner (2026-11-24): "I've had multiple raids where a player is loading in and dies before they can even move to
 an AI."

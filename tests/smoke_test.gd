@@ -17,7 +17,7 @@ extends SceneTree
 
 ## Every section, in the order they run.
 const SECTIONS: Array[String] = [
-	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "pmc_ears", "hud", "touch", "free_cam",
+	"shoot", "reload", "ads", "accuracy", "recoil", "ttk", "scav_shoots", "knife", "scav_hit", "senses", "spotting", "close_range", "lost_close", "crest", "melee", "spawn_budget", "zones", "sniper", "boss", "teamwork", "pathing", "ai_vault", "patrol", "ai_lod", "scav_looting", "cover", "lean", "hurt", "raiders", "pmc_ai", "pmc_plan", "pmc_apart", "pmc_leave", "pmc_fights_ai", "pmc_breakoff", "pmc_ears", "pmc_routes", "hud", "touch", "free_cam",
 	"movement", "stealth", "jump", "reacts", "vault", "window_vault", "bushes_bars", "fall", "stuck", "ladder", "prone", "containers", "items", "doors", "crate_model", "characters", "grid", "inventory",
 	"equipment", "loot_ui", "dropped_gun", "heal", "meds", "downed", "extract", "death", "profile", "hideout", "hideout_world", "tutorial", "settings", "backup", "stash_modes", "keybinds", "crafting", "playables", "expedition",
 	"ghost_stack", "owner_rules", "matchmaking", "net", "pvp", "online_ai", "online_bots", "online_loot", "anticheat", "pvp_accounts", "pvp_hideout", "old_bloxov", "riptide", "leave_raid", "attachments", "leaves", "new_guns", "ai_loadouts", "mouse", "look",
@@ -7831,6 +7831,63 @@ func _plan_box(pos: Vector3, place: String, table := "crate", locked := false) -
 	main.add_child(box)
 	box.global_position = pos
 	return box
+
+
+func _section_pmc_routes() -> void:
+	# AI PMC routes (0.39.29, owner 2026-11-23): a bot takes a route starting near it, walks its turns, loots its stops
+	# in order and then leaves; in a fight with AI it doesn't chase more than CHASE_LEASH m from where the fight began.
+	for node in RaidScope.nodes(main, &"enemies"):
+		node.free()
+	Scav.lod_enabled = false
+	player.teleport_to(Vector3(-35, 0.1, -35))
+	var shelved: Array[Node] = []
+	for c in RaidScope.nodes(main, &"loot_containers"):
+		if not c.has_meta("locked"):
+			c.set_meta("locked", true)
+			shelved.append(c)
+	var boxes: Array[Node] = [_plan_box(Vector3(20, 0, 5), "RouteA"), _plan_box(Vector3(-20, 0, 5), "RouteB")]
+	PmcAI.reset_places(main)
+	PmcRoutes.test_routes = [
+		{"name": "far", "points": [[200, 200], [-20, 5, "RouteB"]], "extract": "Nope"},
+		{"name": "near", "points": [[0, 0], [10, 10], [20, 5, "RouteA"], [0, 20]], "extract": "Nope"},
+	]
+	var bot := _spawn(PMC_AI_SCENE, Vector3(0, 0.1, 0)) as PmcAI
+	await physics_frame
+	bot._pick_route()
+	_check(String(bot.route.get("name", "")) == "near" and bot._route_stops.size() == 3 and (bot._route_stops[1] as Dictionary).has("place"),
+		"a bot takes the route that starts near it: 3 stops, the 2nd a loot stop (%s, %d)" % [bot.route.get("name", ""), bot._route_stops.size()])
+	_check(bot._route_next() and bot.plan == PmcAI.Plan.TRAVEL and bot._place_container == null,
+		"its first leg is the route's first turn")
+	bot.global_position = Vector3(10, 0.1, 10)
+	bot._set_plan(PmcAI.Plan.HOLD)
+	_check(bot._route_next() and bot._route_i == 1 and is_instance_valid(bot._place_container) and bot._place_container == boxes[0],
+		"at the turn, it heads for the loot stop's container")
+	bot._searches_left = 0
+	bot.global_position = Vector3(20, 0.1, 6)
+	_check(bot._route_next() and bot._route_i == 2 and bot._place_container == null, "searched: on to the next turn")
+	bot.global_position = Vector3(0, 0.1, 20)
+	var leave_before := bot.leave_at
+	_check(not bot._route_next() and bot.route.is_empty() and bot.leave_at <= bot._age + 0.01,
+		"route done and its extract isn't there: it leaves by the nearest one (leave time %.0f -> %.0f)" % [leave_before, bot.leave_at])
+	# The chase leash: against an AI it stays within CHASE_LEASH m of where the fight began; against a player, no leash.
+	var scav := _spawn(SCAV_SCENE, Vector3(0, 0.1, -40)) as Scav
+	await physics_frame
+	bot._fight_at = bot.global_position
+	bot._target = scav
+	var far := bot._fight_at + Vector3(0, 0, -30)
+	_check(bot._strays_from_guards(far) and not bot._strays_from_guards(bot._fight_at + Vector3(0, 0, -10)),
+		"in a fight with a scav it won't go 30 m off to chase, 10 m is fine")
+	bot._target = player
+	_check(not bot._strays_from_guards(far), "against a player: no leash")
+	PmcRoutes.test_routes = []
+	bot.free()
+	scav.free()
+	for b in boxes:
+		b.free()
+	for c in shelved:
+		c.remove_meta("locked")
+	PmcAI.reset_places(main)
+	Scav.lod_enabled = true
 
 
 func _section_pmc_ears() -> void:

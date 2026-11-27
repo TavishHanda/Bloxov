@@ -121,6 +121,20 @@ const COVER_LOOK := 10.0
 const SUPPRESS_TIME := 3.0
 const SUPPRESSED_AIM := 0.7
 const HIDE_WAIT := 10.0
+## Routes (0.39.29, owner 2026-11-23: "a bunch of paths then randomizing between them"; PmcRoutes). A bot takes one at
+## random of those starting within ROUTE_START_NEAR m of where it spawned (none: the nearest start's), walks it, loots its
+## stops and leaves by its extract. Other AI in the way: it waits in cover (within ROUTE_HIDE m) up to ROUTE_WAIT s, then
+## carries on. A stop it can't reach after ROUTE_TRIES goes is skipped.
+const ROUTE_START_NEAR := 80.0
+const ROUTE_WAIT := 20.0
+const ROUTE_HIDE := 12.0
+const ROUTE_TRIES := 3
+const ROUTE_STOP_REACHED := 6.0
+## In a fight with another AI (not a player), it doesn't run after it more than CHASE_LEASH m from where the fight
+## started: it fights from there, from cover (owner 2026-11-23: fight and kill them, but no runs across the open).
+const CHASE_LEASH := 15.0
+## Every foe farther than this (m): it hides from them instead of breaking off across the open (snipers).
+const BREAK_FAR := 45.0
 ## Tuning (not the owner's numbers): a wait of RETRY_WAIT s when nowhere is open, containers of one place within
 ## PLACE_SPREAD m of each other form one place.
 const RETRY_WAIT := 3.0
@@ -204,7 +218,21 @@ var _watch_left := 0.0
 var _look_after := false
 var _step_trait := 1.0   # its character's "hearing" (footsteps) trait
 var _suppressed_left := 0.0
+var _hit_far_left := 0.0      # just hit by an AI farther than BREAK_FAR (a sniper): hide from it
 var _hit_unseen_left := 0.0   # just hit by a player it couldn't see: hide from them (for this long it still may)
+## Its route (0.39.29): the map's name, the route ({} = none: it plans as before), its stops ({pos} or {pos, place}),
+## the stop it's on and how many goes it has had at it, its extract, the cover spot it waits at while blocked (INF =
+## none), whether it's waiting, and where its current fight started (CHASE_LEASH).
+var _map_name := ""
+var route := {}
+var _route_stops: Array = []
+var _route_i := 0
+var _route_tries := 0
+var _route_extract: Node3D = null
+var _route_picked := false
+var _hide_spot := Vector3.INF
+var _route_blocked := false
+var _fight_at := Vector3.INF
 ## 0.36.7: the raid's full length in seconds (the server sets it; 0 = DEFAULT_RAID_LENGTH), the seed of its leave
 ## roll (0 = unseeded), and when it leaves: seconds after it spawned.
 var raid_length := 0.0
@@ -326,7 +354,8 @@ func _apply_map_tuning() -> void:
 	var node: Node = self
 	while node != null and not node.has_meta("map_name"):
 		node = node.get_parent()
-	var tuning: Dictionary = MAP_TUNING.get(String(node.get_meta("map_name")) if node != null else "", {})
+	_map_name = String(node.get_meta("map_name")) if node != null else ""
+	var tuning: Dictionary = MAP_TUNING.get(_map_name, {})
 	ai_damage = float(tuning.get("ai_damage", AI_DAMAGE_TO_BOT))
 	leave_after_breaks = int(tuning.get("breaks_to_leave", BREAKS_TO_LEAVE))
 	if ai_damage_to_bot >= 0.0:
@@ -554,10 +583,12 @@ func _wall_between(pos: Vector3) -> bool:
 func _update_shot_at(delta: float) -> void:
 	_suppressed_left -= delta
 	_hit_unseen_left -= delta
+	_hit_far_left -= delta
 	if state != State.ENGAGE or _target == null or not is_instance_valid(_target):
 		return
-	if _hit_unseen_left > 0.0 and not _can_see and _cover_phase == Cover.NONE:
+	if ((_hit_unseen_left > 0.0 and not _can_see) or _hit_far_left > 0.0) and _cover_phase == Cover.NONE:
 		_hit_unseen_left = 0.0
+		_hit_far_left = 0.0
 		_hide_from_unseen()
 		return
 	if _suppressed_left <= 0.0:
@@ -606,6 +637,142 @@ func _spotting(delta: float, to_target: Vector3, dist: float, mult: float) -> bo
 		if to_ear.length() > 0.1 and flat_target.length() > 0.1 and flat_target.normalized().dot(to_ear.normalized()) > EAR_CONE_COS:
 			mult *= EAR_SPOT_MULT
 	return super(delta, to_target, dist, mult)
+
+
+# --- Routes (0.39.29) -------------------------------------------------------------------------------------------------
+
+## Picks its route: one of the map's routes that start near it, at random (its own dice); none on a map without routes.
+func _pick_route() -> void:
+	_route_picked = true
+	var routes := PmcRoutes.for_map(_map_name)
+	if routes.is_empty():
+		return
+	var near: Array = []
+	var best_d := INF
+	for r: Dictionary in routes:
+		var first: Array = r["points"][0]
+		best_d = minf(best_d, _flat(Vector3(first[0], 0, first[1]) - global_position).length())
+	for r: Dictionary in routes:
+		var first: Array = r["points"][0]
+		var d := _flat(Vector3(first[0], 0, first[1]) - global_position).length()
+		if d <= ROUTE_START_NEAR or d <= best_d + 1.0:
+			near.append(r)
+	var dice := RandomNumberGenerator.new()
+	dice.seed = hash(leave_seed if leave_seed != 0 else get_instance_id()) ^ 0x2007e
+	route = near[dice.randi_range(0, near.size() - 1)]
+	_route_stops.clear()
+	var all_places := places(self)
+	for i in range(1, (route["points"] as Array).size()):
+		var pt: Array = route["points"][i]
+		var at := AINav.closest(self, Vector3(pt[0], 0, pt[1]))
+		if at == Vector3.ZERO:
+			continue
+		var stop := {"pos": at}
+		if pt.size() > 2:
+			var best: Dictionary = {}
+			var best_gap := 40.0
+			for p: Dictionary in all_places:
+				if String(p["name"]).get_slice("@", 0) == String(pt[2]):
+					var gap := _flat(p["center"] - Vector3(pt[0], 0, pt[1])).length()
+					if gap < best_gap:
+						best_gap = gap
+						best = p
+			if best.is_empty():
+				continue   # (that place has no loot this raid, or it's the boss's: just a turn on the way)
+			stop["place"] = best
+		_route_stops.append(stop)
+	for node in RaidScope.nodes(self, &"extracts"):
+		if String(node.name) == String(route["extract"]):
+			_route_extract = node as Node3D
+	_route_i = 0
+	_route_tries = 0
+
+
+## Its next leg along the route: the next turn, the next loot stop's containers, or at the end (or at its leave time)
+## the route's extract. False when the route has nothing left for it (it then plans as before).
+func _route_next() -> bool:
+	if wants_to_leave():
+		_route_i = _route_stops.size()   # (time to go: straight to the route's extract)
+	while _route_i < _route_stops.size():
+		var stop: Dictionary = _route_stops[_route_i]
+		if _route_tries >= ROUTE_TRIES:
+			_route_advance()
+			continue
+		if stop.has("place"):
+			var p: Dictionary = stop["place"]
+			if place.is_empty() or place["id"] != p["id"]:
+				_route_tries += 1
+				if _try_place(p, [], true):
+					return true
+				_route_advance()
+				continue
+			if _searches_left > 0 and _try_place(p, []):
+				return true
+			place = {}
+			_route_advance()
+			continue
+		if _flat(stop["pos"] - global_position).length() < ROUTE_STOP_REACHED:
+			_route_advance()
+			continue
+		_route_tries += 1
+		_go_to(stop["pos"], null)
+		return true
+	if is_instance_valid(_route_extract) and bool(_route_extract.get("is_open")) and _route_tries < ROUTE_TRIES:
+		_route_tries += 1
+		if _in_extract(_route_extract, global_position):
+			_begin_extract(_route_extract)
+			return true
+		var spot := AINav.closest(self, _route_extract.global_position)
+		if spot != Vector3.ZERO:
+			_go_exit(_route_extract, spot)
+			return true
+	route = {}   # (its extract is shut or out of reach: it carries on as before and finds another)
+	_leave_soon()
+	return false
+
+
+func _route_advance() -> void:
+	_route_i += 1
+	_route_tries = 0
+
+
+## At the end of its route it leaves (the old plan picks the nearest open extract).
+func _leave_soon() -> void:
+	leave_at = minf(leave_at, _age) if leave_at >= 0.0 else _age
+
+
+## On a route, other AI near: it doesn't turn round and wander off; it waits in cover close by (ROUTE_HIDE) for up to
+## ROUTE_WAIT s, then carries on (_wander's HOLD commits after that). Clear again: it goes on at once.
+func _route_keep_apart() -> void:
+	if plan in [Plan.EXIT, Plan.EXTRACT]:
+		return
+	var others := _others_at()
+	var threat := _nearest_threat(others)
+	if threat[1] == INF:
+		if _route_blocked and plan == Plan.HOLD:
+			_plan_wait = 0.0
+			_hide_spot = Vector3.INF
+		_route_blocked = false
+		return
+	if _route_blocked or state != State.IDLE:
+		return
+	_route_blocked = true
+	turned_away += 1
+	_held_for = 0.0
+	var spot := _cover_from(threat[0])
+	_hide_spot = spot if spot != Vector3.INF and _flat(spot - global_position).length() <= ROUTE_HIDE else Vector3.INF
+	_set_plan(Plan.HOLD, ROUTE_WAIT)
+
+
+## A fight with another AI (never a player): it doesn't go more than CHASE_LEASH m from where the fight started to get
+## at it (no chasing, pushing or closing in across the open; the scavs' Bon-leash hook). Players: as before.
+func _strays_from_guards(goal: Vector3) -> bool:
+	if super(goal):
+		return true
+	if _fight_at == Vector3.INF or _target == null or not is_instance_valid(_target) or _target is Player:
+		return false
+	var off := _flat(goal - _fight_at).length()
+	return off > CHASE_LEASH and off > _flat(global_position - _fight_at).length()
 
 
 ## Its shots are a gunshot noise to every other AI in the raid, the way a player's are (0.36.11, owner): the same
@@ -707,7 +874,14 @@ func _wander(delta: float) -> Vector3:
 				return Vector3.ZERO   # (0.36.12: patching up after breaking off a fight; it plans once that's done)
 			_plan_wait -= delta
 			_held_for += delta
-			if _held_for > HOLD_GIVE_UP and _commit_left <= 0.0:
+			if _hide_spot != Vector3.INF and plan == Plan.HOLD:
+				if _arrived(_hide_spot):
+					_hide_spot = Vector3.INF
+				else:
+					var hide := _path_velocity(_hide_spot, move_speed * jog_speed)
+					_face(hide, delta, 4.0)
+					return hide
+			if _held_for > (ROUTE_WAIT if _route_blocked else HOLD_GIVE_UP) and _commit_left <= 0.0:
 				_commit_left = COMMIT_TIME   # (boxed in too long: it goes anyway, see HOLD_GIVE_UP)
 				_plan_wait = 0.0
 			if _plan_wait <= 0.0:
@@ -766,6 +940,10 @@ func _go_to(spot: Vector3, container: Node3D) -> void:
 func _next_destination(away_from := Vector3.INF) -> void:
 	if not AINav.ready(self):
 		_set_plan(Plan.HOLD, RETRY_WAIT)
+		return
+	if not _route_picked:
+		_pick_route()
+	if not route.is_empty() and _route_next():
 		return
 	var others := _others_at()
 	if _exit_retry <= 0.0 and wants_to_leave():
@@ -962,6 +1140,14 @@ func _check_break_off() -> void:
 		if foe._target == self and foe._can_see and _flat(foe.global_position - global_position).length() < NO_BREAK_NEAR:
 			return   # (cornered: one this close has it in sight, so it fights; it looks again in a moment)
 	if threat >= BREAK_THREAT or health.current < health.max_health * BREAK_HURT:
+		# (0.39.29) Every foe far off (a sniper on a roof): running across the open in its sight is what killed them;
+		# it gets into cover from them instead and waits there.
+		if state == State.ENGAGE and _cover_phase == Cover.NONE and foes.all(func(f: Scav) -> bool:
+				return _flat(f.global_position - global_position).length() > BREAK_FAR):
+			_hide_from_unseen()
+			if _cover_phase != Cover.NONE:
+				_break_cooldown = BREAK_COOLDOWN
+				return
 		_break_off(foes)
 
 
@@ -1124,6 +1310,8 @@ func _alert(known_pos: Vector3, reaction := -1.0) -> void:
 		_flee_from.clear()
 		_break_cooldown = BREAK_COOLDOWN
 		_set_plan(Plan.HOLD, 0.3)
+	if state in [State.IDLE, State.INVESTIGATE, State.SEARCH]:
+		_fight_at = global_position
 	super(known_pos, reaction)
 
 
@@ -1142,6 +1330,8 @@ func _quiet_enough_to_heal() -> bool:
 
 ## Hit: a hit that isn't another AI's is a player's (the new fight rules step aside for PLAYER_MEMORY s).
 func _on_damaged(amount: int, source_position: Vector3) -> void:
+	if _hit_by != null and is_instance_valid(_hit_by) and _flat(_hit_by.global_position - global_position).length() > BREAK_FAR:
+		_hit_far_left = 1.5   # (0.39.29: shot from far off by an AI, a sniper on a roof: into cover, not trading shots)
 	if _hit_by == null:
 		_since_player_hit = 0.0
 		_suppressed_left = SUPPRESS_TIME
@@ -1304,6 +1494,9 @@ func _keep_apart() -> void:
 		return
 	if _ear_left > 0.0 and state != State.IDLE:
 		return   # (0.39.21: hunting a player it heard beats keeping away from other AI)
+	if not route.is_empty():
+		_route_keep_apart()
+		return
 	var others := _others_at()
 	var threat := _nearest_threat(others)
 	_flee_wait_left -= CHECK_EVERY
