@@ -7,6 +7,35 @@ updates went out as 0.7.12-0.7.15 and were renumbered afterwards (owner). 0.11 =
 (owner's name: code cleanup, then the map turned into a war zone: craters, wrecks, blown-out buildings, trenches, hills). Update names (owner asked, 2026-10-11): 0.12 Hot Zone (Scavs 2.0), 0.13 Over the Top
 (Movement), 0.14 Spoils of War (Items), 0.15 the Guns update, 0.16 the Economy update, 0.17 the World art update (built on a branch, released all at once as 0.18.0), 0.19 the Look update, 0.20 the Sound update (owner: only ADD sounds, today's stay as they are), 0.21 the Hideout update (the walkable hideout), 0.22 World Reacts (things that look solid are solid; lamps, bushes, curtains and cans react), 0.23 jointed characters (name to come from the owner), 0.24 the new-player tutorial (built on a branch while 0.23 is open), 0.25 **Checkpoint** (the security update: anti-cheat and server checks), 0.26 Keybinds (rebinding in OPTIONS), 0.27 Durability (wear and trader repairs), 0.29 the Engine update (Godot 4.7), 0.31 the Stash update (PvE and PvP stashes, accounts; `docs/STASH_UPDATE_PLAN.md`), 0.32 Crafting (the workbench, `scripts/crafting.gd`), 0.34 the Lively hideout update (0.33 is held by the Riptide map branch), 0.37 Characters (`scripts/characters.gd`). -->
 
+## 0.39.34 (No AI in your face as you load in)
+The owner (2026-11-24): "I've had multiple raids where a player is loading in and dies before they can even move to
+an AI."
+- At raid start, no AI now starts within `min_distance_from_player` of where a player will spawn (40 m on Frontlines
+  and Riptide) or anywhere that start can see. A visible spawn point is no longer a fallback while the start guard
+  is on, so a scav can't be placed in a loading player's view just because no hidden spot was left.
+- The start guard now stays on past its first 60 seconds while someone in the raid is still loading in (no body
+  yet), up to 2 minutes, so a slow first load is covered too. Offline nothing changes: the player is there from the
+  start.
+- Snipers held back from a perch that looks down on a start come in once the guard is over. Bosses are held back
+  only if their room can be seen from a start; they still start in their lairs as before.
+- AI PMCs (bots) still use player spawn points as before: no AI combat behavior, map or bot-placement changes.
+- Search: the web build's sitemap now lists the privacy page (https://bloxov.com/privacy/) as well as the game.
+- Smoke test: a visible spawn point is never used while a player loads in; one behind cover is; the guard ends
+  after the start.
+
+## 0.39.33 (Your secure pocket comes home as you left it)
+The owner's play tester (2026-11-23): "I have things in my secure container; when I replace those items in raid with
+valuables and die, they get replaced with what I had in them before loading in. I replaced 2 energy drinks in raid
+with 2 diamond rings and I died but I lost diamond rings and energy drinks stays."
+- Online, dying, leaving or going MIA now saves the secure pocket as it was at the end of the raid, not as it came
+  in. The server checks it against what it counted you carrying, so nothing appears from nowhere.
+- Extracting is unchanged: you keep everything you came out with.
+- If the game can't send its last word (a crash or a lost connection), the pocket you came in with comes home, as
+  before.
+- Quest items still never survive a death.
+- Smoke test: 2 energy drinks swapped for 2 diamond rings in the secure pocket survive a death; with no last word,
+  the drinks come home.
+
 ## 0.39.32 (Frontlines loads faster)
 The owner (2026-11-23): "It seems like frontlines takes forever to load but not riptide?" Measured in a web build
 (tools/map_load_probe.gd natively; a probe autoload in a throwaway web export): Frontlines simply has far more to set

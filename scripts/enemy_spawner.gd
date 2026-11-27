@@ -1,7 +1,8 @@
 class_name EnemySpawner
 extends Node3D
 ## Spawns a limited number of enemies per raid, spread over the raid, at child Marker3D points
-## away from (and out of sight of) every player.
+## away from (and out of sight of) every player. At the raid start it is stricter: nothing comes in near or in
+## sight of a player's start (see START_GUARD), so a player still loading in can't be shot before they can move.
 ## Scavs: a few at the start, then one every scav_interval seconds until the budget runs out.
 ## Raiders (the tougher AI faction): arrive at set times (later in the raid = late-raid pressure). Dead enemies don't come back.
 
@@ -59,15 +60,24 @@ extends Node3D
 ## Where the raid's players start (0.38.10, owner: online a sniper scav and a zone's scavs shot players before they could
 ## move). The server makes its AI before any player is in the raid world, so it never knew where they'd stand:
 ## RaidWorld sets this before the AI comes in (offline the player is already there). These spots count as players
-## for the first START_GUARD seconds: no AI starts near one or where it can be seen from one, and snipers take
-## perches that don't look down on one.
+## for the first START_GUARD seconds: no AI starts near one (min_distance_from_player) or where one can see it, and
+## snipers take perches that don't look down on one. (0.39.34) The guard stays on past that while someone in the
+## raid is still loading in (no body yet), so a slow first load isn't the one raid the old 60 s didn't cover.
 var player_starts: Array[Vector3] = []
 const START_GUARD := 60.0
+## The start guard never runs longer than this, even if a player never reports in (a crashed or closed game).
+const START_GUARD_MAX := 120.0
 ## Spawned so far this raid.
 var scavs_spawned := 0
 var raiders_spawned := 0
 var _elapsed := 0.0
 var _next_scav := 0.0
+## Bosses held back because their room could be seen from a start (spawned once the guard is over).
+var _pending_bosses: Array[Dictionary] = []
+## When to try the snipers held back at the start again.
+var _next_sniper_try := 0.0
+## Perches a sniper is already on (a held-back sniper never takes a used one).
+var _used_perches: Array[Marker3D] = []
 ## With zones: how many of raider_times have come up.
 var _raider_wave := 0
 var snipers_spawned := 0
@@ -98,21 +108,24 @@ func _ready() -> void:
 		_spawn.call_deferred(enemy_scene)
 
 
-## Puts the snipers on their perches: random ones, but not where a player is already in its sights.
+## Puts the snipers on their perches: random ones, but not where a player is already in its sights. During the start
+## guard a perch that looks down on a player's start waits (a player still loading in can't move out of its sights).
 func _spawn_snipers() -> void:
 	var players := RaidScope.nodes(self, &"player")
+	var guard := _start_guard_on()
 	var perches: Array[Marker3D] = []
 	var watched: Array[Marker3D] = []
 	for child in get_children():
-		if child is Marker3D and child.get_meta("perch", false):
+		if child is Marker3D and child.get_meta("perch", false) and not _used_perches.has(child):
 			if _perch_sees_player(child as Marker3D, players):
 				watched.append(child as Marker3D)
 			else:
 				perches.append(child as Marker3D)
 	perches.shuffle()
-	watched.shuffle()
-	perches.append_array(watched)
-	for perch in perches.slice(0, snipers):
+	if not guard:
+		watched.shuffle()
+		perches.append_array(watched)
+	for perch in perches.slice(0, snipers - snipers_spawned):
 		var sniper := sniper_scene.instantiate() as Scav
 		get_parent().add_child(sniper)
 		sniper.global_position = perch.global_position
@@ -121,6 +134,10 @@ func _spawn_snipers() -> void:
 		sniper.home_center = perch.global_position
 		sniper.home_radius = perch_radius
 		snipers_spawned += 1
+		_used_perches.append(perch)
+	if snipers_spawned < snipers:
+		# (0.39.34: try again once the guard is over; no perch left at all means never)
+		_next_sniper_try = maxf(_next_sniper_try, START_GUARD) if guard else INF
 
 
 func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
@@ -138,9 +155,33 @@ func _perch_sees_player(perch: Marker3D, players: Array[Node]) -> bool:
 	return false
 
 
-## The players' start spots while they still count (START_GUARD).
+## The players' start spots while they still count: START_GUARD, or longer while someone is still loading in.
 func _starts() -> Array[Vector3]:
-	return player_starts.duplicate() if _elapsed < START_GUARD else [] as Array[Vector3]
+	var out: Array[Vector3] = []
+	if _start_guard_on():
+		out.assign(player_starts)
+	return out
+
+
+## Is the start guard still on? For START_GUARD seconds, and past that until every player has a body in the raid
+## (online a player still loading in has none), never longer than START_GUARD_MAX.
+func _start_guard_on() -> bool:
+	if player_starts.is_empty():
+		return false
+	if _elapsed < START_GUARD:
+		return true
+	if _elapsed >= START_GUARD_MAX:
+		return false
+	return _loading_players()
+
+
+## True while someone in this raid has a start spot but no body yet (their game is still loading in). Offline the
+## real player is here from the start, so no one is loading.
+func _loading_players() -> bool:
+	var bodies := RaidScope.nodes(self, &"player")
+	if not bodies.is_empty() and bodies.all(func(p: Node) -> bool: return not bool(p.get("proxy"))):
+		return false
+	return bodies.size() < player_starts.size()
 
 
 ## The boss and its guards, at a spot in its zone: inside its building if the map has start spots for it (markers
@@ -164,6 +205,19 @@ func _spawn_boss(b: Dictionary = {}) -> void:
 				spots.append(child as Marker3D)
 	if zone.is_empty() or spots.is_empty() or boss_scene == null:
 		return
+	var players := RaidScope.nodes(self, &"player")
+	if _start_guard_on():
+		var safe: Array[Marker3D] = []
+		for marker in spots:
+			# (hidden from every start: a boss can be close by in its own room, but not in a loading player's sight)
+			if not _seen_from_any(marker.global_position, players):
+				safe.append(marker)
+		if safe.is_empty():
+			# (0.39.34: its room can be seen from where someone starts; it comes in once the guard is over)
+			if not _pending_bosses.has(b):
+				_pending_bosses.append(b)
+			return
+		spots = safe
 	var spot := spots.pick_random().global_position as Vector3
 	# (0.33.4: a map's boss can be its own scene, "scene": Riptide's Raijin)
 	var scene := load(String(b["scene"])) as PackedScene if b.has("scene") else boss_scene
@@ -183,7 +237,10 @@ func _spawn_boss(b: Dictionary = {}) -> void:
 		get_parent().add_child(guard)
 		var offset := GUARD_OFFSETS[i] if i < GUARD_OFFSETS.size() else Vector3(randf_range(-4, 4), 0, randf_range(2, 5))
 		guard.follow_offset = offset
-		guard.global_position = clear_spot_near(spot, offset)
+		var guard_pos := clear_spot_near(spot, offset)
+		if _start_guard_on() and _seen_from_any(guard_pos, players):
+			guard_pos = the_boss.global_position
+		guard.global_position = guard_pos
 		guard.follow(the_boss)
 		guard.home_center = the_boss.home_center
 		guard.home_radius = the_boss.home_radius
@@ -215,6 +272,16 @@ func _physics_process(delta: float) -> void:
 ## Advances the raid clock by `delta` seconds and spawns whatever is due (the smoke test calls this directly).
 func tick(delta: float) -> void:
 	_elapsed += delta
+	# (0.39.34: snipers and bosses held back at the start come in once the guard is over)
+	if not _start_guard_on():
+		if snipers_spawned < snipers and _elapsed >= _next_sniper_try:
+			_spawn_snipers()
+			_next_sniper_try = _elapsed + 10.0
+		if not _pending_bosses.is_empty():
+			var waiting := _pending_bosses.duplicate()
+			_pending_bosses.clear()
+			for b: Dictionary in waiting:
+				_spawn_boss(b)
 	# (AI PMCs, 0.36.2, aren't the spawner's: they never take a scav's or Raider's place)
 	if RaidScope.nodes(self, &"enemies").filter(func(e: Node) -> bool: return not e.get("loner")).size() >= max_alive:
 		return
@@ -224,6 +291,8 @@ func tick(delta: float) -> void:
 		elif scavs_spawned < scav_budget and _elapsed >= _next_scav:
 			if _spawn(enemy_scene):
 				_next_scav = _elapsed + randf_range(scav_interval_min, scav_interval_max)
+			elif _start_guard_on():
+				_next_scav = _elapsed + 5.0   # (no safe spot yet: look again shortly, not every frame)
 		return
 	# With zones, later arrivals go to a zone picked by its "trickle" weight (mostly the hot zones).
 	if _raider_wave < raider_times.size() and raiders_spawned < raider_budget and _elapsed >= raider_times[_raider_wave]:
@@ -232,6 +301,8 @@ func tick(delta: float) -> void:
 	elif scavs_spawned < scav_budget and _elapsed >= _next_scav:
 		if _spawn(enemy_scene, _trickle_zone("scavs")):
 			_next_scav = _elapsed + randf_range(scav_interval_min, scav_interval_max)
+		elif _start_guard_on():
+			_next_scav = _elapsed + 5.0
 
 
 ## A zone for a later arrival, picked by "trickle" weight among zones that start with that kind of AI.
@@ -378,39 +449,65 @@ func clear_spot_near(origin: Vector3, offset: Vector3) -> Vector3:
 
 
 ## The spawn points far enough from every player, preferring ones no player can see. With AI PMCs in the raid
-## (`bots`, 0.36.5): only points at least BOT_CLEAR from every living bot and out of its sight.
+## (`bots`, 0.36.5): only points at least BOT_CLEAR from every living bot and out of its sight. During the start
+## guard only points no player's start can see, and none near one: a visible point is never a fallback then.
 func _usable_points(markers: Array, players: Array[Node], bots: Array[Node] = []) -> Array[Marker3D]:
 	var far: Array[Marker3D] = []
 	var hidden: Array[Marker3D] = []
+	var guard := _start_guard_on()
 	for marker: Marker3D in markers:
-		if _far_from_players(marker, players) and (bots.is_empty() or _clear_of_bots(marker, bots)):
-			far.append(marker)
-			if not _seen_by_players(marker, players):
+		if not bots.is_empty() and not _clear_of_bots(marker, bots):
+			continue
+		if guard:
+			if _start_safe(marker.global_position, players):
+				far.append(marker)
 				hidden.append(marker)
+			continue
+		if not _far_from_players(marker, players):
+			continue
+		far.append(marker)
+		if not _seen_by_players(marker, players):
+			hidden.append(marker)
 	return hidden if not hidden.is_empty() else far
 
 
+## During the start guard: no AI starts near a player's start (min_distance_from_player) and none where one can see it.
+func _start_safe(pos: Vector3, players: Array[Node]) -> bool:
+	for spot in _starts():
+		if pos.distance_to(spot) < min_distance_from_player:
+			return false
+	return _far_from(pos, players) and not _seen_from_any(pos, players)
+
+
 func _far_from_players(marker: Marker3D, players: Array[Node]) -> bool:
+	return _far_from(marker.global_position, players)
+
+
+func _far_from(pos: Vector3, players: Array[Node]) -> bool:
 	for player in players:
-		if player is Node3D and marker.global_position.distance_to((player as Node3D).global_position) < min_distance_from_player:
+		if player is Node3D and pos.distance_to((player as Node3D).global_position) < min_distance_from_player:
 			return false
 	for spot in _starts():
-		if marker.global_position.distance_to(spot) < min_distance_from_player:
+		if pos.distance_to(spot) < min_distance_from_player:
 			return false
 	return true
 
 
 func _seen_by_players(marker: Marker3D, players: Array[Node]) -> bool:
+	return _seen_from_any(marker.global_position, players)
+
+
+func _seen_from_any(pos: Vector3, players: Array[Node]) -> bool:
 	var space := get_world_3d().direct_space_state
 	for player in players:
 		if not player is Player:
 			continue
 		var eyes := (player as Player).camera.global_position
-		var query := PhysicsRayQueryParameters3D.create(eyes, marker.global_position + Vector3(0, 1.4, 0), 1)
+		var query := PhysicsRayQueryParameters3D.create(eyes, pos + Vector3(0, 1.4, 0), 1)
 		if space.intersect_ray(query).is_empty():
 			return true
 	for spot in _starts():
-		var query := PhysicsRayQueryParameters3D.create(spot + Vector3(0, 1.6, 0), marker.global_position + Vector3(0, 1.4, 0), 1)
+		var query := PhysicsRayQueryParameters3D.create(spot + Vector3(0, 1.6, 0), pos + Vector3(0, 1.4, 0), 1)
 		if space.intersect_ray(query).is_empty():
 			return true
 	return false

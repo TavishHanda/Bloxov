@@ -5106,6 +5106,32 @@ func _section_pvp_accounts() -> void:
 	a.account("sign_in", {"username": "alpha_2", "password": "long password 2"})
 	await _until(func() -> bool: return said[a][-1][0] == "sign_in")
 	_check(not a.signed_in() and last.call(a)[2].get("error") == "deleted", "a deleted account can't play (until it's cancelled)")
+	# The secure pocket comes home as it was at the end of the raid, not as it came in (0.39.33, owner's play
+	# tester: 2 energy drinks swapped for 2 diamond rings came back as the drinks).
+	var b_record: Dictionary = server.accounts.by_peer[b_id]
+	b_record["profile"]["loadout"]["secure"] = [{"id": "energy_drink", "count": 1, "x": 0, "y": 0},
+		{"id": "energy_drink", "count": 1, "x": 1, "y": 0}]
+	var kit: Dictionary = server.accounts.raid_starting(b_id, 9901)
+	server._carried[b_id] = OnlineProfile.count(kit)
+	# (in the raid the drinks went and two diamond rings came in; the server counted the rings as carried)
+	server._carried[b_id].erase("energy_drink")
+	server._carried[b_id]["diamond_ring"] = 2
+	server.accounts.raid_over(b_id, "killed")
+	b.send_final_kit({"equipment": {}, "pockets": [], "backpack": [], "hotbar": ["", "", "", ""],
+		"secure": [{"id": "diamond_ring", "count": 1, "x": 0, "y": 0}, {"id": "diamond_ring", "count": 1, "x": 1, "y": 0}]})
+	await _until(func() -> bool: return OnlineProfile.count(b_record["profile"]["loadout"]).get("diamond_ring", 0) == 2)
+	var kept: Dictionary = OnlineProfile.count(b_record["profile"]["loadout"])
+	_check(kept.get("diamond_ring", 0) == 2 and kept.get("energy_drink", 0) == 0 and b_record["raid"]["state"] == "idle",
+		"dying online keeps the secure pocket as it was at the end (%s)" % kept)
+	# No last word (a crash, a lost connection): the pocket they came in with comes home.
+	b_record["profile"]["loadout"]["secure"] = [{"id": "bandage", "count": 1, "x": 0, "y": 0}]
+	var kit2: Dictionary = server.accounts.raid_starting(b_id, 9902)
+	server._carried[b_id] = OnlineProfile.count(kit2)
+	server.accounts.raid_over(b_id, "killed")
+	server.accounts.tick(server._now() + 10.0)
+	var fallback: Dictionary = OnlineProfile.count(b_record["profile"]["loadout"])
+	_check(fallback.get("bandage", 0) == 1 and b_record["raid"]["state"] == "idle",
+		"a death with no last word keeps the secure pocket they came in with")
 	fake.down = true
 	a.account("sign_in", {"username": "alpha_1", "password": "long password 1"})
 	await _until(func() -> bool: return said[a].size() >= 2 and said[a][-1][2].get("error") == "unavailable")
@@ -9957,9 +9983,12 @@ func _section_spawn_budget() -> void:
 	crowded.queue_free()
 	await _frames(2)
 	# 0.38.10 (owner: online, AI shot players before they could move): the server makes its AI before any player is in
-	# the raid world, so it's told where the squads start; no AI starts near one, and none after the start guard ends
-	# is kept off that spot any more (the real players count then).
+	# the raid world, so it's told where the squads start; no AI starts near one or in its sight, and none after the
+	# start guard ends is kept off that spot any more (the real players count then).
 	var start := player.global_position + Vector3(-90, 0, -90)
+	# (0.39.34: a spot a start can see is never used at the start, so the far one has cover between it and the start)
+	var wall := _block(start + Vector3(-35, 1.5, -35), Vector3(30, 3, 30))
+	await physics_frame   # (the wall must be in the physics world before the spawner looks through it)
 	var guarded := EnemySpawner.new()
 	guarded.enemy_scene = load(SCAV_SCENE)
 	guarded.set_physics_process(false)
@@ -9974,13 +10003,29 @@ func _section_spawn_budget() -> void:
 	var near_start := get_nodes_in_group("enemies").filter(func(e: Node) -> bool:
 		return Vector2((e as Node3D).global_position.x - start.x, (e as Node3D).global_position.z - start.z).length() < guarded.min_distance_from_player)
 	_check(guarded.scavs_spawned >= 1 and near_start.is_empty(),
-		"no AI starts beside where a player will spawn (%d spawned, %d near the start)" % [guarded.scavs_spawned, near_start.size()])
+		"no AI starts beside where a player will spawn, and none where they can see it (%d spawned, %d near the start)" % [guarded.scavs_spawned, near_start.size()])
+	# A spot in the open waits: with no cover it isn't used while a player is still loading in.
+	var open := EnemySpawner.new()
+	open.enemy_scene = load(SCAV_SCENE)
+	open.set_physics_process(false)
+	open.initial_count = 1
+	open.player_starts = [start]
+	var open_marker := Marker3D.new()
+	open_marker.position = start + Vector3(0, 0, 200)   # (well past the map: nothing to hide behind)
+	open.add_child(open_marker)
+	player.remove_from_group("player")   # (only the start counts here)
+	main.add_child(open)
+	await _frames(2)
+	_check(open.scavs_spawned == 0, "a spawn point a player's start can see is not used while they load in")
+	open.queue_free()
+	player.add_to_group("player")
 	guarded._elapsed = EnemySpawner.START_GUARD + 1.0
 	_check(guarded._starts().is_empty(), "the start spots stop counting once the start is over")
 	for enemy in get_nodes_in_group("enemies"):
 		enemy.remove_from_group("enemies")
 		enemy.queue_free()
 	guarded.queue_free()
+	wall.queue_free()
 	await _frames(2)
 	# 0.12.31 (owner: a Raider's partner spawned stuck in a roof): a partner/guard spot that would be inside
 	# something moves to a clear spot next to the leader instead.
